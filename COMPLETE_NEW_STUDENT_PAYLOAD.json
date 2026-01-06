@@ -1,0 +1,181 @@
+{
+  "first_name": "Alex",
+  "last_name": "Johnson",
+  "dob": "1998-03-15",
+  "gender": "female",
+  "nationality": "Indian",
+  "student_type": "international",
+  "status": "active",
+  "contact_details": {
+    "primary_mobile": "+919876543210",
+    "email": "alex.johnson@student.edu",
+    "emergency_contact": "+919876543211",
+    "contact_type": "mobile",
+    "is_primary": true
+  },
+  "visa_details": {
+    "visa_type": "F1",
+    "visa_number": "F123456789",
+    "start_date": "2024-08-01",
+    "expiry_date": "2026-08-01",
+    "status": "active",
+    "issuing_country": "USA"
+  },
+  "addresses": [
+    {
+      "line1": "456 College Street",
+      "city": "Boston",
+      "state": "MA",
+      "country": "USA",
+      "postal_code": "02116",
+      "address_type": "current",
+      "is_primary": true
+    },
+    {
+      "line1": "789 Mumbai Street",
+      "city": "Mumbai",
+      "state": "MH",
+      "country": "India",
+      "postal_code": "400001",
+      "address_type": "permanent",
+      "is_primary": false
+    }
+  ],
+  "eligibility_status": {
+    "classes_completed": true,
+    "fees_paid": true,
+    "assignments_submitted": true,
+    "documents_submitted": true,
+    "trainer_consent": true,
+    "override_requested": false,
+    "requested_by": null,
+    "reason": null,
+    "comments": "All academic requirements completed",
+    "overall_status": "eligible"
+  },
+  "student_lifestyle": {
+    "currently_working": false,
+    "working_hours": null,
+    "has_dependents": false,
+    "married": false,
+    "driving_license": true,
+    "own_vehicle": false,
+    "public_transport_only": true,
+    "can_travel_long_distance": true,
+    "drop_support_available": false,
+    "fully_flexible": true,
+    "rush_placement_required": false,
+    "preferred_days": "Monday,Tuesday,Wednesday,Thursday,Friday",
+    "preferred_time_slots": "9:00 AM - 6:00 PM",
+    "additional_notes": "Open to both on-site and remote opportunities"
+  },
+  "placement_preferences": {
+    "preferred_states": "MA,NY,CA,TX",
+    "preferred_cities": "Boston,New York,San Francisco,Austin",
+    "max_travel_distance_km": 60,
+    "morning_only": false,
+    "evening_only": false,
+    "night_shift": false,
+    "weekend_only": false,
+    "part_time": false,
+    "full_time": true,
+    "with_friend": false,
+    "friend_name_or_id": null,
+    "with_spouse": false,
+    "spouse_name_or_id": null,
+    "earliest_start_date": "2024-09-01",
+    "latest_start_date": "2025-01-01",
+    "specific_month_preference": "October 2024",
+    "urgency_level": "within_quarter",
+    "additional_preferences": "Interested in software development roles, preferably in tech companies"
+  },
+  "facility_records": [
+    {
+      "facility_name": "Microsoft Corporation",
+      "facility_type": "Technology",
+      "branch_site": "Boston Office",
+      "facility_address": "123 Technology Way, Boston, MA 02114",
+      "contact_person_name": "Sarah Wilson",
+      "contact_email": "sarah.wilson@microsoft.com",
+      "contact_phone": "+1555123001",
+      "supervisor_name": "John Smith",
+      "distance_from_student_km": 12,
+      "slot_id": "MS2024001",
+      "course_type": "Software Engineering",
+      "shift_timing": "Day Shift",
+      "start_date": "2024-10-01",
+      "duration_hours": 160,
+      "gender_requirement": "any",
+      "applied_on": "2024-08-15",
+      "student_confirmed": true,
+      "student_comments": "Very interested in this opportunity at Microsoft",
+      "document_type": "Resume",
+      "file_path": "/documents/alex_johnson_resume.pdf",
+      "application_status": "confirmed"
+    },
+    {
+      "facility_name": "Amazon",
+      "facility_type": "E-commerce",
+      "branch_site": "Cambridge Office",
+      "facility_address": "456 Innovation Drive, Cambridge, MA 02138",
+      "contact_person_name": "HR Team",
+      "contact_email": "careers@amazon.com",
+      "contact_phone": "+1555123002",
+      "supervisor_name": "Lisa Brown",
+      "distance_from_student_km": 18,
+      "slot_id": "AMZ2024002",
+      "course_type": "Cloud Computing",
+      "shift_timing": "Flexible",
+      "start_date": "2024-11-01",
+      "duration_hours": 140,
+      "gender_requirement": "any",
+      "applied_on": "2024-08-20",
+      "student_confirmed": false,
+      "student_comments": "Looking forward to hearing back",
+      "document_type": "Cover Letter",
+      "file_path": "/documents/alex_johnson_cover_letter.pdf",
+      "application_status": "under_review"
+    }
+  ],
+  "address_change_requests": [
+    {
+      "current_address": "456 College Street, Boston, MA 02116",
+      "new_address": "789 Technology Park, Cambridge, MA 02139",
+      "effective_date": "2024-10-01",
+      "change_reason": "Moving closer to internship location",
+      "impact_acknowledged": true,
+      "status": "pending",
+      "reviewed_at": null,
+      "reviewed_by": null,
+      "review_comments": null
+    }
+  ],
+  "job_status_updates": [
+    {
+      "status": "Actively Searching",
+      "last_updated_on": "2024-08-25",
+      "employer_name": null,
+      "job_role": null,
+      "start_date": null,
+      "employment_type": null,
+      "offer_letter_path": null,
+      "actively_applying": true,
+      "expected_timeline": "Within 3 months",
+      "searching_comments": "Actively applying to software development positions in tech companies",
+      "created_at": "2024-08-25T09:00:00Z"
+    },
+    {
+      "status": "Interview Scheduled",
+      "last_updated_on": "2024-08-30",
+      "employer_name": "Microsoft Corporation",
+      "job_role": "Software Engineer Intern",
+      "start_date": "2024-10-01",
+      "employment_type": "Full-time",
+      "offer_letter_path": null,
+      "actively_applying": true,
+      "expected_timeline": "Interview scheduled for next week",
+      "searching_comments": "Technical interview scheduled with Microsoft hiring team",
+      "created_at": "2024-08-30T14:30:00Z"
+    }
+  ]
+}
