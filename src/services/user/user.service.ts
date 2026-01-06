@@ -29,6 +29,18 @@ const create = async (params: ICreateUser) => {
     // Get role ID using centralized RoleService
     const roleId = await RoleService.getRoleIdByName(params.userRole || 'user');
     
+    // Validate studentID usage
+    if (params.studentID) {
+      if (roleId !== 6) {
+        throw new Error('studentID can only be provided for Student role users');
+      }
+    }
+    
+    // If creating a student user, studentID is required
+    if (roleId === 6 && !params.studentID) {
+      throw new Error('studentID is required when creating a Student role user');
+    }
+    
     // Hash the password before storing
     const hashedPassword = await PasswordUtility.hashPassword(params.password);
     
@@ -36,11 +48,13 @@ const create = async (params: ICreateUser) => {
     user.loginID = params.loginID;
     user.password = hashedPassword;
     user.roleID = roleId;
+    user.studentID = params.studentID || null;
     user.status = params.status || 'active';
     
     console.log('📝 Creating user with data:', {
       loginID: user.loginID,
       roleID: user.roleID,
+      studentID: user.studentID,
       status: user.status,
       passwordHashed: true
     });
@@ -66,6 +80,7 @@ export interface ICreateUser {
   loginID: string;
   password: string;
   userRole?: string;
+  studentID?: number;
   status?: string;
 }
 
@@ -75,6 +90,7 @@ export interface IUpdateUser {
   loginID?: string;
   password?: string;
   userRole?: string;
+  studentID?: number;
   status?: string;
 }
 
@@ -158,7 +174,21 @@ const update = async (params: IUpdateUser) => {
 
   // If userRole is provided, convert to roleID using RoleService
   if (params.userRole) {
-    updateData.roleID = await RoleService.getRoleIdByName(params.userRole);
+    const newRoleId = await RoleService.getRoleIdByName(params.userRole);
+    updateData.roleID = newRoleId;
+    
+    // Validate studentID when changing role
+    if (newRoleId !== 6 && user.studentID) {
+      throw new StringError('Cannot change role from Student to another role when studentID is set');
+    }
+  }
+
+  // Validate studentID changes
+  if (params.studentID !== undefined) {
+    const roleIdToCheck = updateData.roleID || user.roleID;
+    if (params.studentID && roleIdToCheck !== 6) {
+      throw new StringError('studentID can only be set for Student role users');
+    }
   }
 
   await getRepository(User).update(query, updateData);

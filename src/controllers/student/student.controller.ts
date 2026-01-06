@@ -5,7 +5,6 @@ import BaseController from '../base.controller';
 
 // Services
 import StudentService from '../../services/student/student.service';
-import StudentRelatedService from '../../services/student/student-related.service';
 
 // Utilities
 import ApiResponseUtility from '../../utilities/api-response.utility';
@@ -39,17 +38,11 @@ export default class StudentController extends BaseController {
         password: req.body.password
       };
 
-      // Create student (service handles user creation in transaction)
+      // Create student with user account in a single transaction
       const student = await StudentService.create(studentData);
 
-      // Create all related entities
-      await StudentRelatedService.createAllRelatedEntities(student.student_id, req.body);
-
-      // Fetch complete student data
-      const completeStudent = await StudentService.getById({ id: student.student_id });
-
       console.log('🎉 Student created successfully!');
-      ApiResponseUtility.createdSuccess(res, completeStudent, 'Student created successfully');
+      ApiResponseUtility.createdSuccess(res, student, 'Student created successfully');
     }, 'Student creation failed');
   }
 

@@ -6,7 +6,9 @@ import {
   CreateDateColumn, 
   UpdateDateColumn,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
+  BeforeInsert,
+  BeforeUpdate
 } from 'typeorm';
 import { BaseEntity } from '../base/base.entity';
 import PasswordUtility from '../../utilities/password.utility';
@@ -51,6 +53,14 @@ export class User extends BaseEntity {
   })
   roleID: number;
 
+  @Column({ 
+    type: 'int',
+    nullable: true,
+    name: 'studentID',
+    comment: 'Foreign key to students table (for student users)'
+  })
+  studentID: number;
+
   @Column({
     type: 'varchar',
     length: 20,
@@ -69,6 +79,23 @@ export class User extends BaseEntity {
     default: false
   })
   isDeleted: boolean;
+
+  // Validation hooks
+  @BeforeInsert()
+  @BeforeUpdate()
+  validateStudentID() {
+    // If studentID is provided, ensure the user has Student role (roleID = 6)
+    if (this.studentID !== null && this.studentID !== undefined) {
+      if (this.roleID !== 6) {
+        throw new Error('studentID can only be set for users with Student role (roleID = 6)');
+      }
+    }
+    
+    // If user is a student (roleID = 6), studentID should be provided
+    if (this.roleID === 6 && !this.studentID) {
+      throw new Error('Student role users must have a studentID');
+    }
+  }
 
   // Helper methods
   isActive(): boolean {

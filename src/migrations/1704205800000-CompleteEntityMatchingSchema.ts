@@ -31,6 +31,7 @@ export class CompleteEntityMatchingSchema1704205800000 implements MigrationInter
         \`loginID\` varchar(100) NOT NULL,
         \`password\` varchar(255) NOT NULL,
         \`roleID\` int NOT NULL,
+        \`studentID\` int NULL,
         \`status\` varchar(20) NOT NULL DEFAULT 'active',
         \`isDeleted\` tinyint NOT NULL DEFAULT 0,
         \`createdAt\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,6 +39,7 @@ export class CompleteEntityMatchingSchema1704205800000 implements MigrationInter
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`IDX_users_loginID\` (\`loginID\`),
         INDEX \`IDX_users_roleID\` (\`roleID\`),
+        INDEX \`IDX_users_studentID\` (\`studentID\`),
         INDEX \`IDX_users_status\` (\`status\`),
         INDEX \`IDX_users_isdeleted\` (\`isDeleted\`),
         CONSTRAINT \`FK_users_role\` FOREIGN KEY (\`roleID\`) REFERENCES \`roles\`(\`role_id\`) ON DELETE RESTRICT

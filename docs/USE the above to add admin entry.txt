@@ -1,0 +1,5 @@
+USE the above to add admin entry
+
+INSERT INTO users (loginID, password, roleID, status, createdAt, updatedAt)
+VALUES ('admin@test.com', '$2b$10$t4w5UWCXb3ICKj3zn8bbsuysDIUSJJthHvokHqi4UvJDcL8zOMsaO', 1, 'active', NOW(), NOW());
+

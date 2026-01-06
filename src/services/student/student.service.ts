@@ -55,11 +55,13 @@ const create = async (params: ICreateStudent) => {
         user.loginID = params.email;
         user.password = hashedPassword;
         user.roleID = roleId;
+        user.studentID = studentData.student_id;
         user.status = 'active';
 
         await queryRunner.manager.save(User, user);
         console.log('✅ User account created successfully');
         console.log('📋 Password encrypted and stored securely');
+        console.log('🔗 Student ID linked to user account');
 
       } catch (userError) {
         console.error('❌ Failed to create user account:', userError.message);
