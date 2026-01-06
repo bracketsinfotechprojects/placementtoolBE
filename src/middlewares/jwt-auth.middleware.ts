@@ -33,16 +33,21 @@ export const jwtAuth = (req: IRequest, res: Response, next: NextFunction) => {
 
     // Verify token
     try {
-      const decoded = JwtUtility.verifyToken(token);
+      const decoded = JwtUtility.verifyAccessToken(token);
       
       // Attach decoded token to request object
       req.user = decoded;
       
-      console.log('✅ JWT token verified for user:', decoded.loginID);
+      console.log('✅ Access token verified for user:', decoded.loginID);
       next();
-    } catch (error) {
+    } catch (error: any) {
       console.log('❌ Token verification failed:', error.message);
-      return ApiResponseUtility.unauthorized(res, 'Invalid or expired token');
+      
+      // Send specific error for expired tokens
+      if (error.message === 'TOKEN_EXPIRED') {
+        return ApiResponseUtility.unauthorized(res, 'Token expired. Please refresh your token.');
+      }
+      return ApiResponseUtility.unauthorized(res, 'Invalid or expired access token');
     }
   } catch (error) {
     console.error('❌ Authentication middleware error:', error.message);
@@ -62,10 +67,10 @@ export const jwtAuthOptional = (req: IRequest, res: Response, next: NextFunction
       const parts = authHeader.split(' ');
       if (parts.length === 2 && parts[0] === 'Bearer') {
         try {
-          const decoded = JwtUtility.verifyToken(parts[1]);
+          const decoded = JwtUtility.verifyAccessToken(parts[1]);
           req.user = decoded;
-          console.log('✅ JWT token verified for user:', decoded.loginID);
-        } catch (error) {
+          console.log('✅ Access token verified for user:', decoded.loginID);
+        } catch (error: any) {
           console.log('⚠️ Token verification failed, continuing without auth:', error.message);
         }
       }

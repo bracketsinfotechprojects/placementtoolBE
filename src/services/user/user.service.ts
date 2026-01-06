@@ -3,6 +3,9 @@ import { getRepository } from 'typeorm';
 // Entities
 import { User } from '../../entities/user/user.entity';
 
+// Services
+import RoleService from '../role/role.service';
+
 // Utilities
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
@@ -23,16 +26,16 @@ const create = async (params: ICreateUser) => {
       throw new Error('loginID and password are required');
     }
     
-    // Get role ID for the specified role name
-    const roleId = await getRoleIdByName(params.userRole || 'user');
+    // Get role ID using centralized RoleService
+    const roleId = await RoleService.getRoleIdByName(params.userRole || 'user');
     
-    // Hash the password before storing (no validation, accept any password)
+    // Hash the password before storing
     const hashedPassword = await PasswordUtility.hashPassword(params.password);
     
     const user = new User();
     user.loginID = params.loginID;
-    user.password = hashedPassword; // Store hashed password
-    user.roleID = roleId; // Set roleID instead of userRole
+    user.password = hashedPassword;
+    user.roleID = roleId;
     user.status = params.status || 'active';
     
     console.log('📝 Creating user with data:', {
@@ -50,33 +53,13 @@ const create = async (params: ICreateUser) => {
     console.error('❌ Error creating user:', {
       loginID: params.loginID,
       userRole: params.userRole,
-      error: error.message,
-      stack: error.stack
+      error: error.message
     });
     throw error;
   }
 };
 
-// Helper function to get role ID by role name
-const getRoleIdByName = async (roleName: string): Promise<number> => {
-  const queryRunner = getRepository(User).manager.connection.createQueryRunner();
-  await queryRunner.connect();
-  
-  try {
-    const roles = await queryRunner.query(
-      'SELECT role_id FROM roles WHERE role_name = ?',
-      [roleName]
-    );
-    
-    if (!roles || roles.length === 0) {
-      throw new Error(`Role '${roleName}' not found in database`);
-    }
-    
-    return roles[0].role_id;
-  } finally {
-    await queryRunner.release();
-  }
-};
+// Helper function removed - now using RoleService
 
 // User creation interface
 export interface ICreateUser {
@@ -170,13 +153,12 @@ const update = async (params: IUpdateUser) => {
 
   // Hash password if provided
   if (params.password) {
-    // Hash password (no validation, accept any password)
     updateData.password = await PasswordUtility.hashPassword(params.password);
   }
 
-  // If userRole is provided, convert to roleID
+  // If userRole is provided, convert to roleID using RoleService
   if (params.userRole) {
-    updateData.roleID = await getRoleIdByName(params.userRole);
+    updateData.roleID = await RoleService.getRoleIdByName(params.userRole);
   }
 
   await getRepository(User).update(query, updateData);
@@ -202,7 +184,7 @@ const list = async (params: IUserQueryParams) => {
 
   // Filter by user role
   if (params.userRole) {
-    const roleId = await getRoleIdByName(params.userRole);
+    const roleId = await RoleService.getRoleIdByName(params.userRole);
     userRepo = userRepo.andWhere('user.roleID = :roleId', { roleId });
   }
 

@@ -7,7 +7,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /auth/login:
+ * /api/auth/login:
  *   post:
  *     summary: User login
  *     description: Authenticate user with email and password, returns JWT token
@@ -59,7 +59,7 @@ router.post('/login', AuthController.login);
 
 /**
  * @swagger
- * /auth/verify:
+ * /api/auth/verify:
  *   post:
  *     summary: Verify JWT token
  *     description: Verify if JWT token is valid
@@ -93,7 +93,7 @@ router.post('/verify', AuthController.verifyToken);
 
 /**
  * @swagger
- * /auth/refresh:
+ * /api/auth/refresh:
  *   post:
  *     summary: Refresh JWT token
  *     description: Get a new JWT token using current token
@@ -123,7 +123,7 @@ router.post('/refresh', AuthController.refreshToken);
 
 /**
  * @swagger
- * /auth/logout:
+ * /api/auth/logout:
  *   post:
  *     summary: User logout
  *     description: Logout user (remove token on client side)

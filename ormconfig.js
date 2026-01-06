@@ -5,7 +5,7 @@ module.exports = {
   host: process.env.DB_HOST || 'localhost',
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'Atul@2626',
-  database: process.env.DB_NAME || 'testCRM',
+  database: process.env.DB_NAME || 'testcrm',
   port: process.env.DB_PORT || 3306,
   charset: 'utf8mb4',
   driver: require('mysql2'),
@@ -22,6 +22,5 @@ module.exports = {
   cli: {
     migrationsDir: 'src/migrations'
   },
-  connectTimeout: 30000,
-  acquireTimeout: 30000
+  connectTimeout: 30000
 };

@@ -1,7 +1,69 @@
+# Dependencies
 node_modules/
-.idea/*
-*.log
-migration/
+yarn.lock
+
+# Build output
 dist/
-coverage/*
+coverage/
+
+# Environment files
 .env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+combined.log
+error.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+test-*.js
+test-*.json
+test-*.sh
+*-test.js
+*.test.js
+*.spec.js
+
+# Temporary/Debug files
+temp/
+tmp/
+*.tmp
+debug*.js
+diagnose*.js
+check-*.js
+verify-*.js
+fix-*.js
+
+# Migration scripts (keep in migrations folder only)
+add-*.js
+clear-*.js
+delete-*.sql
+truncate-*
+sync-*.js
+migrate-*.js
+setup-*.js
+
+# Documentation drafts
+*_DRAFT.md
+*_OLD.md
+*_BACKUP.md
+LEGACY_*.md
+
+# SQL dumps and test data
+*.dump
+*.backup
+clear-*.sql
+delete-*.sql
+test-*.sql

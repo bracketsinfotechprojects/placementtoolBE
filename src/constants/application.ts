@@ -1,4 +1,4 @@
-const basePath = '/';
+const basePath = '/api';
 
 export default {
   url: {
@@ -11,8 +11,8 @@ export default {
     authSecret: process.env.TOKEN_SECRET_KEY || 'test',
   },
   authorizationIgnorePath: [
-    '/',
-    '/auth/login',
-    '/auth/register',
+    '/api',
+    '/api/auth/login',
+    '/api/auth/register',
   ],
 };

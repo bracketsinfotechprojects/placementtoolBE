@@ -9,12 +9,13 @@ import userSchema from '../../validations/schemas/user.schema';
 
 // Middleware
 import { isAdmin } from '../../middlewares/permission-handler.middleware';
+import { validateUserRole } from '../../middlewares/role-validator.middleware';
 
 const router = express.Router();
 
 /**
  * @swagger
- * /user:
+ * /api/user:
  *   post:
  *     summary: Create new user
  *     description: Create a new user account (Admin only)
@@ -50,12 +51,13 @@ router.post(
   '/',
   isAdmin(),
   schemaValidator(userSchema.createUser),
+  validateUserRole, // Dynamic role validation from database
   userController.create,
 );
 
 /**
  * @swagger
- * /user:
+ * /api/user:
  *   get:
  *     summary: List all users
  *     description: Get paginated list of users with filtering
@@ -92,7 +94,7 @@ router.get(
 
 /**
  * @swagger
- * /user/{id}:
+ * /api/user/{id}:
  *   get:
  *     summary: Get user by ID
  *     description: Retrieve specific user information
@@ -119,7 +121,7 @@ router.get(
 
 /**
  * @swagger
- * /user/{id}:
+ * /api/user/{id}:
  *   put:
  *     summary: Update user
  *     description: Update user information (Admin only)
@@ -156,12 +158,13 @@ router.put(
   '/:id',
   isAdmin(),
   schemaValidator(userSchema.updateUser),
+  validateUserRole, // Dynamic role validation from database
   userController.update,
 );
 
 /**
  * @swagger
- * /user/{id}:
+ * /api/user/{id}:
  *   delete:
  *     summary: Delete user
  *     description: Soft delete user (mark as inactive)

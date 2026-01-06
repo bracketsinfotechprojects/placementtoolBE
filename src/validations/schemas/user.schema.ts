@@ -25,7 +25,8 @@ export default {
     body: {
       loginID: joi.string().required(),
       password: joi.string().min(8).max(128).required(),
-      userRole: joi.string().valid('admin', 'user', 'student').optional(),
+      userRole: joi.string().optional(), // No hardcoded roles - validated by middleware
+      roleID: joi.number().integer().min(1).optional(), // No max limit - validated by middleware
       status: joi.string().valid('active', 'inactive').optional().default('active')
     }
   },
@@ -33,7 +34,8 @@ export default {
     body: {
       loginID: joi.string().optional(),
       password: joi.string().min(8).max(128).optional(),
-      userRole: joi.string().valid('admin', 'user', 'student').optional(),
+      userRole: joi.string().optional(), // No hardcoded roles - validated by middleware
+      roleID: joi.number().integer().min(1).optional(), // No max limit - validated by middleware
       status: joi.string().valid('active', 'inactive').optional()
     }
   }

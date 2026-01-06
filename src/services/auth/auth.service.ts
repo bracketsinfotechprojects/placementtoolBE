@@ -29,7 +29,8 @@ export interface ILoginResponse {
     roleID: number;
     status: string;
   };
-  token: string;
+  accessToken: string;
+  refreshToken: string;
   expiresIn: number;
   tokenType: string;
 }
@@ -51,7 +52,7 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
 
     // Find user by loginID
     const user = await getRepository(User).findOne({
-      where: { loginID }
+      where: { loginID, isDeleted: false }
     });
 
     if (!user) {
@@ -72,9 +73,10 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
       throw new StringError('Invalid email or password');
     }
 
-    // Generate JWT token
+    // Generate JWT tokens
     const tokenPayload = JwtUtility.createLoginPayload(user.id, user.loginID, user.roleID);
-    const token = JwtUtility.generateToken(tokenPayload);
+    const accessToken = JwtUtility.generateAccessToken(tokenPayload);
+    const refreshToken = JwtUtility.generateRefreshToken(tokenPayload);
 
     console.log('✅ Login successful for user:', loginID);
 
@@ -86,8 +88,9 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
         roleID: user.roleID,
         status: user.status
       },
-      token: token,
-      expiresIn: JwtUtility.getTokenExpirySeconds(),
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: JwtUtility.getAccessTokenExpirySeconds(),
       tokenType: 'Bearer'
     };
 
@@ -126,27 +129,37 @@ const verifyToken = async (token: string): Promise<any> => {
 };
 
 /**
- * Refresh JWT token
- * @param token - Current JWT token
- * @returns New JWT token
+ * Refresh JWT access token using refresh token
+ * @param refreshToken - Current refresh token
+ * @returns New access token
  */
-const refreshToken = async (token: string): Promise<string> => {
+const refreshToken = async (refreshToken: string): Promise<{ accessToken: string; expiresIn: number }> => {
   try {
-    console.log('🔄 Refreshing JWT token...');
+    console.log('🔄 Refreshing access token...');
 
-    // Verify current token
-    const decoded = await verifyToken(token);
+    if (!refreshToken) {
+      throw new StringError('Refresh token is required');
+    }
 
-    // Generate new token with same payload
-    const newToken = JwtUtility.generateToken({
+    // Remove 'Bearer ' prefix if present
+    const cleanToken = refreshToken.startsWith('Bearer ') ? refreshToken.slice(7) : refreshToken;
+
+    // Verify refresh token
+    const decoded = JwtUtility.verifyRefreshToken(cleanToken);
+
+    // Generate new access token with same payload
+    const newAccessToken = JwtUtility.generateAccessToken({
       id: decoded.id,
       loginID: decoded.loginID,
       roleID: decoded.roleID,
       type: 'login'
     });
 
-    console.log('✅ Token refreshed successfully');
-    return newToken;
+    console.log('✅ Access token refreshed successfully');
+    return {
+      accessToken: newAccessToken,
+      expiresIn: JwtUtility.getAccessTokenExpirySeconds()
+    };
   } catch (error) {
     console.error('❌ Token refresh failed:', error.message);
     throw error;

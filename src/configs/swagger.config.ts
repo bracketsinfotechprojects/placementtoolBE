@@ -14,11 +14,11 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api',
+        url: 'http://localhost:5000',
         description: 'Development Server'
       },
       {
-        url: 'https://api.placementtool.com/api',
+        url: 'https://api.placementtool.com',
         description: 'Production Server'
       }
     ],
@@ -95,7 +95,7 @@ const options = {
       }
     ]
   },
-  apis: ['./src/routes/**/*.ts', './src/controllers/**/*.ts']
+  apis: ['./dist/routes/**/*.js']
 };
 
 const swaggerSpec = swaggerJsdoc(options);

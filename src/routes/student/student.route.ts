@@ -5,7 +5,7 @@ const router = Router();
 
 /**
  * @swagger
- * /students:
+ * /api/students:
  *   post:
  *     summary: Create new student
  *     description: Create a new student with all details
@@ -49,7 +49,7 @@ router.post('/', StudentController.create);
 
 /**
  * @swagger
- * /students:
+ * /api/students:
  *   get:
  *     summary: List students
  *     description: Get paginated list of students with filtering
@@ -78,7 +78,7 @@ router.get('/', StudentController.list);
 
 /**
  * @swagger
- * /students/stats:
+ * /api/students/stats:
  *   get:
  *     summary: Get student statistics
  *     description: Get statistics about students
@@ -94,7 +94,7 @@ router.get('/stats', StudentController.getStatistics);
 
 /**
  * @swagger
- * /students/advanced-search:
+ * /api/students/advanced-search:
  *   get:
  *     summary: Advanced search students
  *     description: Search students with advanced filters
@@ -119,7 +119,7 @@ router.get('/advanced-search', StudentController.advancedSearch);
 
 /**
  * @swagger
- * /students/bulk-update-status:
+ * /api/students/bulk-update-status:
  *   post:
  *     summary: Bulk update student status
  *     description: Update status for multiple students
@@ -148,7 +148,7 @@ router.post('/bulk-update-status', StudentController.bulkUpdateStatus);
 
 /**
  * @swagger
- * /students/{id}:
+ * /api/students/{id}:
  *   get:
  *     summary: Get student details
  *     description: Retrieve specific student information
@@ -172,7 +172,7 @@ router.get('/:id', StudentController.detail);
 
 /**
  * @swagger
- * /students/{id}:
+ * /api/students/{id}:
  *   put:
  *     summary: Update student
  *     description: Update student information
@@ -200,7 +200,7 @@ router.put('/:id', StudentController.update);
 
 /**
  * @swagger
- * /students/{id}:
+ * /api/students/{id}:
  *   delete:
  *     summary: Delete student
  *     description: Soft delete student (mark as inactive)
@@ -222,7 +222,7 @@ router.delete('/:id', StudentController.delete);
 
 /**
  * @swagger
- * /students/{id}/permanent:
+ * /api/students/{id}/permanent:
  *   delete:
  *     summary: Permanently delete student
  *     description: Permanently delete student and all related data

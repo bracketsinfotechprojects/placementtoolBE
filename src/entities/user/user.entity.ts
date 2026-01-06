@@ -61,6 +61,15 @@ export class User extends BaseEntity {
   })
   status: string;
 
+  @Column({
+    type: 'boolean',
+    nullable: false,
+    name: 'isDeleted',
+    comment: 'Soft delete flag',
+    default: false
+  })
+  isDeleted: boolean;
+
   // Helper methods
   isActive(): boolean {
     return this.status === 'active';

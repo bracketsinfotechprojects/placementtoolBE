@@ -66,23 +66,23 @@ export default class AuthController {
     }
 
     /**
-     * Refresh JWT token endpoint
+     * Refresh JWT access token endpoint
      * POST /api/auth/refresh
      */
     static async refreshToken(req: Request, res: Response) {
         try {
-            const token = req.headers.authorization?.split(' ')[1];
+            const refreshToken = req.headers.authorization?.split(' ')[1];
 
-            if (!token) {
-                ApiResponseUtility.badRequest(res, 'Token is required');
+            if (!refreshToken) {
+                ApiResponseUtility.badRequest(res, 'Refresh token is required');
                 return;
             }
 
             // Refresh token
-            const newToken = await AuthService.refreshToken(token);
+            const result = await AuthService.refreshToken(refreshToken);
 
             // Return success response
-            ApiResponseUtility.success(res, { token: newToken }, 'Token refreshed successfully');
+            ApiResponseUtility.success(res, result, 'Access token refreshed successfully');
         } catch (error) {
             if (error instanceof StringError) {
                 ApiResponseUtility.unauthorized(res, error.message);

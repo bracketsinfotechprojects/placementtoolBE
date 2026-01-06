@@ -6,11 +6,12 @@ import { ContactDetails } from '../../entities/student/contact-details.entity';
 import { User } from '../../entities/user/user.entity';
 
 // Services
-import UserService from '../user/user.service';
+import RoleService from '../role/role.service';
 
 // Utilities
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
+import TransactionUtility from '../../utilities/transaction.utility';
 
 // Interfaces
 import { IDeleteById, IDetailById } from '../../interfaces/common.interface';
@@ -22,13 +23,9 @@ const baseWhere = { isDeleted: false };
 
 // Create Student
 const create = async (params: ICreateStudent) => {
-  const queryRunner = getRepository(Student).manager.connection.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
-  
-  try {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
     console.log('🚀 Starting student creation with transaction...');
-    
+
     // Step 1: Create student record
     const student = new Student();
     student.first_name = params.first_name;
@@ -38,90 +35,41 @@ const create = async (params: ICreateStudent) => {
     student.nationality = params.nationality;
     student.student_type = params.student_type || 'domestic';
     student.status = params.status || 'active';
-    
+
     const studentData = await queryRunner.manager.save(Student, student);
     console.log('✅ Student record created with ID:', studentData.student_id);
-    
-    let userResult = null;
-    
-    // Step 2: If email is provided, create user account with role assignment
+
+    // Step 2: If email is provided, create user account
     if (params.email) {
       try {
         console.log('🔧 Attempting to create user account for email:', params.email);
-        
-        // Check if password is provided
+
         if (!params.password) {
           throw new Error('Password is required for user account creation');
         }
-        
-        // Hash the password (no validation, accept any password)
+
         const hashedPassword = await PasswordUtility.hashPassword(params.password);
-        
-        const userData = {
-          loginID: params.email,
-          password: hashedPassword,
-          userRole: 'student',
-          status: 'active'
-        };
-        
-        console.log('📝 User data to create:', {
-          loginID: userData.loginID,
-          userRole: userData.userRole,
-          status: userData.status,
-          passwordHashed: true
-        });
-        
-        // Create user within the same transaction
+        const roleId = await RoleService.getRoleIdByName('student');
+
         const user = new User();
-        user.loginID = userData.loginID;
-        user.password = userData.password; // Store hashed password
-        user.status = userData.status;
-        
-        // Get Student role ID within transaction
-        const roles = await queryRunner.query(
-          'SELECT role_id FROM roles WHERE role_name = ?',
-          [userData.userRole]
-        );
-        
-        if (!roles || roles.length === 0) {
-          throw new Error(`Role '${userData.userRole}' not found in database`);
-        }
-        
-        user.roleID = roles[0].role_id;
-        
-        userResult = await queryRunner.manager.save(User, user);
-        console.log('✅ User account created successfully with ID:', userResult.id);
+        user.loginID = params.email;
+        user.password = hashedPassword;
+        user.roleID = roleId;
+        user.status = 'active';
+
+        await queryRunner.manager.save(User, user);
+        console.log('✅ User account created successfully');
         console.log('📋 Password encrypted and stored securely');
-        
+
       } catch (userError) {
-        console.error('❌ Failed to create user account for student:', {
-          email: params.email,
-          error: userError.message,
-          stack: userError.stack
-        });
-        
-        // Re-throw to trigger transaction rollback
+        console.error('❌ Failed to create user account:', userError.message);
         throw new Error(`Failed to create user account: ${userError.message}`);
       }
-    } else {
-      console.log('⚠️ No email provided in student creation, skipping user account creation');
     }
-    
-    // Commit transaction
-    await queryRunner.commitTransaction();
+
     console.log('🎉 Student creation transaction committed successfully!');
-    
     return ApiUtility.sanitizeStudent(studentData);
-    
-  } catch (error) {
-    // Rollback transaction on any failure
-    await queryRunner.rollbackTransaction();
-    console.error('❌ Student creation failed, transaction rolled back:', error.message);
-    throw error;
-  } finally {
-    // Always release query runner
-    await queryRunner.release();
-  }
+  });
 };
 
 // Student creation interface
@@ -412,7 +360,7 @@ const getAllDetails = async (params: IDetailById) => {
       where: { student_id: params.id, isDeleted: false },
       relations: [
         'contact_details',
-        'visa_details', 
+        'visa_details',
         'addresses',
         'eligibility_status',
         'student_lifestyle',
@@ -422,42 +370,35 @@ const getAllDetails = async (params: IDetailById) => {
         'job_status_updates'
       ]
     });
-    
+
     if (!student) {
       throw new StringError('Student does not exist');
     }
 
-    // Sanitize student data (remove isDeleted)
     const sanitizedStudent = ApiUtility.sanitizeStudent(student);
 
-    // Get associated user account information if student has email
+    // Get associated user account information
     let userDetails = null;
     if (student.contact_details && student.contact_details.length > 0) {
       const primaryEmail = student.contact_details.find(cd => cd.email)?.email;
       if (primaryEmail) {
         try {
-          // Find user by loginID (email) - exclude password from selection
           const user = await getRepository(User).findOne({
             where: { loginID: primaryEmail },
-            select: ['id', 'loginID', 'roleID', 'status', 'createdAt', 'updatedAt'] // Explicitly exclude password
+            select: ['id', 'loginID', 'roleID', 'status', 'createdAt', 'updatedAt']
           });
-          
+
           if (user) {
-            // Get role name from roleID
-            const roles = await getRepository(User).manager.connection.query(
-              'SELECT role_name FROM roles WHERE role_id = ?',
-              [user.roleID]
-            );
-            
+            const roleName = await RoleService.getRoleNameById(user.roleID);
+
             userDetails = {
               id: user.id,
               loginID: user.loginID,
               roleID: user.roleID,
-              roleName: roles && roles.length > 0 ? roles[0].role_name : null,
+              roleName: roleName,
               status: user.status,
               createdAt: user.createdAt,
               updatedAt: user.updatedAt
-              // Password intentionally excluded for security
             };
           }
         } catch (userError) {
@@ -466,13 +407,10 @@ const getAllDetails = async (params: IDetailById) => {
       }
     }
 
-    // Combine all data
-    const result = {
+    return {
       ...sanitizedStudent,
       user_account: userDetails
     };
-
-    return result;
   } catch (error) {
     if (error instanceof StringError) {
       throw error;
@@ -526,15 +464,15 @@ const list = async (params: IStudentQueryParams) => {
 
   // Filter by student type
   if (params.student_type) {
-    studentRepo = studentRepo.andWhere('student.student_type = :student_type', { 
-      student_type: params.student_type 
+    studentRepo = studentRepo.andWhere('student.student_type = :student_type', {
+      student_type: params.student_type
     });
   }
 
   // Filter by nationality
   if (params.nationality) {
-    studentRepo = studentRepo.andWhere('student.nationality = :nationality', { 
-      nationality: params.nationality 
+    studentRepo = studentRepo.andWhere('student.nationality = :nationality', {
+      nationality: params.nationality
     });
   }
 
@@ -667,7 +605,7 @@ const advancedSearch = async (params: IAdvancedSearchParams) => {
 // Get student statistics
 const getStatistics = async () => {
   const studentRepo = getRepository(Student);
-  
+
   const [
     totalStudents,
     activeStudents,
@@ -692,42 +630,46 @@ const getStatistics = async () => {
   };
 };
 
-// Helper function to assign user to role
-const assignUserToRole = async (userId: number, roleName: string) => {
-  try {
-    // Use query runner to execute raw SQL
-    const queryRunner = getRepository(User).manager.connection.createQueryRunner();
-    await queryRunner.connect();
-    
-    try {
-      // Get the role ID using raw SQL
-      const roles = await queryRunner.query(
-        'SELECT role_id FROM roles WHERE role_name = ?',
-        [roleName]
-      );
-      
-      if (!roles || roles.length === 0) {
-        throw new Error(`Role '${roleName}' not found in database`);
-      }
-      
-      const roleId = roles[0].role_id;
-      
-      // Update user with roleID directly
-      await queryRunner.query(
-        'UPDATE users SET roleID = ? WHERE id = ?',
-        [roleId, userId]
-      );
-      
-      console.log(`✅ User ${userId} assigned to role ${roleName} (${roleId})`);
-      
-    } finally {
-      await queryRunner.release();
-    }
-    
-  } catch (error) {
-    console.error(`❌ Failed to assign user ${userId} to role ${roleName}:`, error);
-    throw error;
+// Get student with user account details
+const getWithUserDetails = async (studentId: number) => {
+  const student = await getById({ id: studentId });
+  if (!student) {
+    throw new StringError('Student not found');
   }
+
+  let userDetails = null;
+  if (student.contact_details && student.contact_details.length > 0) {
+    const primaryEmail = student.contact_details.find(cd => cd.email)?.email;
+    if (primaryEmail) {
+      try {
+        const user = await getRepository(User).findOne({
+          where: { loginID: primaryEmail },
+          select: ['id', 'loginID', 'roleID', 'status', 'createdAt', 'updatedAt']
+        });
+
+        if (user) {
+          const roleName = await RoleService.getRoleNameById(user.roleID);
+
+          userDetails = {
+            id: user.id,
+            loginID: user.loginID,
+            roleID: user.roleID,
+            roleName: roleName,
+            status: user.status,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          };
+        }
+      } catch (userError) {
+        console.log('⚠️ Could not fetch user details:', userError.message);
+      }
+    }
+  }
+
+  return {
+    ...student,
+    user_account: userDetails
+  };
 };
 
 export default {
@@ -741,5 +683,6 @@ export default {
   bulkUpdateStatus,
   getStatistics,
   advancedSearch,
-  getAllDetails
+  getAllDetails,
+  getWithUserDetails
 };
