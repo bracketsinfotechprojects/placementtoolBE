@@ -61,6 +61,23 @@ setup-*.js
 *_BACKUP.md
 LEGACY_*.md
 
+# Implementation documentation (generated)
+*_IMPLEMENTATION.md
+*_ENHANCEMENT.md
+*_FIX.md
+*_SUMMARY.md
+*_GUIDE.md
+*_REFERENCE.md
+ENUM_*.md
+URGENCY_*.md
+COMPLETE_*.md
+FINAL_*.md
+QUICK_*.md
+STUDENTID_*.md
+REFACTORING_*.md
+TRANSACTION_*.md
+*.md
+
 # SQL dumps and test data
 *.dump
 *.backup

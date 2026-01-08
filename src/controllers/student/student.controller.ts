@@ -23,8 +23,8 @@ export default class StudentController extends BaseController {
   // Create a new student with all details
   static async create(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      // Extract email from contact details
-      const email = req.body.contact_details?.email;
+      // Extract email from root level or contact details
+      const email = req.body.email || req.body.contact_details?.email;
 
       const studentData: ICreateStudent = {
         first_name: req.body.first_name,
@@ -35,13 +35,24 @@ export default class StudentController extends BaseController {
         student_type: req.body.student_type || 'domestic',
         status: req.body.status || 'active',
         email: email,
-        password: req.body.password
+        password: req.body.password,
+        
+        // Pass all related entities
+        contact_details: req.body.contact_details,
+        visa_details: req.body.visa_details,
+        addresses: req.body.addresses,
+        eligibility_status: req.body.eligibility_status,
+        student_lifestyle: req.body.student_lifestyle,
+        placement_preferences: req.body.placement_preferences,
+        facility_records: req.body.facility_records,
+        address_change_requests: req.body.address_change_requests,
+        job_status_updates: req.body.job_status_updates
       };
 
-      // Create student with user account in a single transaction
+      // Create student with all related entities in a single transaction
       const student = await StudentService.create(studentData);
 
-      console.log('🎉 Student created successfully!');
+      console.log('🎉 Student created successfully with all related data!');
       ApiResponseUtility.createdSuccess(res, student, 'Student created successfully');
     }, 'Student creation failed');
   }

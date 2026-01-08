@@ -1,0 +1,53 @@
+{
+  "info": {
+    "_postman_id": "d7dce99c-652c-4ce2-b6be-1fa5b9287053",
+    "name": "CRM",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "http://localhost:5000/api/students",
+      "id": "7e7ea747-6e6d-4cf8-8798-e1bc8747d439",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibG9naW5JRCI6ImFkbWluQHRlc3QuY29tIiwicm9sZUlEIjoxLCJpYXQiOjE3Njc3MDg1ODYsInR5cGUiOiJsb2dpbiIsImV4cCI6MTc2NzcwOTQ4Nn0.uojmkKC3OtB4vXU0KA8pZ1W2ZW_jMj41vyhR-8tzhNw",
+            "uuid": "6125847f-a564-46f4-ab5c-151f1c559b7a"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "uuid": "d63e608b-98a5-4090-a64a-f0055efaf43a"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Sneha\",\n  \"last_name\": \"Patil\",\n  \"dob\": \"2000-03-15\",\n  \"gender\": \"female\",\n  \"nationality\": \"Indian\",\n  \"student_type\": \"international\",\n  \"status\": \"active\",\n  \"email\": \"sneha.patil@example.com\",\n  \"password\": \"StrongPass789\",\n  \"contact_details\": {\n    \"primary_mobile\": \"+91-9876543210\",\n    \"email\": \"sneha.patil@example.com\",\n    \"emergency_contact\": \"+91-9876543211\",\n    \"contact_type\": \"mobile\",\n    \"is_primary\": true,\n    \"verified_at\": \"2026-01-06T12:30:00.000Z\"\n  },\n  \"visa_details\": {\n    \"visa_type\": \"Work Permit\",\n    \"visa_number\": \"WP123456789\",\n    \"start_date\": \"2025-09-01\",\n    \"expiry_date\": \"2027-09-01\",\n    \"status\": \"active\",\n    \"issuing_country\": \"Canada\",\n    \"document_path\": \"/documents/work_permit.pdf\"\n  },\n  \"addresses\": [\n    {\n      \"line1\": \"22 Tech Valley\",\n      \"city\": \"Bangalore\",\n      \"state\": \"Karnataka\",\n      \"country\": \"India\",\n      \"postal_code\": \"560001\",\n      \"address_type\": \"current\",\n      \"is_primary\": true\n    },\n    {\n      \"line1\": \"14 Green Park\",\n      \"city\": \"Nagpur\",\n      \"state\": \"Maharashtra\",\n      \"country\": \"India\",\n      \"postal_code\": \"440001\",\n      \"address_type\": \"permanent\",\n      \"is_primary\": false\n    }\n  ],\n  \"eligibility_status\": {\n    \"classes_completed\": true,\n    \"fees_paid\": false,\n    \"assignments_submitted\": true,\n    \"documents_submitted\": true,\n    \"trainer_consent\": false,\n    \"override_requested\": true,\n    \"requested_by\": \"Admin\",\n    \"reason\": \"Pending fee clearance\",\n    \"comments\": \"Awaiting payment confirmation\",\n    \"overall_status\": \"eligible\"\n  },\n  \"student_lifestyle\": {\n    \"currently_working\": false,\n    \"working_hours\": \"0\",\n    \"has_dependents\": true,\n    \"married\": true,\n    \"driving_license\": false,\n    \"own_vehicle\": true,\n    \"public_transport_only\": false,\n    \"can_travel_long_distance\": false,\n    \"drop_support_available\": true,\n    \"fully_flexible\": true,\n    \"rush_placement_required\": false,\n    \"preferred_days\": \"Monday to Friday\",\n    \"preferred_time_slots\": \"9 AM to 5 PM\",\n    \"additional_notes\": \"Prefers remote work opportunities\"\n  },\n  \"placement_preferences\": {\n    \"preferred_states\": \"Karnataka, Telangana\",\n    \"preferred_cities\": \"Bangalore, Hyderabad\",\n    \"max_travel_distance_km\": 15,\n    \"morning_only\": true,\n    \"evening_only\": false,\n    \"night_shift\": false,\n    \"weekend_only\": false,\n    \"part_time\": false,\n    \"full_time\": true,\n    \"with_friend\": false,\n    \"friend_name_or_id\": \"\",\n    \"with_spouse\": true,\n    \"spouse_name_or_id\": \"STU456\",\n    \"earliest_start_date\": \"2026-03-01\",\n    \"latest_start_date\": \"2026-05-01\",\n    \"specific_month_preference\": \"April 2026\",\n    \"urgency_level\": \"moderate\",\n    \"additional_preferences\": \"Interested in frontend development roles\"\n  },\n  \"facility_records\": [\n    {\n      \"facility_name\": \"SkillUp Institute\",\n      \"facility_type\": \"Training Center\",\n      \"branch_site\": \"Bangalore\",\n      \"facility_address\": \"88 Learning Lane, Bangalore\",\n      \"contact_person_name\": \"Dr. Meera\",\n      \"contact_email\": \"meera@skillup.com\",\n      \"contact_phone\": \"+91-9876543212\",\n      \"supervisor_name\": \"Mr. Arjun\",\n      \"distance_from_student_km\": 5,\n      \"slot_id\": \"SLOT005\",\n      \"course_type\": \"Frontend Development\",\n      \"shift_timing\": \"9 AM - 5 PM\",\n      \"start_date\": \"2026-02-01\",\n      \"duration_hours\": 100,\n      \"gender_requirement\": \"Any\",\n      \"applied_on\": \"2026-01-06\",\n      \"student_confirmed\": false,\n      \"student_comments\": \"Waiting for confirmation\",\n      \"document_type\": \"Offer Letter\",\n      \"file_path\": \"/documents/offer_letter.pdf\",\n      \"application_status\": \"pending\"\n    }\n  ],\n  \"address_change_requests\": [\n    {\n      \"current_address\": \"22 Tech Valley, Bangalore\",\n      \"new_address\": \"55 Innovation Park, Bangalore\",\n      \"effective_date\": \"2026-03-10\",\n      \"change_reason\": \"Closer to spouse’s workplace\",\n      \"impact_acknowledged\": true,\n      \"status\": \"approved\",\n      \"reviewed_at\": \"2026-01-10\",\n      \"reviewed_by\": \"Coordinator\",\n      \"review_comments\": \"Approved for relocation\"\n    }\n  ],\n  \"job_status_updates\": [\n    {\n      \"status\": \"offer_received\",\n      \"last_updated_on\": \"2026-01-06\",\n      \"employer_name\": \"NextGen Solutions\",\n      \"job_role\": \"Frontend Developer\",\n      \"start_date\": \"2026-03-15\",\n      \"employment_type\": \"full_time\",\n      \"offer_letter_path\": \"/documents/nextgen_offer.pdf\",\n      \"actively_applying\": false,\n      \"expected_timeline\": \"Joining in March\",\n      \"searching_comments\": \"Offer accepted\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/students",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "students"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
