@@ -36,7 +36,7 @@ export default class StudentController extends BaseController {
         status: req.body.status || 'active',
         email: email,
         password: req.body.password,
-        
+
         // Pass all related entities
         contact_details: req.body.contact_details,
         visa_details: req.body.visa_details,
@@ -204,5 +204,24 @@ export default class StudentController extends BaseController {
       const student = await StudentService.getAllDetails({ id });
       ApiResponseUtility.success(res, student, 'Student all details retrieved successfully');
     }, 'Failed to retrieve all student details');
+  }
+
+  // Get students list with specific fields
+  static async getStudentsList(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const pagination = StudentController.parsePaginationParams(req.query);
+
+      const queryParams: IStudentQueryParams = {
+        keyword: req.query.keyword as string,
+        status: req.query.status as string,
+        student_type: req.query.student_type as string,
+        sort_by: req.query.sort_by as string,
+        sort_order: req.query.sort_order as string,
+        ...pagination
+      };
+
+      const result = await StudentService.getStudentsList(queryParams);
+      ApiResponseUtility.success(res, result.response, 'Students list retrieved successfully', result.pagination);
+    }, 'Failed to retrieve students list');
   }
 }

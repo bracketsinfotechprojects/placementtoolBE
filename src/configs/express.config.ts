@@ -9,6 +9,7 @@ import indexRoute from '../routes/index.route';
 import joiErrorHandler from '../middlewares/joi-error-handler.middleware';
 import { notFoundErrorHandler, errorHandler } from '../middlewares/api-error-handler.middleware';
 import swaggerSpec from './swagger.config';
+import responseTimeMiddleware from '../middlewares/response-time.middleware';
 
 const app = express();
 
@@ -38,6 +39,9 @@ app.use(cors(corsOption));
 app.use(express.json() as any);
 
 app.use(morgan('dev') as any);
+
+// Response time tracking middleware
+app.use(responseTimeMiddleware);
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
