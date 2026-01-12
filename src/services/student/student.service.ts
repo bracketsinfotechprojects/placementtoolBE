@@ -611,6 +611,69 @@ const detail = async (params: IDetailById) => {
   return ApiUtility.sanitizeStudent(student);
 };
 
+// Get students list with specific fields: Name, Student Type, Course Completed, City, Status, Created On
+const getStudentsList = async (params: IStudentQueryParams) => {
+  const studentRepo = getRepository(Student).createQueryBuilder('student')
+    .leftJoinAndSelect('student.addresses', 'address', 'address.is_primary = :isPrimary', { isPrimary: true })
+    .leftJoinAndSelect('student.facility_records', 'facility', 'facility.application_status = :status', { status: 'completed' })
+    .where('student.isDeleted = :isDeleted', { isDeleted: false });
+
+  // Apply filters
+  if (params.status) {
+    studentRepo.andWhere('student.status = :status', { status: params.status });
+  }
+
+  if (params.student_type) {
+    studentRepo.andWhere('student.student_type = :student_type', { student_type: params.student_type });
+  }
+
+  if (params.keyword) {
+    studentRepo.andWhere(
+      '(LOWER(student.first_name) LIKE LOWER(:keyword) OR LOWER(student.last_name) LIKE LOWER(:keyword))',
+      { keyword: `%${params.keyword}%` }
+    );
+  }
+
+  // Sorting
+  const sortBy = params.sort_by || 'createdAt';
+  const sortOrder = params.sort_order === 'asc' ? 'ASC' : 'DESC';
+  studentRepo.orderBy(`student.${sortBy}`, sortOrder);
+
+  // Get total count for pagination
+  const total = await studentRepo.getCount();
+  const pagRes = ApiUtility.getPagination(total, params.limit, params.page);
+
+  // Apply pagination
+  studentRepo
+    .limit(params.limit || 10)
+    .offset(ApiUtility.getOffset(params.limit, params.page));
+
+  const students = await studentRepo.getMany();
+
+  // Format response with specific fields
+  const response = students.map(student => {
+    const primaryAddress = student.addresses && student.addresses.length > 0 
+      ? student.addresses[0] 
+      : null;
+
+    const completedCourses = student.facility_records && student.facility_records.length > 0
+      ? student.facility_records.map(f => f.course_type).filter(Boolean).join(', ')
+      : 'N/A';
+
+    return {
+      student_id: student.student_id,
+      name: `${student.first_name} ${student.last_name}`,
+      student_type: student.student_type || 'N/A',
+      course_completed: completedCourses,
+      city: primaryAddress?.city || 'N/A',
+      status: student.status,
+      created_on: student.createdAt
+    };
+  });
+
+  return { response, pagination: pagRes.pagination };
+};
+
 // Get all student details (comprehensive with relations and user account, excluding password)
 const getAllDetails = async (params: IDetailById) => {
   try {
@@ -943,5 +1006,6 @@ export default {
   getStatistics,
   advancedSearch,
   getAllDetails,
-  getWithUserDetails
+  getWithUserDetails,
+  getStudentsList
 };
