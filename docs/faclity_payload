@@ -1,0 +1,107 @@
+{
+    "organization_name": "Harmony Living Care",
+    "registered_business_name": "Harmony Living Pty Ltd",
+    "website_url": "https://harmonyliving.com.au",
+    "abn_registration_number": "98765432109",
+    "source_of_data": "Manual Entry",
+    "email": "admin@harmonyliving.com.au",
+    "password": "StrongPass456",
+    "attributes": [
+        {
+            "attribute_type": "Category",
+            "attribute_value": "Aged Care"
+        },
+        {
+            "attribute_type": "Category",
+            "attribute_value": "Community Care"
+        },
+        {
+            "attribute_type": "State",
+            "attribute_value": "VIC"
+        }
+    ],
+    "organization_structures": [
+        {
+            "deal_with": "Head Office",
+            "head_office_addr": "25 Queen Street, Melbourne VIC 3000",
+            "contact_name": "Emily Carter",
+            "designation": "Operations Director",
+            "phone": "0411222333",
+            "email": "emily.carter@harmonyliving.com.au",
+            "alternate_contact": "David Lee - 0499332211",
+            "notes": "Available Monday to Friday, 8am-6pm"
+        }
+    ],
+    "branches": [
+        {
+            "site_code": "MEL001",
+            "full_address": "12 Care Lane, Melbourne VIC 3000",
+            "suburb": "Melbourne",
+            "city": "Melbourne",
+            "state": "VIC",
+            "postcode": "3000",
+            "site_type": "Residential Aged Care Facility",
+            "palliative_care": true,
+            "dementia_care": true,
+            "num_beds": 60,
+            "gender_rules": "Mixed - Male and Female residents",
+            "contact_name": "Olivia White",
+            "contact_role": "Site Manager",
+            "contact_phone": "0398765432",
+            "contact_email": "olivia.white@harmonyliving.com.au",
+            "contact_comments": "Preferred contact: Email. Available 9am-5pm weekdays"
+        }
+    ],
+    "agreements": [
+        {
+            "sent_students": true,
+            "with_mou": true,
+            "no_mou_but_taken": false,
+            "mou_exists_no_spot": false,
+            "total_students": 20,
+            "last_placement": "2025-02-05",
+            "has_mou": true,
+            "signed_on": "2024-07-01",
+            "expiry_date": "2026-07-01",
+            "company_name": "Harmony Living Pty Ltd",
+            "payment_required": true,
+            "amount_per_spot": 600.00,
+            "payment_notes": "Payment per student per placement. Invoice quarterly.",
+            "mou_document": "/documents/mou_harmony_2024.pdf",
+            "insurance_doc": "/documents/insurance_harmony_2024.pdf"
+        }
+    ],
+    "documents_required": [
+        {
+            "document_name": "Police Check (National)",
+            "notice_period_days": 10,
+            "orientation_req": true,
+            "facilitator_req": false
+        },
+        {
+            "document_name": "Working with Children Check",
+            "notice_period_days": 5,
+            "orientation_req": true,
+            "facilitator_req": true
+        }
+    ],
+    "rules": [
+        {
+            "obligations": "Facility must provide adequate supervision and mentorship.",
+            "obligations_univ": "University must ensure students are insured for professional placements.",
+            "obligations_student": "Students must adhere to professional standards and respect residents.",
+            "process_notes": "Notify site manager 10 days prior to placement.",
+            "shift_rules": "Standard shifts: 9am-5pm. Weekend shifts optional.",
+            "attendance_policy": "Minimum 95% attendance required.",
+            "dress_code": "Smart casual. Closed-toe shoes mandatory.",
+            "behaviour_rules": "Respect confidentiality and maintain professional conduct.",
+            "special_instr": "Visitor parking available. Report to reception at 8:45am."
+        }
+    ],
+    "login": {
+        "loginID": "admin@harmonyliving.com.au",
+        "password": "newpass789",
+        "role": "Facility",
+        "status": "active"
+    }
+}

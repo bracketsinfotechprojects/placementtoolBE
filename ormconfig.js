@@ -12,10 +12,12 @@ module.exports = {
   synchronize: false,
   entities: process.env.NODE_ENV !== 'production' ? [
     'src/entities/student/*.entity.ts',
-    'src/entities/user/*.entity.ts'
+    'src/entities/user/*.entity.ts',
+    'src/entities/facility/*.entity.ts'
   ] : [
     'dist/entities/student/*.entity.js',
-    'dist/entities/user/*.entity.js'
+    'dist/entities/user/*.entity.js',
+    'dist/entities/facility/*.entity.js'
   ],
   logging: process.env.NODE_ENV !== 'production' ? 'all' : 'error',
   migrations: ['src/migrations/*.ts'],

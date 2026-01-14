@@ -86,6 +86,134 @@ const options = {
               }
             }
           }
+        },
+        Facility: {
+          type: 'object',
+          properties: {
+            facility_id: { type: 'integer' },
+            organization_name: { type: 'string' },
+            registered_business_name: { type: 'string' },
+            website_url: { type: 'string' },
+            abn_registration_number: { type: 'string' },
+            source_of_data: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        FacilityAttribute: {
+          type: 'object',
+          properties: {
+            attribute_id: { type: 'integer' },
+            facility_id: { type: 'integer' },
+            attribute_type: { type: 'string', enum: ['Category', 'State'] },
+            attribute_value: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        FacilityOrganizationStructure: {
+          type: 'object',
+          properties: {
+            org_struct_id: { type: 'integer' },
+            facility_id: { type: 'integer' },
+            deal_with: { type: 'string', enum: ['Head Office', 'Branch', 'Both'] },
+            head_office_addr: { type: 'string' },
+            contact_name: { type: 'string' },
+            designation: { type: 'string' },
+            phone: { type: 'string' },
+            email: { type: 'string' },
+            alternate_contact: { type: 'string' },
+            notes: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        FacilityBranchSite: {
+          type: 'object',
+          properties: {
+            branch_id: { type: 'integer' },
+            facility_id: { type: 'integer' },
+            site_code: { type: 'string' },
+            full_address: { type: 'string' },
+            suburb: { type: 'string' },
+            city: { type: 'string' },
+            state: { type: 'string' },
+            postcode: { type: 'string' },
+            site_type: { type: 'string' },
+            palliative_care: { type: 'boolean' },
+            dementia_care: { type: 'boolean' },
+            num_beds: { type: 'integer' },
+            gender_rules: { type: 'string' },
+            contact_name: { type: 'string' },
+            contact_role: { type: 'string' },
+            contact_phone: { type: 'string' },
+            contact_email: { type: 'string' },
+            contact_comments: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        FacilityAgreement: {
+          type: 'object',
+          properties: {
+            agreement_id: { type: 'integer' },
+            facility_id: { type: 'integer' },
+            sent_students: { type: 'boolean' },
+            with_mou: { type: 'boolean' },
+            no_mou_but_taken: { type: 'boolean' },
+            mou_exists_no_spot: { type: 'boolean' },
+            total_students: { type: 'integer' },
+            last_placement: { type: 'string', format: 'date' },
+            has_mou: { type: 'boolean' },
+            signed_on: { type: 'string', format: 'date' },
+            expiry_date: { type: 'string', format: 'date' },
+            company_name: { type: 'string' },
+            payment_required: { type: 'boolean' },
+            amount_per_spot: { type: 'number', format: 'decimal' },
+            payment_notes: { type: 'string' },
+            mou_document: { type: 'string' },
+            insurance_doc: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        FacilityDocumentRequired: {
+          type: 'object',
+          properties: {
+            doc_req_id: { type: 'integer' },
+            facility_id: { type: 'integer' },
+            document_name: { type: 'string' },
+            notice_period_days: { type: 'integer' },
+            orientation_req: { type: 'boolean' },
+            facilitator_req: { type: 'boolean' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        FacilityRule: {
+          type: 'object',
+          properties: {
+            rule_id: { type: 'integer' },
+            facility_id: { type: 'integer' },
+            obligations: { type: 'string' },
+            obligations_univ: { type: 'string' },
+            obligations_student: { type: 'string' },
+            process_notes: { type: 'string' },
+            shift_rules: { type: 'string' },
+            attendance_policy: { type: 'string' },
+            dress_code: { type: 'string' },
+            behaviour_rules: { type: 'string' },
+            special_instr: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
         }
       }
     },

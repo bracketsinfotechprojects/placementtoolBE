@@ -1,0 +1,101 @@
+{
+  "organization_name": "Sunshine Care Home",
+  "registered_business_name": "Sunshine Care Pty Ltd",
+  "website_url": "https://sunshinecare.com.au",
+  "abn_registration_number": "12345678901",
+  "source_of_data": "Manual Entry",
+  "email": "admin@sunshinecare.com.au",
+  "password": "SecurePassword123",
+  "attributes": [
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Aged Care"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Residential Care"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "NSW"
+    }
+  ],
+  "organization_structures": [
+    {
+      "deal_with": "Head Office",
+      "head_office_addr": "123 Main Street, Sydney NSW 2000",
+      "contact_name": "John Smith",
+      "designation": "General Manager",
+      "phone": "0412345678",
+      "email": "john.smith@sunshinecare.com.au",
+      "alternate_contact": "Jane Doe - 0498765432",
+      "notes": "Available Monday to Friday, 9am-5pm"
+    }
+  ],
+  "branches": [
+    {
+      "site_code": "SYD001",
+      "full_address": "456 Care Street, Sydney NSW 2000",
+      "suburb": "Sydney",
+      "city": "Sydney",
+      "state": "NSW",
+      "postcode": "2000",
+      "site_type": "Residential Aged Care Facility",
+      "palliative_care": true,
+      "dementia_care": true,
+      "num_beds": 50,
+      "gender_rules": "Mixed - Male and Female residents",
+      "contact_name": "Sarah Johnson",
+      "contact_role": "Site Manager",
+      "contact_phone": "0298765432",
+      "contact_email": "sarah.johnson@sunshinecare.com.au",
+      "contact_comments": "Preferred contact: Email. Available 8am-4pm weekdays"
+    }
+  ],
+  "agreements": [
+    {
+      "sent_students": true,
+      "with_mou": true,
+      "no_mou_but_taken": false,
+      "mou_exists_no_spot": false,
+      "total_students": 15,
+      "last_placement": "2025-01-10",
+      "has_mou": true,
+      "signed_on": "2024-06-15",
+      "expiry_date": "2026-06-15",
+      "company_name": "Sunshine Care Pty Ltd",
+      "payment_required": true,
+      "amount_per_spot": 500.00,
+      "payment_notes": "Payment per student per placement. Invoice monthly.",
+      "mou_document": "/documents/mou_sunshine_2024.pdf",
+      "insurance_doc": "/documents/insurance_sunshine_2024.pdf"
+    }
+  ],
+  "documents_required": [
+    {
+      "document_name": "Police Check (National)",
+      "notice_period_days": 14,
+      "orientation_req": true,
+      "facilitator_req": false
+    },
+    {
+      "document_name": "Working with Children Check",
+      "notice_period_days": 7,
+      "orientation_req": true,
+      "facilitator_req": true
+    }
+  ],
+  "rules": [
+    {
+      "obligations": "Facility must provide adequate supervision and support.",
+      "obligations_univ": "University must provide comprehensive insurance coverage.",
+      "obligations_student": "Students must maintain professional conduct at all times.",
+      "process_notes": "Contact site manager 2 weeks prior to placement.",
+      "shift_rules": "Standard shifts: 8am-4pm. No night shifts.",
+      "attendance_policy": "100% attendance required.",
+      "dress_code": "Business casual. Closed-toe shoes mandatory.",
+      "behaviour_rules": "Professional conduct expected. Respect patient privacy.",
+      "special_instr": "Parking at rear entrance. Report to reception at 7:45am."
+    }
+  ]
+}
