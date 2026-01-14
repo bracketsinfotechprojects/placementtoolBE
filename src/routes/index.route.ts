@@ -8,6 +8,7 @@ import authRouter from './auth/auth.route';
 import meRouter from './me/me.route';
 import userRouter from './user/user.route';
 import studentRouter from './student/student.route';
+import facilityRouter from './facility/facility.route';
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use('/auth', authRouter); // Login and register endpoints
 router.use('/me', jwtAuth, meRouter);
 router.use('/user', jwtAuth, adminOnly, userRouter); // Admin only
 router.use('/students', jwtAuth, studentRouter); // Authenticated users
+router.use('/facilities', jwtAuth, facilityRouter); // Authenticated users
 
 export default router;

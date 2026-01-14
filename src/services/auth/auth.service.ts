@@ -27,6 +27,7 @@ export interface ILoginResponse {
     id: number;
     loginID: string;
     roleID: number;
+    role: string;
     status: string;
   };
   accessToken: string;
@@ -34,6 +35,23 @@ export interface ILoginResponse {
   expiresIn: number;
   tokenType: string;
 }
+
+/**
+ * Get role name from roleID
+ * @param roleID - Role ID
+ * @returns Role name
+ */
+const getRoleName = (roleID: number): string => {
+  const roleMap: { [key: number]: string } = {
+    1: 'admin',
+    2: 'facility',
+    3: 'supervisor',
+    4: 'placement_executive',
+    5: 'trainer',
+    6: 'student'
+  };
+  return roleMap[roleID] || 'unknown';
+};
 
 /**
  * User login
@@ -86,6 +104,7 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
         id: user.id,
         loginID: user.loginID,
         roleID: user.roleID,
+        role: getRoleName(user.roleID),
         status: user.status
       },
       accessToken: accessToken,
