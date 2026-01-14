@@ -200,6 +200,65 @@ router.put('/:id', FacilityController.update);
 
 /**
  * @swagger
+ * /api/facilities/{id}/complete:
+ *   put:
+ *     summary: Update facility with all related data (attributes, branches, agreements, etc.)
+ *     description: Updates facility and all its related entities in a single transaction. Any provided arrays will completely replace existing data.
+ *     tags: [Facilities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: {type: integer}
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name: {type: string}
+ *               registered_business_name: {type: string}
+ *               website_url: {type: string}
+ *               abn_registration_number: {type: string}
+ *               source_of_data: {type: string}
+ *               attributes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     attribute_type: {type: string}
+ *                     attribute_value: {type: string}
+ *               organization_structures:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               branches:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               agreements:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               documents_required:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               rules:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200: {description: Updated}
+ *       401: {description: Unauthorized}
+ */
+router.put('/:id/complete', FacilityController.updateComplete);
+
+/**
+ * @swagger
  * /api/facilities/{id}:
  *   delete:
  *     summary: Delete facility

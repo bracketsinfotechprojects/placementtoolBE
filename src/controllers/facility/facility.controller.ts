@@ -28,6 +28,14 @@ export default class FacilityController extends BaseController {
     }, 'Update facility');
   }
 
+  static async updateComplete(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const id = BaseController.parseId(req, 'id');
+      const facility = await FacilityService.updateComplete({ id, ...req.body });
+      ApiResponseUtility.success(res, facility, 'Facility updated successfully with all relations');
+    }, 'Update complete facility');
+  }
+
   static async list(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const params: IFacilityQueryParams = {

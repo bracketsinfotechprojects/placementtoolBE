@@ -235,6 +235,190 @@ const update = async (params: IUpdateFacility) => {
   return await detail(params.id);
 };
 
+const updateComplete = async (params: IUpdateCompleteFacility) => {
+  const facility = await FacilityRepository.findById(params.id);
+  if (!facility) {
+    throw new StringError('Facility does not exist');
+  }
+
+  const connection = getConnection();
+  const queryRunner = connection.createQueryRunner();
+
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    const facilityId = params.id;
+
+    // Update main facility fields
+    if (params.organization_name || params.registered_business_name || params.website_url || 
+        params.abn_registration_number || params.source_of_data) {
+      const updateData: Partial<Facility> = {
+        updatedAt: new Date()
+      };
+      
+      if (params.organization_name !== undefined) updateData.organization_name = params.organization_name;
+      if (params.registered_business_name !== undefined) updateData.registered_business_name = params.registered_business_name;
+      if (params.website_url !== undefined) updateData.website_url = params.website_url;
+      if (params.abn_registration_number !== undefined) updateData.abn_registration_number = params.abn_registration_number;
+      if (params.source_of_data !== undefined) updateData.source_of_data = params.source_of_data;
+
+      await queryRunner.manager.update(Facility, { facility_id: facilityId }, updateData);
+    }
+
+    // Update attributes - replace all
+    if (params.attributes !== undefined) {
+      // Delete existing attributes
+      await queryRunner.manager.delete(FacilityAttribute, { facility_id: facilityId });
+      
+      // Insert new attributes
+      if (params.attributes.length > 0) {
+        const attributes = params.attributes.map(attr => {
+          const facilityAttr = new FacilityAttribute();
+          facilityAttr.facility_id = facilityId;
+          facilityAttr.attribute_type = attr.attribute_type;
+          facilityAttr.attribute_value = attr.attribute_value;
+          return facilityAttr;
+        });
+        await queryRunner.manager.save(attributes);
+      }
+    }
+
+    // Update organization structures - replace all
+    if (params.organization_structures !== undefined) {
+      await queryRunner.manager.delete(FacilityOrganizationStructure, { facility_id: facilityId });
+      
+      if (params.organization_structures.length > 0) {
+        const orgStructures = params.organization_structures.map(org => {
+          const orgStruct = new FacilityOrganizationStructure();
+          orgStruct.facility_id = facilityId;
+          orgStruct.deal_with = org.deal_with;
+          orgStruct.head_office_addr = org.head_office_addr;
+          orgStruct.contact_name = org.contact_name;
+          orgStruct.designation = org.designation;
+          orgStruct.phone = org.phone;
+          orgStruct.email = org.email;
+          orgStruct.alternate_contact = org.alternate_contact;
+          orgStruct.notes = org.notes;
+          return orgStruct;
+        });
+        await queryRunner.manager.save(orgStructures);
+      }
+    }
+
+    // Update branches - replace all
+    if (params.branches !== undefined) {
+      await queryRunner.manager.delete(FacilityBranchSite, { facility_id: facilityId });
+      
+      if (params.branches.length > 0) {
+        const branches = params.branches.map(branch => {
+          const branchSite = new FacilityBranchSite();
+          branchSite.facility_id = facilityId;
+          branchSite.site_code = branch.site_code;
+          branchSite.full_address = branch.full_address;
+          branchSite.suburb = branch.suburb;
+          branchSite.city = branch.city;
+          branchSite.state = branch.state;
+          branchSite.postcode = branch.postcode;
+          branchSite.site_type = branch.site_type;
+          branchSite.palliative_care = branch.palliative_care || false;
+          branchSite.dementia_care = branch.dementia_care || false;
+          branchSite.num_beds = branch.num_beds;
+          branchSite.gender_rules = branch.gender_rules;
+          branchSite.contact_name = branch.contact_name;
+          branchSite.contact_role = branch.contact_role;
+          branchSite.contact_phone = branch.contact_phone;
+          branchSite.contact_email = branch.contact_email;
+          branchSite.contact_comments = branch.contact_comments;
+          return branchSite;
+        });
+        await queryRunner.manager.save(branches);
+      }
+    }
+
+    // Update agreements - replace all
+    if (params.agreements !== undefined) {
+      await queryRunner.manager.delete(FacilityAgreement, { facility_id: facilityId });
+      
+      if (params.agreements.length > 0) {
+        const agreements = params.agreements.map(agr => {
+          const agreement = new FacilityAgreement();
+          agreement.facility_id = facilityId;
+          agreement.sent_students = agr.sent_students;
+          agreement.with_mou = agr.with_mou;
+          agreement.no_mou_but_taken = agr.no_mou_but_taken;
+          agreement.mou_exists_no_spot = agr.mou_exists_no_spot;
+          agreement.total_students = agr.total_students;
+          agreement.last_placement = agr.last_placement;
+          agreement.has_mou = agr.has_mou;
+          agreement.signed_on = agr.signed_on;
+          agreement.expiry_date = agr.expiry_date;
+          agreement.company_name = agr.company_name;
+          agreement.payment_required = agr.payment_required;
+          agreement.amount_per_spot = agr.amount_per_spot;
+          agreement.payment_notes = agr.payment_notes;
+          agreement.mou_document = agr.mou_document;
+          agreement.insurance_doc = agr.insurance_doc;
+          return agreement;
+        });
+        await queryRunner.manager.save(agreements);
+      }
+    }
+
+    // Update documents required - replace all
+    if (params.documents_required !== undefined) {
+      await queryRunner.manager.delete(FacilityDocumentRequired, { facility_id: facilityId });
+      
+      if (params.documents_required.length > 0) {
+        const documents = params.documents_required.map(doc => {
+          const document = new FacilityDocumentRequired();
+          document.facility_id = facilityId;
+          document.document_name = doc.document_name;
+          document.notice_period_days = doc.notice_period_days;
+          document.orientation_req = doc.orientation_req;
+          document.facilitator_req = doc.facilitator_req;
+          return document;
+        });
+        await queryRunner.manager.save(documents);
+      }
+    }
+
+    // Update rules - replace all
+    if (params.rules !== undefined) {
+      await queryRunner.manager.delete(FacilityRule, { facility_id: facilityId });
+      
+      if (params.rules.length > 0) {
+        const rules = params.rules.map(r => {
+          const rule = new FacilityRule();
+          rule.facility_id = facilityId;
+          rule.obligations = r.obligations;
+          rule.obligations_univ = r.obligations_univ;
+          rule.obligations_student = r.obligations_student;
+          rule.process_notes = r.process_notes;
+          rule.shift_rules = r.shift_rules;
+          rule.attendance_policy = r.attendance_policy;
+          rule.dress_code = r.dress_code;
+          rule.behaviour_rules = r.behaviour_rules;
+          rule.special_instr = r.special_instr;
+          return rule;
+        });
+        await queryRunner.manager.save(rules);
+      }
+    }
+
+    await queryRunner.commitTransaction();
+
+    return await FacilityRepository.findByIdWithRelations(facilityId);
+
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    console.error('❌ Update transaction failed, rolling back all changes:', error);
+    throw error;
+  } finally {
+    await queryRunner.release();
+  }
+};
+
 const list = async (params: IFacilityQueryParams) => {
   const { facilities, total } = await FacilityRepository.findWithFilters(params);
   const pagRes = ApiUtility.getPagination(total, params.limit, params.page);
@@ -370,11 +554,87 @@ export interface IUpdateFacility {
   source_of_data?: string;
 }
 
+export interface IUpdateCompleteFacility {
+  id: number;
+  organization_name?: string;
+  registered_business_name?: string;
+  website_url?: string;
+  abn_registration_number?: string;
+  source_of_data?: string;
+  attributes?: Array<{
+    attribute_type: any;
+    attribute_value: string;
+  }>;
+  organization_structures?: Array<{
+    deal_with: any;
+    head_office_addr?: string;
+    contact_name?: string;
+    designation?: string;
+    phone?: string;
+    email?: string;
+    alternate_contact?: string;
+    notes?: string;
+  }>;
+  branches?: Array<{
+    site_code?: string;
+    full_address?: string;
+    suburb?: string;
+    city?: string;
+    state?: string;
+    postcode?: string;
+    site_type?: string;
+    palliative_care?: boolean;
+    dementia_care?: boolean;
+    num_beds?: number;
+    gender_rules?: string;
+    contact_name?: string;
+    contact_role?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    contact_comments?: string;
+  }>;
+  agreements?: Array<{
+    sent_students?: boolean;
+    with_mou?: boolean;
+    no_mou_but_taken?: boolean;
+    mou_exists_no_spot?: boolean;
+    total_students?: number;
+    last_placement?: any;
+    has_mou?: boolean;
+    signed_on?: any;
+    expiry_date?: any;
+    company_name?: string;
+    payment_required?: boolean;
+    amount_per_spot?: number;
+    payment_notes?: string;
+    mou_document?: string;
+    insurance_doc?: string;
+  }>;
+  documents_required?: Array<{
+    document_name?: string;
+    notice_period_days?: number;
+    orientation_req?: boolean;
+    facilitator_req?: boolean;
+  }>;
+  rules?: Array<{
+    obligations?: string;
+    obligations_univ?: string;
+    obligations_student?: string;
+    process_notes?: string;
+    shift_rules?: string;
+    attendance_policy?: string;
+    dress_code?: string;
+    behaviour_rules?: string;
+    special_instr?: string;
+  }>;
+}
+
 export default {
   create,
   getById,
   detail,
   update,
+  updateComplete,
   list,
   listSimplified,
   remove,
