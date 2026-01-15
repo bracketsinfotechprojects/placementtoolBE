@@ -6,7 +6,7 @@ module.exports = {
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'Atul@2626',
   database: process.env.DB_NAME || 'testcrm',
-  port: process.env.DB_PORT || 3306,
+  port: process.env.DB_PORT || 5000,
   charset: 'utf8mb4',
   driver: require('mysql2'),
   synchronize: false,
