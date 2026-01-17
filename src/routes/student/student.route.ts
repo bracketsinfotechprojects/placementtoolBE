@@ -7,8 +7,16 @@ const router = Router();
  * @swagger
  * /api/students:
  *   post:
- *     summary: Create new student with all related data
- *     description: Create a new student with complete profile including contact details, visa, addresses, eligibility, lifestyle, placement preferences, facility records, address change requests, and job status updates. All data is created in a single transaction.
+ *     summary: Create new student
+ *     description: |
+ *       Create a new student with basic profile including contact details, visa, addresses, 
+ *       eligibility, lifestyle, and placement preferences. All data is created in a single transaction.
+ *       
+ *       NOTE: Facility records, address change requests, and job status updates are now managed 
+ *       via separate APIs after student creation:
+ *       - POST /api/students/{studentId}/facility-records
+ *       - POST /api/students/{studentId}/address-change-requests
+ *       - POST /api/students/{studentId}/job-status-updates
  *     tags:
  *       - Students
  *     security:
@@ -271,152 +279,9 @@ const router = Router();
  *                   additional_preferences:
  *                     type: string
  *                     example: "Interested in frontend development roles"
- *               facility_records:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     facility_name:
- *                       type: string
- *                       example: "SkillUp Institute"
- *                     facility_type:
- *                       type: string
- *                       example: "Training Center"
- *                     branch_site:
- *                       type: string
- *                       example: "Bangalore"
- *                     facility_address:
- *                       type: string
- *                       example: "88 Learning Lane, Bangalore"
- *                     contact_person_name:
- *                       type: string
- *                       example: "Dr. Meera"
- *                     contact_email:
- *                       type: string
- *                       example: "meera@skillup.com"
- *                     contact_phone:
- *                       type: string
- *                       example: "+91-9876543212"
- *                     supervisor_name:
- *                       type: string
- *                       example: "Mr. Arjun"
- *                     distance_from_student_km:
- *                       type: integer
- *                       example: 5
- *                     slot_id:
- *                       type: string
- *                       example: "SLOT005"
- *                     course_type:
- *                       type: string
- *                       example: "Frontend Development"
- *                     shift_timing:
- *                       type: string
- *                       example: "9 AM - 5 PM"
- *                     start_date:
- *                       type: string
- *                       format: date
- *                       example: "2026-02-01"
- *                     duration_hours:
- *                       type: integer
- *                       example: 100
- *                     gender_requirement:
- *                       type: string
- *                       example: "Any"
- *                     applied_on:
- *                       type: string
- *                       format: date
- *                       example: "2026-01-06"
- *                     student_confirmed:
- *                       type: boolean
- *                       example: false
- *                     student_comments:
- *                       type: string
- *                       example: "Waiting for confirmation"
- *                     document_type:
- *                       type: string
- *                       example: "Offer Letter"
- *                     file_path:
- *                       type: string
- *                       example: "/documents/offer_letter.pdf"
- *                     application_status:
- *                       type: string
- *                       enum: [applied, under_review, accepted, rejected, confirmed, completed]
- *                       example: "applied"
- *               address_change_requests:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     current_address:
- *                       type: string
- *                       example: "22 Tech Valley, Bangalore"
- *                     new_address:
- *                       type: string
- *                       example: "55 Innovation Park, Bangalore"
- *                     effective_date:
- *                       type: string
- *                       format: date
- *                       example: "2026-03-10"
- *                     change_reason:
- *                       type: string
- *                       example: "Closer to spouse's workplace"
- *                     impact_acknowledged:
- *                       type: boolean
- *                       example: true
- *                     status:
- *                       type: string
- *                       enum: [pending, approved, rejected, implemented]
- *                       example: "approved"
- *                     reviewed_at:
- *                       type: string
- *                       format: date-time
- *                       example: "2026-01-10"
- *                     reviewed_by:
- *                       type: string
- *                       example: "Coordinator"
- *                     review_comments:
- *                       type: string
- *                       example: "Approved for relocation"
- *               job_status_updates:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     status:
- *                       type: string
- *                       example: "offer_received"
- *                     last_updated_on:
- *                       type: string
- *                       format: date
- *                       example: "2026-01-06"
- *                     employer_name:
- *                       type: string
- *                       example: "NextGen Solutions"
- *                     job_role:
- *                       type: string
- *                       example: "Frontend Developer"
- *                     start_date:
- *                       type: string
- *                       format: date
- *                       example: "2026-03-15"
- *                     employment_type:
- *                       type: string
- *                       example: "full_time"
- *                     offer_letter_path:
- *                       type: string
- *                       example: "/documents/nextgen_offer.pdf"
- *                     actively_applying:
- *                       type: boolean
- *                       example: false
- *                     expected_timeline:
- *                       type: string
- *                       example: "Joining in March"
- *                     searching_comments:
- *                       type: string
- *                       example: "Offer accepted"
  *     responses:
  *       201:
- *         description: Student created successfully with all related data in a single transaction
+ *         description: Student created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -434,6 +299,7 @@ const router = Router();
  *                     student_id:
  *                       type: integer
  *                       example: 123
+ *                       description: Use this ID to add facility records, address changes, and job updates
  *                     first_name:
  *                       type: string
  *                       example: "Sneha"
@@ -1211,5 +1077,415 @@ router.delete('/:id', StudentController.delete);
  *         description: Student permanently deleted
  */
 router.delete('/:id/permanent', StudentController.permanentlyDelete);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/facility-records:
+ *   post:
+ *     summary: Add facility record (Facility Selection / Self Placement)
+ *     description: |
+ *       Add a facility/placement record for a student. This API supports both:
+ *       - Facility Selection: Student selects from available facilities
+ *       - Self Placement: Student adds their own facility details
+ *     tags:
+ *       - Students
+ *       - Facility Selection
+ *       - Self Placement
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - facility_name
+ *             properties:
+ *               facility_name:
+ *                 type: string
+ *                 description: Name of the facility (dropdown or manual entry)
+ *                 example: "Sydney General Hospital"
+ *               facility_type:
+ *                 type: string
+ *                 description: Type of facility (dropdown)
+ *                 example: "Hospital"
+ *               branch_site:
+ *                 type: string
+ *                 description: Branch or site name
+ *                 example: "Main Campus"
+ *               facility_address:
+ *                 type: string
+ *                 description: Complete facility address
+ *                 example: "789 Hospital Road, Sydney NSW 2000"
+ *               contact_person_name:
+ *                 type: string
+ *                 description: Primary contact person at facility
+ *                 example: "Dr. Sarah Smith"
+ *               contact_email:
+ *                 type: string
+ *                 format: email
+ *                 description: Contact person email
+ *                 example: "sarah.smith@hospital.com"
+ *               contact_phone:
+ *                 type: string
+ *                 description: Contact person phone number
+ *                 example: "+61287654321"
+ *               supervisor_name:
+ *                 type: string
+ *                 description: Name of supervisor at facility
+ *                 example: "John Supervisor"
+ *               distance_from_student_km:
+ *                 type: integer
+ *                 description: Distance from student's location in kilometers
+ *                 example: 15
+ *               slot_id:
+ *                 type: string
+ *                 description: Unique slot identifier
+ *                 example: "SLOT-2026-001"
+ *               course_type:
+ *                 type: string
+ *                 description: Type of course/training
+ *                 example: "Clinical Placement"
+ *               shift_timing:
+ *                 type: string
+ *                 description: Shift timing details
+ *                 example: "Morning 8AM-4PM"
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Placement start date
+ *                 example: "2026-02-15"
+ *               duration_hours:
+ *                 type: integer
+ *                 description: Total duration in hours
+ *                 example: 120
+ *               gender_requirement:
+ *                 type: string
+ *                 description: Gender requirement (dropdown)
+ *                 enum: [Any, Male, Female]
+ *                 example: "Any"
+ *               applied_on:
+ *                 type: string
+ *                 format: date
+ *                 description: Date when student applied
+ *                 example: "2026-01-17"
+ *               student_confirmed:
+ *                 type: boolean
+ *                 description: Student confirmation checkbox - "I confirm that I want to apply for this facility slot"
+ *                 example: true
+ *               student_comments:
+ *                 type: string
+ *                 description: Comments from student
+ *                 example: "I confirm that I want to apply for this facility slot. Looking forward to this placement."
+ *               document_type:
+ *                 type: string
+ *                 description: Type of document uploaded
+ *                 example: "Offer Letter"
+ *               file_path:
+ *                 type: string
+ *                 description: Path to uploaded document
+ *                 example: "/uploads/documents/offer_letter.pdf"
+ *               application_status:
+ *                 type: string
+ *                 description: Current application status
+ *                 enum: [applied, under_review, accepted, rejected, confirmed, completed]
+ *                 example: "applied"
+ *     responses:
+ *       201:
+ *         description: Facility record added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facility record added successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     facility_id:
+ *                       type: integer
+ *                       example: 1
+ *                     student_id:
+ *                       type: integer
+ *                       example: 123
+ *                     facility_name:
+ *                       type: string
+ *                       example: "Sydney General Hospital"
+ *                     application_status:
+ *                       type: string
+ *                       example: "applied"
+ *       400:
+ *         description: Bad request - Invalid data or application_status
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/:studentId/facility-records', StudentController.addFacilityRecord);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/address-change-requests:
+ *   post:
+ *     summary: Add address change request
+ *     description: Submit a request to change student address
+ *     tags:
+ *       - Students
+ *       - Address Management
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - current_address
+ *               - new_address
+ *               - effective_date
+ *             properties:
+ *               current_address:
+ *                 type: string
+ *                 example: "101 Sunrise Apartments, Pune"
+ *               new_address:
+ *                 type: string
+ *                 example: "200 Tech Hub, Pune"
+ *               effective_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-04-15"
+ *               change_reason:
+ *                 type: string
+ *                 example: "Closer to training center"
+ *               impact_acknowledged:
+ *                 type: boolean
+ *                 example: true
+ *               status:
+ *                 type: string
+ *                 enum: [pending, approved, rejected, implemented]
+ *                 example: "pending"
+ *     responses:
+ *       201:
+ *         description: Address change request added successfully
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: Student not found
+ */
+router.post('/:studentId/address-change-requests', StudentController.addAddressChangeRequest);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/job-status-updates:
+ *   post:
+ *     summary: Add job status update
+ *     description: Add or update student's job/employment status
+ *     tags:
+ *       - Students
+ *       - Job Status
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: "interview_scheduled"
+ *               employer_name:
+ *                 type: string
+ *                 example: "Innovate Labs"
+ *               job_role:
+ *                 type: string
+ *                 example: "Backend Developer"
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-04-10"
+ *               employment_type:
+ *                 type: string
+ *                 example: "part_time"
+ *               offer_letter_path:
+ *                 type: string
+ *                 example: "/documents/offer_letter.pdf"
+ *               actively_applying:
+ *                 type: boolean
+ *                 example: true
+ *               expected_timeline:
+ *                 type: string
+ *                 example: "Joining in April"
+ *               searching_comments:
+ *                 type: string
+ *                 example: "Interview scheduled with HR"
+ *     responses:
+ *       201:
+ *         description: Job status update added successfully
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: Student not found
+ */
+router.post('/:studentId/job-status-updates', StudentController.addJobStatusUpdate);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/self-placements:
+ *   post:
+ *     summary: Add self placement
+ *     description: |
+ *       Student adds their own facility placement with supporting documents.
+ *       This is specifically for self-arranged placements that need admin review.
+ *       Supports multiple document uploads: supporting documents, offer letter, and registration proof.
+ *     tags:
+ *       - Students
+ *       - Self Placement
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - facility_name
+ *             properties:
+ *               facility_name:
+ *                 type: string
+ *                 description: Name of the facility
+ *                 example: "Community Health Clinic"
+ *               facility_type:
+ *                 type: string
+ *                 description: Type of facility (dropdown)
+ *                 example: "Clinic"
+ *               facility_address:
+ *                 type: string
+ *                 description: Complete facility address
+ *                 example: "88 Health Avenue, Adelaide SA 5000"
+ *               contact_person_name:
+ *                 type: string
+ *                 description: Primary contact person name
+ *                 example: "Dr. Michael Wong"
+ *               contact_email:
+ *                 type: string
+ *                 format: email
+ *                 description: Contact person email
+ *                 example: "michael.wong@clinic.com"
+ *               contact_phone:
+ *                 type: string
+ *                 description: Contact person phone number
+ *                 example: "+61882345678"
+ *               supervisor_name:
+ *                 type: string
+ *                 description: Supervisor name at facility
+ *                 example: "Practice Manager Jane Smith"
+ *               supporting_documents_path:
+ *                 type: string
+ *                 description: Path to supporting documents
+ *                 example: "/uploads/self-placement/supporting_docs_123.pdf"
+ *               offer_letter_path:
+ *                 type: string
+ *                 description: Path to offer/acceptance letter
+ *                 example: "/uploads/self-placement/offer_letter_123.pdf"
+ *               registration_proof_path:
+ *                 type: string
+ *                 description: Path to facility registration proof
+ *                 example: "/uploads/self-placement/registration_proof_123.pdf"
+ *               student_comments:
+ *                 type: string
+ *                 description: Student comments about the placement
+ *                 example: "I arranged this placement myself with the clinic. They have agreed to supervise my training."
+ *               status:
+ *                 type: string
+ *                 description: Application status
+ *                 enum: [pending, under_review, approved, rejected]
+ *                 default: pending
+ *                 example: "pending"
+ *     responses:
+ *       201:
+ *         description: Self placement added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Self placement added successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     placement_id:
+ *                       type: integer
+ *                       example: 1
+ *                     student_id:
+ *                       type: integer
+ *                       example: 123
+ *                     facility_name:
+ *                       type: string
+ *                       example: "Community Health Clinic"
+ *                     status:
+ *                       type: string
+ *                       example: "pending"
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Bad request - Invalid data or status
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/:studentId/self-placements', StudentController.addSelfPlacement);
 
 export default router;

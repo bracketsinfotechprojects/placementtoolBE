@@ -9,11 +9,11 @@ export default class JwtUtility {
   private static readonly REFRESH_SECRET = process.env.REFRESH_SECRET || 'your_super_secret_refresh_key_change_this_in_production_12345';
   
   // Token expiration times
-  private static readonly ACCESS_TOKEN_EXPIRY = '15m';
+  private static readonly ACCESS_TOKEN_EXPIRY = '1d'; // 1 day (24 hours)
   private static readonly REFRESH_TOKEN_EXPIRY = '7d';
 
   /**
-   * Generate access token (short-lived, 15 minutes)
+   * Generate access token (short-lived, 1 day)
    * @param payload - Data to encode in token
    * @returns JWT access token string
    */
@@ -148,10 +148,10 @@ export default class JwtUtility {
 
   /**
    * Get access token expiry time in seconds
-   * @returns Expiry time in seconds (900 = 15 minutes)
+   * @returns Expiry time in seconds (86400 = 1 day / 24 hours)
    */
   static getAccessTokenExpirySeconds(): number {
-    return 15 * 60; // 15 minutes
+    return 24 * 60 * 60; // 1 day (24 hours)
   }
 
   /**
