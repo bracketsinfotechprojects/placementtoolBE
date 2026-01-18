@@ -80,10 +80,10 @@ export default class StudentController extends BaseController {
     }, 'Failed to retrieve student details');
   }
 
-  // Update student information
+  // Update student information with all related entities
   static async update(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const id = StudentController.parseId(req, 'student_id');
+      const id = StudentController.parseId(req);
 
       const updateData: IUpdateStudent = {
         student_id: id,
@@ -93,7 +93,15 @@ export default class StudentController extends BaseController {
         gender: req.body.gender,
         nationality: req.body.nationality,
         student_type: req.body.student_type,
-        status: req.body.status
+        status: req.body.status,
+
+        // Pass all related entities if provided
+        contact_details: req.body.contact_details,
+        visa_details: req.body.visa_details,
+        addresses: req.body.addresses,
+        eligibility_status: req.body.eligibility_status,
+        student_lifestyle: req.body.student_lifestyle,
+        placement_preferences: req.body.placement_preferences
       };
 
       const updatedStudent = await StudentService.update(updateData);
@@ -346,5 +354,93 @@ export default class StudentController extends BaseController {
       const selfPlacement = await StudentService.addSelfPlacement(studentId, placementData);
       ApiResponseUtility.createdSuccess(res, selfPlacement, 'Self placement added successfully');
     }, 'Failed to add self placement');
+  }
+
+  // Update Address Change Request
+  static async updateAddressChangeRequest(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const acrId = parseInt(req.params.acrId);
+      
+      if (isNaN(acrId)) {
+        throw new StringError('Invalid address change request ID');
+      }
+
+      const updateData = {
+        acr_id: acrId,
+        current_address: req.body.current_address,
+        new_address: req.body.new_address,
+        effective_date: req.body.effective_date,
+        change_reason: req.body.change_reason,
+        impact_acknowledged: req.body.impact_acknowledged,
+        status: req.body.status,
+        reviewed_at: req.body.reviewed_at,
+        reviewed_by: req.body.reviewed_by,
+        review_comments: req.body.review_comments
+      };
+
+      const updatedRequest = await StudentService.updateAddressChangeRequest(updateData);
+      ApiResponseUtility.success(res, updatedRequest, 'Address change request updated successfully');
+    }, 'Failed to update address change request');
+  }
+
+  // Update Job Status Update
+  static async updateJobStatusUpdate(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const jsuId = parseInt(req.params.jsuId);
+      
+      if (isNaN(jsuId)) {
+        throw new StringError('Invalid job status update ID');
+      }
+
+      const updateData = {
+        jsu_id: jsuId,
+        status: req.body.status,
+        last_updated_on: req.body.last_updated_on,
+        employer_name: req.body.employer_name,
+        job_role: req.body.job_role,
+        start_date: req.body.start_date,
+        employment_type: req.body.employment_type,
+        offer_letter_path: req.body.offer_letter_path,
+        actively_applying: req.body.actively_applying,
+        expected_timeline: req.body.expected_timeline,
+        searching_comments: req.body.searching_comments
+      };
+
+      const updatedJobStatus = await StudentService.updateJobStatusUpdate(updateData);
+      ApiResponseUtility.success(res, updatedJobStatus, 'Job status update updated successfully');
+    }, 'Failed to update job status update');
+  }
+
+  // Update Self Placement
+  static async updateSelfPlacement(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const placementId = parseInt(req.params.placementId);
+      
+      if (isNaN(placementId)) {
+        throw new StringError('Invalid self placement ID');
+      }
+
+      const updateData = {
+        placement_id: placementId,
+        facility_name: req.body.facility_name,
+        facility_type: req.body.facility_type,
+        facility_address: req.body.facility_address,
+        contact_person_name: req.body.contact_person_name,
+        contact_email: req.body.contact_email,
+        contact_phone: req.body.contact_phone,
+        supervisor_name: req.body.supervisor_name,
+        supporting_documents_path: req.body.supporting_documents_path,
+        offer_letter_path: req.body.offer_letter_path,
+        registration_proof_path: req.body.registration_proof_path,
+        status: req.body.status,
+        student_comments: req.body.student_comments,
+        reviewed_at: req.body.reviewed_at,
+        reviewed_by: req.body.reviewed_by,
+        review_comments: req.body.review_comments
+      };
+
+      const updatedPlacement = await StudentService.updateSelfPlacement(updateData);
+      ApiResponseUtility.success(res, updatedPlacement, 'Self placement updated successfully');
+    }, 'Failed to update self placement');
   }
 }

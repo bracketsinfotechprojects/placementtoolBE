@@ -292,6 +292,14 @@ export interface IUpdateStudent {
   nationality?: string;
   student_type?: string;
   status?: 'active' | 'inactive' | 'graduated' | 'withdrawn';
+
+  // Related entities (optional) - same as create
+  contact_details?: ICreateContactDetails;
+  visa_details?: ICreateVisaDetails;
+  addresses?: ICreateAddress[];
+  eligibility_status?: ICreateEligibilityStatus;
+  student_lifestyle?: ICreateStudentLifestyle;
+  placement_preferences?: ICreatePlacementPreferences;
 }
 
 // Student query parameters interface
@@ -543,7 +551,7 @@ const addFacilityRecord = async (studentId: number, facilityData: ICreateFacilit
     // Validate and sanitize application_status
     const validStatuses = ['applied', 'under_review', 'accepted', 'rejected', 'confirmed', 'completed'];
     let applicationStatus = facilityData.application_status?.toLowerCase().trim() || 'applied';
-    
+
     if (!validStatuses.includes(applicationStatus)) {
       throw new StringError(`Invalid application_status: "${facilityData.application_status}". Must be one of: ${validStatuses.join(', ')}`);
     }
@@ -795,28 +803,288 @@ const getAllDetails = async (params: IDetailById) => {
   }
 };
 
-// Update Student
+// Update Student with all related entities
 const update = async (params: IUpdateStudent) => {
-  const query = { ...baseWhere, student_id: params.student_id };
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🔄 Starting student update with transaction...');
 
-  const student = await getRepository(Student).findOne(query);
-  if (!student) {
-    throw new StringError('Student does not exist');
-  }
+    const query = { ...baseWhere, student_id: params.student_id };
 
-  const updateData: Partial<Student> = {
-    first_name: params.first_name,
-    last_name: params.last_name,
-    dob: params.dob,
-    gender: params.gender,
-    nationality: params.nationality,
-    student_type: params.student_type,
-    status: params.status,
-    updatedAt: new Date(),
-  };
+    // Step 1: Verify student exists
+    const student = await queryRunner.manager.findOne(Student, {
+      where: query,
+      relations: [
+        'contact_details',
+        'visa_details',
+        'addresses',
+        'eligibility_status',
+        'student_lifestyle',
+        'placement_preferences'
+      ]
+    });
 
-  await getRepository(Student).update(query, updateData);
-  return await detail({ id: params.student_id });
+    if (!student) {
+      throw new StringError('Student does not exist');
+    }
+
+    // Step 2: Update main student fields if provided
+    const updateData: Partial<Student> = {};
+    if (params.first_name !== undefined) updateData.first_name = params.first_name;
+    if (params.last_name !== undefined) updateData.last_name = params.last_name;
+    if (params.dob !== undefined) updateData.dob = params.dob;
+    if (params.gender !== undefined) updateData.gender = params.gender;
+    if (params.nationality !== undefined) updateData.nationality = params.nationality;
+    if (params.student_type !== undefined) updateData.student_type = params.student_type;
+    if (params.status !== undefined) updateData.status = params.status;
+
+    if (Object.keys(updateData).length > 0) {
+      updateData.updatedAt = new Date();
+      await queryRunner.manager.update(Student, query, updateData);
+      console.log('✅ Student basic info updated');
+    }
+
+    // Step 3: Update or create contact details if provided
+    if (params.contact_details) {
+      try {
+        console.log('📞 Updating contact details...');
+
+        // Delete existing contact details
+        if (student.contact_details && student.contact_details.length > 0) {
+          await queryRunner.manager.delete(ContactDetails, {
+            student: { student_id: params.student_id }
+          });
+        }
+
+        // Create new contact details
+        const contactDetails = new ContactDetails();
+        contactDetails.student = student;
+        contactDetails.primary_mobile = params.contact_details.primary_mobile;
+        contactDetails.email = params.contact_details.email;
+        contactDetails.emergency_contact = params.contact_details.emergency_contact;
+        contactDetails.contact_type = params.contact_details.contact_type || 'mobile';
+        contactDetails.is_primary = params.contact_details.is_primary !== undefined ? params.contact_details.is_primary : true;
+        contactDetails.verified_at = params.contact_details.verified_at;
+
+        await queryRunner.manager.save(ContactDetails, contactDetails);
+        console.log('✅ Contact details updated');
+      } catch (error) {
+        console.error('❌ Failed to update contact details:', error.message);
+        throw new Error(`Failed to update contact details: ${error.message}`);
+      }
+    }
+
+    // Step 4: Update or create visa details if provided
+    if (params.visa_details) {
+      try {
+        console.log('🛂 Updating visa details...');
+
+        // Delete existing visa details
+        if (student.visa_details && student.visa_details.length > 0) {
+          await queryRunner.manager.delete(VisaDetails, {
+            student: { student_id: params.student_id }
+          });
+        }
+
+        // Create new visa details
+        const visaDetails = new VisaDetails();
+        visaDetails.student = student;
+        visaDetails.visa_type = params.visa_details.visa_type;
+        visaDetails.visa_number = params.visa_details.visa_number;
+        visaDetails.start_date = params.visa_details.start_date;
+        visaDetails.expiry_date = params.visa_details.expiry_date;
+        visaDetails.status = params.visa_details.status || 'active';
+        visaDetails.issuing_country = params.visa_details.issuing_country;
+        visaDetails.document_path = params.visa_details.document_path;
+
+        await queryRunner.manager.save(VisaDetails, visaDetails);
+        console.log('✅ Visa details updated');
+      } catch (error) {
+        console.error('❌ Failed to update visa details:', error.message);
+        throw new Error(`Failed to update visa details: ${error.message}`);
+      }
+    }
+
+    // Step 5: Update or create addresses if provided
+    if (params.addresses && params.addresses.length > 0) {
+      try {
+        console.log('🏠 Updating addresses...');
+
+        // Delete existing addresses
+        if (student.addresses && student.addresses.length > 0) {
+          await queryRunner.manager.delete(Address, {
+            student: { student_id: params.student_id }
+          });
+        }
+
+        // Create new addresses
+        for (const addressData of params.addresses) {
+          const address = new Address();
+          address.student = student;
+          address.line1 = addressData.line1;
+          address.city = addressData.city;
+          address.state = addressData.state;
+          address.country = addressData.country;
+          address.postal_code = addressData.postal_code;
+          address.address_type = addressData.address_type || 'current';
+          address.is_primary = addressData.is_primary || false;
+
+          await queryRunner.manager.save(Address, address);
+        }
+        console.log(`✅ ${params.addresses.length} address(es) updated`);
+      } catch (error) {
+        console.error('❌ Failed to update addresses:', error.message);
+        throw new Error(`Failed to update addresses: ${error.message}`);
+      }
+    }
+
+    // Step 6: Update or create eligibility status if provided
+    if (params.eligibility_status) {
+      try {
+        console.log('📋 Updating eligibility status...');
+
+        // Delete existing eligibility status
+        if (student.eligibility_status && student.eligibility_status.length > 0) {
+          await queryRunner.manager.delete(EligibilityStatus, {
+            student: { student_id: params.student_id }
+          });
+        }
+
+        // Validate and sanitize overall_status
+        const validStatuses = ['eligible', 'not_eligible', 'pending', 'override'];
+        let overallStatus = params.eligibility_status.overall_status?.trim() || 'not_eligible';
+
+        if (!validStatuses.includes(overallStatus)) {
+          console.warn(`⚠️ Invalid overall_status received: "${overallStatus}". Using default: "not_eligible"`);
+          overallStatus = 'not_eligible';
+        }
+
+        // Create new eligibility status
+        const eligibilityStatus = new EligibilityStatus();
+        eligibilityStatus.student = student;
+        eligibilityStatus.classes_completed = params.eligibility_status.classes_completed;
+        eligibilityStatus.fees_paid = params.eligibility_status.fees_paid;
+        eligibilityStatus.assignments_submitted = params.eligibility_status.assignments_submitted;
+        eligibilityStatus.documents_submitted = params.eligibility_status.documents_submitted;
+        eligibilityStatus.trainer_consent = params.eligibility_status.trainer_consent;
+        eligibilityStatus.override_requested = params.eligibility_status.override_requested;
+        eligibilityStatus.requested_by = params.eligibility_status.requested_by;
+        eligibilityStatus.reason = params.eligibility_status.reason;
+        eligibilityStatus.comments = params.eligibility_status.comments;
+        eligibilityStatus.overall_status = overallStatus as 'eligible' | 'not_eligible' | 'pending' | 'override';
+
+        await queryRunner.manager.save(EligibilityStatus, eligibilityStatus);
+        console.log('✅ Eligibility status updated');
+      } catch (error) {
+        console.error('❌ Failed to update eligibility status:', error.message);
+        throw new Error(`Failed to update eligibility status: ${error.message}`);
+      }
+    }
+
+    // Step 7: Update or create student lifestyle if provided
+    if (params.student_lifestyle) {
+      try {
+        console.log('🌟 Updating student lifestyle...');
+
+        // Delete existing lifestyle
+        if (student.student_lifestyle && student.student_lifestyle.length > 0) {
+          await queryRunner.manager.delete(StudentLifestyle, {
+            student: { student_id: params.student_id }
+          });
+        }
+
+        // Create new lifestyle
+        const lifestyle = new StudentLifestyle();
+        lifestyle.student = student;
+        lifestyle.currently_working = params.student_lifestyle.currently_working;
+        lifestyle.working_hours = params.student_lifestyle.working_hours;
+        lifestyle.has_dependents = params.student_lifestyle.has_dependents;
+        lifestyle.married = params.student_lifestyle.married;
+        lifestyle.driving_license = params.student_lifestyle.driving_license;
+        lifestyle.own_vehicle = params.student_lifestyle.own_vehicle;
+        lifestyle.public_transport_only = params.student_lifestyle.public_transport_only;
+        lifestyle.can_travel_long_distance = params.student_lifestyle.can_travel_long_distance;
+        lifestyle.drop_support_available = params.student_lifestyle.drop_support_available;
+        lifestyle.fully_flexible = params.student_lifestyle.fully_flexible;
+        lifestyle.rush_placement_required = params.student_lifestyle.rush_placement_required;
+        lifestyle.preferred_days = params.student_lifestyle.preferred_days;
+        lifestyle.preferred_time_slots = params.student_lifestyle.preferred_time_slots;
+        lifestyle.additional_notes = params.student_lifestyle.additional_notes;
+
+        await queryRunner.manager.save(StudentLifestyle, lifestyle);
+        console.log('✅ Student lifestyle updated');
+      } catch (error) {
+        console.error('❌ Failed to update student lifestyle:', error.message);
+        throw new Error(`Failed to update student lifestyle: ${error.message}`);
+      }
+    }
+
+    // Step 8: Update or create placement preferences if provided
+    if (params.placement_preferences) {
+      try {
+        console.log('🎯 Updating placement preferences...');
+
+        // Delete existing preferences
+        if (student.placement_preferences && student.placement_preferences.length > 0) {
+          await queryRunner.manager.delete(PlacementPreferences, {
+            student: { student_id: params.student_id }
+          });
+        }
+
+        // Create new preferences
+        const preferences = new PlacementPreferences();
+        preferences.student = student;
+        preferences.preferred_states = params.placement_preferences.preferred_states;
+        preferences.preferred_cities = params.placement_preferences.preferred_cities;
+        preferences.max_travel_distance_km = params.placement_preferences.max_travel_distance_km;
+        preferences.morning_only = params.placement_preferences.morning_only;
+        preferences.evening_only = params.placement_preferences.evening_only;
+        preferences.night_shift = params.placement_preferences.night_shift;
+        preferences.weekend_only = params.placement_preferences.weekend_only;
+        preferences.part_time = params.placement_preferences.part_time;
+        preferences.full_time = params.placement_preferences.full_time;
+        preferences.with_friend = params.placement_preferences.with_friend;
+        preferences.friend_name_or_id = params.placement_preferences.friend_name_or_id;
+        preferences.with_spouse = params.placement_preferences.with_spouse;
+        preferences.spouse_name_or_id = params.placement_preferences.spouse_name_or_id;
+        preferences.earliest_start_date = params.placement_preferences.earliest_start_date;
+        preferences.latest_start_date = params.placement_preferences.latest_start_date;
+        preferences.specific_month_preference = params.placement_preferences.specific_month_preference;
+
+        // Validate and set urgency_level
+        const validUrgencyLevels = ['immediate', 'within_month', 'within_quarter', 'flexible'];
+        const urgencyLevel = params.placement_preferences.urgency_level?.toLowerCase().trim();
+        if (urgencyLevel && !validUrgencyLevels.includes(urgencyLevel)) {
+          throw new Error(`Invalid urgency_level: "${params.placement_preferences.urgency_level}". Must be one of: ${validUrgencyLevels.join(', ')}`);
+        }
+        preferences.urgency_level = (urgencyLevel as any) || 'flexible';
+
+        preferences.additional_preferences = params.placement_preferences.additional_preferences;
+
+        await queryRunner.manager.save(PlacementPreferences, preferences);
+        console.log('✅ Placement preferences updated');
+      } catch (error) {
+        console.error('❌ Failed to update placement preferences:', error.message);
+        throw new Error(`Failed to update placement preferences: ${error.message}`);
+      }
+    }
+
+    console.log('🎉 Student update transaction committed successfully!');
+
+    // Return updated student with all details including related entities
+    const updatedStudent = await queryRunner.manager.findOne(Student, {
+      where: { student_id: params.student_id, isDeleted: false },
+      relations: [
+        'contact_details',
+        'visa_details',
+        'addresses',
+        'eligibility_status',
+        'student_lifestyle',
+        'placement_preferences'
+      ]
+    });
+
+    return ApiUtility.sanitizeStudent(updatedStudent);
+  });
 };
 
 // List Students with pagination and filtering
@@ -1064,7 +1332,7 @@ const addSelfPlacement = async (studentId: number, placementData: ICreateSelfPla
     // Validate status
     const validStatuses = ['pending', 'under_review', 'approved', 'rejected'];
     let status = placementData.status?.toLowerCase().trim() || 'pending';
-    
+
     if (!validStatuses.includes(status)) {
       throw new StringError(`Invalid status: "${placementData.status}". Must be one of: ${validStatuses.join(', ')}`);
     }
@@ -1095,9 +1363,189 @@ const addSelfPlacement = async (studentId: number, placementData: ICreateSelfPla
   });
 };
 
+// Update Address Change Request
+const updateAddressChangeRequest = async (params: IUpdateAddressChangeRequest) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🔄 Updating address change request:', params.acr_id);
+
+    // Find existing record
+    const existingRequest = await queryRunner.manager.findOne(AddressChangeRequest, {
+      where: { acr_id: params.acr_id }
+    });
+
+    if (!existingRequest) {
+      throw new StringError('Address change request not found');
+    }
+
+    // Build update data
+    const updateData: Partial<AddressChangeRequest> = {};
+    if (params.current_address !== undefined) updateData.current_address = params.current_address;
+    if (params.new_address !== undefined) updateData.new_address = params.new_address;
+    if (params.effective_date !== undefined) updateData.effective_date = params.effective_date;
+    if (params.change_reason !== undefined) updateData.change_reason = params.change_reason;
+    if (params.impact_acknowledged !== undefined) updateData.impact_acknowledged = params.impact_acknowledged;
+    if (params.status !== undefined) updateData.status = params.status;
+    if (params.reviewed_at !== undefined) updateData.reviewed_at = params.reviewed_at;
+    if (params.reviewed_by !== undefined) updateData.reviewed_by = params.reviewed_by;
+    if (params.review_comments !== undefined) updateData.review_comments = params.review_comments;
+
+    // Update the record
+    await queryRunner.manager.update(AddressChangeRequest, { acr_id: params.acr_id }, updateData);
+
+    // Fetch and return updated record
+    const updatedRequest = await queryRunner.manager.findOne(AddressChangeRequest, {
+      where: { acr_id: params.acr_id }
+    });
+
+    console.log('✅ Address change request updated successfully');
+    return updatedRequest;
+  });
+};
+
+// Update Job Status Update
+const updateJobStatusUpdate = async (params: IUpdateJobStatusUpdate) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🔄 Updating job status update:', params.jsu_id);
+
+    // Find existing record
+    const existingJobStatus = await queryRunner.manager.findOne(JobStatusUpdate, {
+      where: { jsu_id: params.jsu_id }
+    });
+
+    if (!existingJobStatus) {
+      throw new StringError('Job status update not found');
+    }
+
+    // Build update data
+    const updateData: Partial<JobStatusUpdate> = {};
+    if (params.status !== undefined) updateData.status = params.status;
+    if (params.last_updated_on !== undefined) updateData.last_updated_on = params.last_updated_on;
+    if (params.employer_name !== undefined) updateData.employer_name = params.employer_name;
+    if (params.job_role !== undefined) updateData.job_role = params.job_role;
+    if (params.start_date !== undefined) updateData.start_date = params.start_date;
+    if (params.employment_type !== undefined) updateData.employment_type = params.employment_type;
+    if (params.offer_letter_path !== undefined) updateData.offer_letter_path = params.offer_letter_path;
+    if (params.actively_applying !== undefined) updateData.actively_applying = params.actively_applying;
+    if (params.expected_timeline !== undefined) updateData.expected_timeline = params.expected_timeline;
+    if (params.searching_comments !== undefined) updateData.searching_comments = params.searching_comments;
+
+    // Update the record
+    await queryRunner.manager.update(JobStatusUpdate, { jsu_id: params.jsu_id }, updateData);
+
+    // Fetch and return updated record
+    const updatedJobStatus = await queryRunner.manager.findOne(JobStatusUpdate, {
+      where: { jsu_id: params.jsu_id }
+    });
+
+    console.log('✅ Job status update updated successfully');
+    return updatedJobStatus;
+  });
+};
+
+// Update Self Placement
+const updateSelfPlacement = async (params: IUpdateSelfPlacement) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🔄 Updating self placement:', params.placement_id);
+
+    // Find existing record
+    const existingPlacement = await queryRunner.manager.findOne(SelfPlacement, {
+      where: { placement_id: params.placement_id }
+    });
+
+    if (!existingPlacement) {
+      throw new StringError('Self placement not found');
+    }
+
+    // Validate status if provided
+    if (params.status) {
+      const validStatuses = ['pending', 'under_review', 'approved', 'rejected'];
+      const status = params.status.toLowerCase().trim();
+      if (!validStatuses.includes(status)) {
+        throw new StringError(`Invalid status: "${params.status}". Must be one of: ${validStatuses.join(', ')}`);
+      }
+    }
+
+    // Build update data
+    const updateData: Partial<SelfPlacement> = {};
+    if (params.facility_name !== undefined) updateData.facility_name = params.facility_name;
+    if (params.facility_type !== undefined) updateData.facility_type = params.facility_type;
+    if (params.facility_address !== undefined) updateData.facility_address = params.facility_address;
+    if (params.contact_person_name !== undefined) updateData.contact_person_name = params.contact_person_name;
+    if (params.contact_email !== undefined) updateData.contact_email = params.contact_email;
+    if (params.contact_phone !== undefined) updateData.contact_phone = params.contact_phone;
+    if (params.supervisor_name !== undefined) updateData.supervisor_name = params.supervisor_name;
+    if (params.supporting_documents_path !== undefined) updateData.supporting_documents_path = params.supporting_documents_path;
+    if (params.offer_letter_path !== undefined) updateData.offer_letter_path = params.offer_letter_path;
+    if (params.registration_proof_path !== undefined) updateData.registration_proof_path = params.registration_proof_path;
+    if (params.status !== undefined) updateData.status = params.status;
+    if (params.student_comments !== undefined) updateData.student_comments = params.student_comments;
+    if (params.reviewed_at !== undefined) updateData.reviewed_at = params.reviewed_at;
+    if (params.reviewed_by !== undefined) updateData.reviewed_by = params.reviewed_by;
+    if (params.review_comments !== undefined) updateData.review_comments = params.review_comments;
+
+    // Update the record
+    await queryRunner.manager.update(SelfPlacement, { placement_id: params.placement_id }, updateData);
+
+    // Fetch and return updated record
+    const updatedPlacement = await queryRunner.manager.findOne(SelfPlacement, {
+      where: { placement_id: params.placement_id }
+    });
+
+    console.log('✅ Self placement updated successfully');
+    return updatedPlacement;
+  });
+};
+
 // Self Placement interface
 export interface ICreateSelfPlacement {
   facility_name: string;
+  facility_type?: string;
+  facility_address?: string;
+  contact_person_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  supervisor_name?: string;
+  supporting_documents_path?: string;
+  offer_letter_path?: string;
+  registration_proof_path?: string;
+  status?: 'pending' | 'under_review' | 'approved' | 'rejected';
+  student_comments?: string;
+  reviewed_at?: Date;
+  reviewed_by?: string;
+  review_comments?: string;
+}
+
+// Update interfaces
+export interface IUpdateAddressChangeRequest {
+  acr_id: number;
+  current_address?: string;
+  new_address?: string;
+  effective_date?: Date;
+  change_reason?: string;
+  impact_acknowledged?: boolean;
+  status?: 'pending' | 'approved' | 'rejected' | 'implemented';
+  reviewed_at?: Date;
+  reviewed_by?: string;
+  review_comments?: string;
+}
+
+export interface IUpdateJobStatusUpdate {
+  jsu_id: number;
+  status?: string;
+  last_updated_on?: Date;
+  employer_name?: string;
+  job_role?: string;
+  start_date?: Date;
+  employment_type?: string;
+  offer_letter_path?: string;
+  actively_applying?: boolean;
+  expected_timeline?: string;
+  searching_comments?: string;
+}
+
+export interface IUpdateSelfPlacement {
+  placement_id: number;
+  facility_name?: string;
   facility_type?: string;
   facility_address?: string;
   contact_person_name?: string;
@@ -1131,5 +1579,8 @@ export default {
   addFacilityRecord,
   addAddressChangeRequest,
   addJobStatusUpdate,
-  addSelfPlacement
+  addSelfPlacement,
+  updateAddressChangeRequest,
+  updateJobStatusUpdate,
+  updateSelfPlacement
 };

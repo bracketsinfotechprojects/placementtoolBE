@@ -1010,8 +1010,19 @@ router.get('/:id/all-details', StudentController.getAllDetails);
  * @swagger
  * /api/students/{id}:
  *   put:
- *     summary: Update student
- *     description: Update student information
+ *     summary: Update student with all related entities
+ *     description: |
+ *       Update student information including all related entities. Accepts the same payload structure 
+ *       as the create endpoint. All fields are optional - only provide the fields you want to update.
+ *       
+ *       **Update Strategy:**
+ *       - Main student fields are updated directly
+ *       - Related entities (contact_details, visa_details, etc.) are replaced with new data if provided
+ *       - If a related entity is not included in the payload, it remains unchanged
+ *       - All updates are performed in a single transaction
+ *       
+ *       **Note:** Facility records, address change requests, and job status updates are managed 
+ *       via their separate APIs and are not affected by this update.
  *     tags:
  *       - Students
  *     security:
@@ -1022,15 +1033,320 @@ router.get('/:id/all-details', StudentController.getAllDetails);
  *         required: true
  *         schema:
  *           type: integer
+ *         description: Student ID
+ *         example: 1
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *                 example: "Sneha"
+ *               last_name:
+ *                 type: string
+ *                 example: "Patil"
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *                 example: "2000-03-15"
+ *               gender:
+ *                 type: string
+ *                 example: "female"
+ *               nationality:
+ *                 type: string
+ *                 example: "Indian"
+ *               student_type:
+ *                 type: string
+ *                 enum: [domestic, international]
+ *                 example: "international"
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, graduated, withdrawn]
+ *                 example: "active"
+ *               contact_details:
+ *                 type: object
+ *                 description: If provided, replaces existing contact details
+ *                 properties:
+ *                   primary_mobile:
+ *                     type: string
+ *                     example: "+91-9876543210"
+ *                   email:
+ *                     type: string
+ *                     example: "sneha.patil@example.com"
+ *                   emergency_contact:
+ *                     type: string
+ *                     example: "+91-9876543211"
+ *                   contact_type:
+ *                     type: string
+ *                     enum: [mobile, landline, whatsapp]
+ *                     example: "mobile"
+ *                   is_primary:
+ *                     type: boolean
+ *                     example: true
+ *                   verified_at:
+ *                     type: string
+ *                     format: date-time
+ *               visa_details:
+ *                 type: object
+ *                 description: If provided, replaces existing visa details
+ *                 properties:
+ *                   visa_type:
+ *                     type: string
+ *                     example: "Work Permit"
+ *                   visa_number:
+ *                     type: string
+ *                     example: "WP123456789"
+ *                   start_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2025-09-01"
+ *                   expiry_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2027-09-01"
+ *                   status:
+ *                     type: string
+ *                     enum: [active, expired, revoked, pending]
+ *                     example: "active"
+ *                   issuing_country:
+ *                     type: string
+ *                     example: "Canada"
+ *                   document_path:
+ *                     type: string
+ *                     example: "/documents/work_permit.pdf"
+ *               addresses:
+ *                 type: array
+ *                 description: If provided, replaces all existing addresses
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     line1:
+ *                       type: string
+ *                       example: "22 Tech Valley"
+ *                     city:
+ *                       type: string
+ *                       example: "Bangalore"
+ *                     state:
+ *                       type: string
+ *                       example: "Karnataka"
+ *                     country:
+ *                       type: string
+ *                       example: "India"
+ *                     postal_code:
+ *                       type: string
+ *                       example: "560001"
+ *                     address_type:
+ *                       type: string
+ *                       enum: [current, permanent, temporary, mailing]
+ *                       example: "current"
+ *                     is_primary:
+ *                       type: boolean
+ *                       example: true
+ *               eligibility_status:
+ *                 type: object
+ *                 description: If provided, replaces existing eligibility status
+ *                 properties:
+ *                   classes_completed:
+ *                     type: boolean
+ *                     example: true
+ *                   fees_paid:
+ *                     type: boolean
+ *                     example: true
+ *                   assignments_submitted:
+ *                     type: boolean
+ *                     example: true
+ *                   documents_submitted:
+ *                     type: boolean
+ *                     example: true
+ *                   trainer_consent:
+ *                     type: boolean
+ *                     example: true
+ *                   override_requested:
+ *                     type: boolean
+ *                     example: false
+ *                   requested_by:
+ *                     type: string
+ *                     example: "Admin"
+ *                   reason:
+ *                     type: string
+ *                     example: "All requirements met"
+ *                   comments:
+ *                     type: string
+ *                     example: "Student is now eligible for placement"
+ *                   overall_status:
+ *                     type: string
+ *                     enum: [eligible, not_eligible, pending, override]
+ *                     example: "eligible"
+ *               student_lifestyle:
+ *                 type: object
+ *                 description: If provided, replaces existing lifestyle information
+ *                 properties:
+ *                   currently_working:
+ *                     type: boolean
+ *                     example: false
+ *                   working_hours:
+ *                     type: string
+ *                     example: "0"
+ *                   has_dependents:
+ *                     type: boolean
+ *                     example: true
+ *                   married:
+ *                     type: boolean
+ *                     example: true
+ *                   driving_license:
+ *                     type: boolean
+ *                     example: true
+ *                   own_vehicle:
+ *                     type: boolean
+ *                     example: true
+ *                   public_transport_only:
+ *                     type: boolean
+ *                     example: false
+ *                   can_travel_long_distance:
+ *                     type: boolean
+ *                     example: true
+ *                   drop_support_available:
+ *                     type: boolean
+ *                     example: true
+ *                   fully_flexible:
+ *                     type: boolean
+ *                     example: true
+ *                   rush_placement_required:
+ *                     type: boolean
+ *                     example: false
+ *                   preferred_days:
+ *                     type: string
+ *                     example: "Monday to Friday"
+ *                   preferred_time_slots:
+ *                     type: string
+ *                     example: "9 AM to 5 PM"
+ *                   additional_notes:
+ *                     type: string
+ *                     example: "Prefers remote work opportunities"
+ *               placement_preferences:
+ *                 type: object
+ *                 description: If provided, replaces existing placement preferences
+ *                 properties:
+ *                   preferred_states:
+ *                     type: string
+ *                     example: "Karnataka, Telangana"
+ *                   preferred_cities:
+ *                     type: string
+ *                     example: "Bangalore, Hyderabad"
+ *                   max_travel_distance_km:
+ *                     type: integer
+ *                     example: 20
+ *                   morning_only:
+ *                     type: boolean
+ *                     example: true
+ *                   evening_only:
+ *                     type: boolean
+ *                     example: false
+ *                   night_shift:
+ *                     type: boolean
+ *                     example: false
+ *                   weekend_only:
+ *                     type: boolean
+ *                     example: false
+ *                   part_time:
+ *                     type: boolean
+ *                     example: false
+ *                   full_time:
+ *                     type: boolean
+ *                     example: true
+ *                   with_friend:
+ *                     type: boolean
+ *                     example: false
+ *                   friend_name_or_id:
+ *                     type: string
+ *                   with_spouse:
+ *                     type: boolean
+ *                     example: true
+ *                   spouse_name_or_id:
+ *                     type: string
+ *                     example: "STU456"
+ *                   earliest_start_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2026-03-01"
+ *                   latest_start_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2026-05-01"
+ *                   specific_month_preference:
+ *                     type: string
+ *                     example: "April 2026"
+ *                   urgency_level:
+ *                     type: string
+ *                     enum: [immediate, within_month, within_quarter, flexible]
+ *                     example: "within_month"
+ *                   additional_preferences:
+ *                     type: string
+ *                     example: "Interested in frontend development roles"
+ *           examples:
+ *             updateBasicInfo:
+ *               summary: Update only basic student info
+ *               value:
+ *                 first_name: "Updated Name"
+ *                 status: "graduated"
+ *             updateWithRelations:
+ *               summary: Update student with all related entities
+ *               value:
+ *                 first_name: "Sneha"
+ *                 last_name: "Patil"
+ *                 status: "active"
+ *                 contact_details:
+ *                   primary_mobile: "+91-9999999999"
+ *                   email: "sneha.updated@example.com"
+ *                 addresses:
+ *                   - line1: "New Address Line 1"
+ *                     city: "Mumbai"
+ *                     state: "Maharashtra"
+ *                     country: "India"
+ *                     postal_code: "400001"
+ *                     address_type: "current"
+ *                     is_primary: true
+ *                 eligibility_status:
+ *                   classes_completed: true
+ *                   fees_paid: true
+ *                   overall_status: "eligible"
  *     responses:
  *       200:
  *         description: Student updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Student updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     student_id:
+ *                       type: integer
+ *                       example: 1
+ *                     first_name:
+ *                       type: string
+ *                       example: "Sneha"
+ *                     last_name:
+ *                       type: string
+ *                       example: "Patil"
+ *       400:
+ *         description: Validation error or invalid data
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error - transaction rolled back, no changes saved
  */
 router.put('/:id', StudentController.update);
 
@@ -1487,5 +1803,246 @@ router.post('/:studentId/job-status-updates', StudentController.addJobStatusUpda
  *         description: Server error
  */
 router.post('/:studentId/self-placements', StudentController.addSelfPlacement);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/address-change-requests/{acrId}:
+ *   put:
+ *     summary: Update address change request
+ *     description: Update an existing address change request with all fields optional
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 10
+ *       - in: path
+ *         name: acrId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Address Change Request ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               current_address:
+ *                 type: string
+ *                 example: "123 Old Street, Sydney"
+ *               new_address:
+ *                 type: string
+ *                 example: "456 New Avenue, Melbourne"
+ *               effective_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-03-01"
+ *               change_reason:
+ *                 type: string
+ *                 example: "Relocating for work"
+ *               impact_acknowledged:
+ *                 type: boolean
+ *                 example: true
+ *               status:
+ *                 type: string
+ *                 enum: [pending, approved, rejected, implemented]
+ *                 example: "approved"
+ *               reviewed_at:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-02-15T10:30:00Z"
+ *               reviewed_by:
+ *                 type: string
+ *                 example: "Admin User"
+ *               review_comments:
+ *                 type: string
+ *                 example: "Approved - valid reason provided"
+ *     responses:
+ *       200:
+ *         description: Address change request updated successfully
+ *       404:
+ *         description: Address change request not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.put('/:studentId/address-change-requests/:acrId', StudentController.updateAddressChangeRequest);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/job-status-updates/{jsuId}:
+ *   put:
+ *     summary: Update job status update
+ *     description: Update an existing job status update with all fields optional
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 10
+ *       - in: path
+ *         name: jsuId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Job Status Update ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: "employed"
+ *               last_updated_on:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-02-01"
+ *               employer_name:
+ *                 type: string
+ *                 example: "Tech Corp Australia"
+ *               job_role:
+ *                 type: string
+ *                 example: "Software Developer"
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-03-01"
+ *               employment_type:
+ *                 type: string
+ *                 example: "full-time"
+ *               offer_letter_path:
+ *                 type: string
+ *                 example: "/documents/offer_letter.pdf"
+ *               actively_applying:
+ *                 type: boolean
+ *                 example: false
+ *               expected_timeline:
+ *                 type: string
+ *                 example: "Started employment"
+ *               searching_comments:
+ *                 type: string
+ *                 example: "Successfully placed"
+ *     responses:
+ *       200:
+ *         description: Job status update updated successfully
+ *       404:
+ *         description: Job status update not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.put('/:studentId/job-status-updates/:jsuId', StudentController.updateJobStatusUpdate);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/self-placements/{placementId}:
+ *   put:
+ *     summary: Update self placement
+ *     description: Update an existing self placement with all fields optional
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 10
+ *       - in: path
+ *         name: placementId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Self Placement ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               facility_name:
+ *                 type: string
+ *                 example: "City Hospital"
+ *               facility_type:
+ *                 type: string
+ *                 example: "Hospital"
+ *               facility_address:
+ *                 type: string
+ *                 example: "789 Health Street, Sydney"
+ *               contact_person_name:
+ *                 type: string
+ *                 example: "Dr. Smith"
+ *               contact_email:
+ *                 type: string
+ *                 example: "dr.smith@cityhospital.com"
+ *               contact_phone:
+ *                 type: string
+ *                 example: "+61-2-9999-8888"
+ *               supervisor_name:
+ *                 type: string
+ *                 example: "Nurse Manager Jane"
+ *               supporting_documents_path:
+ *                 type: string
+ *                 example: "/documents/supporting_docs.pdf"
+ *               offer_letter_path:
+ *                 type: string
+ *                 example: "/documents/offer_letter.pdf"
+ *               registration_proof_path:
+ *                 type: string
+ *                 example: "/documents/registration.pdf"
+ *               status:
+ *                 type: string
+ *                 enum: [pending, under_review, approved, rejected]
+ *                 example: "approved"
+ *               student_comments:
+ *                 type: string
+ *                 example: "Updated facility contact information"
+ *               reviewed_at:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-02-15T14:30:00Z"
+ *               reviewed_by:
+ *                 type: string
+ *                 example: "Admin User"
+ *               review_comments:
+ *                 type: string
+ *                 example: "Approved - all documents verified"
+ *     responses:
+ *       200:
+ *         description: Self placement updated successfully
+ *       404:
+ *         description: Self placement not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.put('/:studentId/self-placements/:placementId', StudentController.updateSelfPlacement);
 
 export default router;
