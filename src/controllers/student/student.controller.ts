@@ -43,10 +43,10 @@ export default class StudentController extends BaseController {
         addresses: req.body.addresses,
         eligibility_status: req.body.eligibility_status,
         student_lifestyle: req.body.student_lifestyle,
-        placement_preferences: req.body.placement_preferences,
-        facility_records: req.body.facility_records,
-        address_change_requests: req.body.address_change_requests,
-        job_status_updates: req.body.job_status_updates
+        placement_preferences: req.body.placement_preferences
+        
+        // NOTE: facility_records, address_change_requests, and job_status_updates
+        // are now added via separate APIs after student creation
       };
 
       // Create student with all related entities in a single transaction
@@ -223,5 +223,128 @@ export default class StudentController extends BaseController {
       const result = await StudentService.getStudentsList(queryParams);
       ApiResponseUtility.success(res, result.response, 'Students list retrieved successfully', result.pagination);
     }, 'Failed to retrieve students list');
+  }
+
+  // Add Facility Record (Self Placement)
+  static async addFacilityRecord(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = parseInt(req.params.studentId);
+      
+      if (isNaN(studentId)) {
+        throw new StringError('Invalid student ID');
+      }
+
+      const facilityData = {
+        facility_name: req.body.facility_name,
+        facility_type: req.body.facility_type,
+        branch_site: req.body.branch_site,
+        facility_address: req.body.facility_address,
+        contact_person_name: req.body.contact_person_name,
+        contact_email: req.body.contact_email,
+        contact_phone: req.body.contact_phone,
+        supervisor_name: req.body.supervisor_name,
+        distance_from_student_km: req.body.distance_from_student_km,
+        slot_id: req.body.slot_id,
+        course_type: req.body.course_type,
+        shift_timing: req.body.shift_timing,
+        start_date: req.body.start_date,
+        duration_hours: req.body.duration_hours,
+        gender_requirement: req.body.gender_requirement,
+        applied_on: req.body.applied_on,
+        student_confirmed: req.body.student_confirmed,
+        student_comments: req.body.student_comments,
+        document_type: req.body.document_type,
+        file_path: req.body.file_path,
+        application_status: req.body.application_status
+      };
+
+      const facility = await StudentService.addFacilityRecord(studentId, facilityData);
+      ApiResponseUtility.createdSuccess(res, facility, 'Facility record added successfully');
+    }, 'Failed to add facility record');
+  }
+
+  // Add Address Change Request
+  static async addAddressChangeRequest(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = parseInt(req.params.studentId);
+      
+      if (isNaN(studentId)) {
+        throw new StringError('Invalid student ID');
+      }
+
+      const requestData = {
+        current_address: req.body.current_address,
+        new_address: req.body.new_address,
+        effective_date: req.body.effective_date,
+        change_reason: req.body.change_reason,
+        impact_acknowledged: req.body.impact_acknowledged,
+        status: req.body.status,
+        reviewed_at: req.body.reviewed_at,
+        reviewed_by: req.body.reviewed_by,
+        review_comments: req.body.review_comments
+      };
+
+      const request = await StudentService.addAddressChangeRequest(studentId, requestData);
+      ApiResponseUtility.createdSuccess(res, request, 'Address change request added successfully');
+    }, 'Failed to add address change request');
+  }
+
+  // Add Job Status Update
+  static async addJobStatusUpdate(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = parseInt(req.params.studentId);
+      
+      if (isNaN(studentId)) {
+        throw new StringError('Invalid student ID');
+      }
+
+      const jobData = {
+        status: req.body.status,
+        last_updated_on: req.body.last_updated_on,
+        employer_name: req.body.employer_name,
+        job_role: req.body.job_role,
+        start_date: req.body.start_date,
+        employment_type: req.body.employment_type,
+        offer_letter_path: req.body.offer_letter_path,
+        actively_applying: req.body.actively_applying,
+        expected_timeline: req.body.expected_timeline,
+        searching_comments: req.body.searching_comments
+      };
+
+      const jobStatus = await StudentService.addJobStatusUpdate(studentId, jobData);
+      ApiResponseUtility.createdSuccess(res, jobStatus, 'Job status update added successfully');
+    }, 'Failed to add job status update');
+  }
+
+  // Add Self Placement
+  static async addSelfPlacement(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = parseInt(req.params.studentId);
+      
+      if (isNaN(studentId)) {
+        throw new StringError('Invalid student ID');
+      }
+
+      const placementData = {
+        facility_name: req.body.facility_name,
+        facility_type: req.body.facility_type,
+        facility_address: req.body.facility_address,
+        contact_person_name: req.body.contact_person_name,
+        contact_email: req.body.contact_email,
+        contact_phone: req.body.contact_phone,
+        supervisor_name: req.body.supervisor_name,
+        supporting_documents_path: req.body.supporting_documents_path,
+        offer_letter_path: req.body.offer_letter_path,
+        registration_proof_path: req.body.registration_proof_path,
+        status: req.body.status,
+        student_comments: req.body.student_comments,
+        reviewed_at: req.body.reviewed_at,
+        reviewed_by: req.body.reviewed_by,
+        review_comments: req.body.review_comments
+      };
+
+      const selfPlacement = await StudentService.addSelfPlacement(studentId, placementData);
+      ApiResponseUtility.createdSuccess(res, selfPlacement, 'Self placement added successfully');
+    }, 'Failed to add self placement');
   }
 }

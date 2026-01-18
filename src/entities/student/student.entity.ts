@@ -18,6 +18,7 @@ import { PlacementPreferences } from './placement-preferences.entity';
 import { FacilityRecords } from './facility-records.entity';
 import { AddressChangeRequest } from './address-change-request.entity';
 import { JobStatusUpdate } from './job-status-update.entity';
+import { SelfPlacement } from './self-placement.entity';
 
 @Entity('students', { orderBy: { student_id: 'DESC' } })
 @Index(['student_id'])
@@ -119,6 +120,9 @@ export class Student extends BaseEntity {
 
   @OneToMany(() => JobStatusUpdate, jobStatus => jobStatus.student, { cascade: true })
   job_status_updates: JobStatusUpdate[];
+
+  @OneToMany(() => SelfPlacement, selfPlacement => selfPlacement.student, { cascade: true })
+  self_placements: SelfPlacement[];
 
   // Virtual properties
   get fullName(): string {

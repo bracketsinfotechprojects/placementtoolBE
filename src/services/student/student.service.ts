@@ -11,6 +11,7 @@ import { PlacementPreferences } from '../../entities/student/placement-preferenc
 import { FacilityRecords } from '../../entities/student/facility-records.entity';
 import { AddressChangeRequest } from '../../entities/student/address-change-request.entity';
 import { JobStatusUpdate } from '../../entities/student/job-status-update.entity';
+import { SelfPlacement } from '../../entities/student/self-placement.entity';
 import { User } from '../../entities/user/user.entity';
 
 // Services
@@ -118,6 +119,18 @@ const create = async (params: ICreateStudent) => {
     if (params.eligibility_status) {
       try {
         console.log('📋 Creating eligibility status...');
+
+        // Validate and sanitize overall_status
+        const validStatuses = ['eligible', 'not_eligible', 'pending', 'override'];
+        let overallStatus = params.eligibility_status.overall_status?.trim() || 'not_eligible';
+
+        if (!validStatuses.includes(overallStatus)) {
+          console.warn(`⚠️ Invalid overall_status received: "${overallStatus}". Using default: "not_eligible"`);
+          overallStatus = 'not_eligible';
+        }
+
+        console.log(`📊 Overall status value: "${overallStatus}" (type: ${typeof overallStatus})`);
+
         const eligibilityStatus = new EligibilityStatus();
         eligibilityStatus.student = studentData;
         eligibilityStatus.classes_completed = params.eligibility_status.classes_completed;
@@ -129,7 +142,7 @@ const create = async (params: ICreateStudent) => {
         eligibilityStatus.requested_by = params.eligibility_status.requested_by;
         eligibilityStatus.reason = params.eligibility_status.reason;
         eligibilityStatus.comments = params.eligibility_status.comments;
-        eligibilityStatus.overall_status = params.eligibility_status.overall_status || 'not_eligible';
+        eligibilityStatus.overall_status = overallStatus as 'eligible' | 'not_eligible' | 'pending' | 'override';
 
         await queryRunner.manager.save(EligibilityStatus, eligibilityStatus);
         console.log('✅ Eligibility status created');
@@ -190,7 +203,15 @@ const create = async (params: ICreateStudent) => {
         preferences.earliest_start_date = params.placement_preferences.earliest_start_date;
         preferences.latest_start_date = params.placement_preferences.latest_start_date;
         preferences.specific_month_preference = params.placement_preferences.specific_month_preference;
-        preferences.urgency_level = params.placement_preferences.urgency_level || 'flexible';
+
+        // Validate and set urgency_level
+        const validUrgencyLevels = ['immediate', 'within_month', 'within_quarter', 'flexible'];
+        const urgencyLevel = params.placement_preferences.urgency_level?.toLowerCase().trim();
+        if (urgencyLevel && !validUrgencyLevels.includes(urgencyLevel)) {
+          throw new Error(`Invalid urgency_level: "${params.placement_preferences.urgency_level}". Must be one of: ${validUrgencyLevels.join(', ')}`);
+        }
+        preferences.urgency_level = (urgencyLevel as any) || 'flexible';
+
         preferences.additional_preferences = params.placement_preferences.additional_preferences;
 
         await queryRunner.manager.save(PlacementPreferences, preferences);
@@ -201,99 +222,7 @@ const create = async (params: ICreateStudent) => {
       }
     }
 
-    // Step 8: Create facility records if provided
-    if (params.facility_records && params.facility_records.length > 0) {
-      try {
-        console.log('🏥 Creating facility records...');
-        for (const facilityData of params.facility_records) {
-          const facility = new FacilityRecords();
-          facility.student = studentData;
-          facility.facility_name = facilityData.facility_name;
-          facility.facility_type = facilityData.facility_type;
-          facility.branch_site = facilityData.branch_site;
-          facility.facility_address = facilityData.facility_address;
-          facility.contact_person_name = facilityData.contact_person_name;
-          facility.contact_email = facilityData.contact_email;
-          facility.contact_phone = facilityData.contact_phone;
-          facility.supervisor_name = facilityData.supervisor_name;
-          facility.distance_from_student_km = facilityData.distance_from_student_km;
-          facility.slot_id = facilityData.slot_id;
-          facility.course_type = facilityData.course_type;
-          facility.shift_timing = facilityData.shift_timing;
-          facility.start_date = facilityData.start_date;
-          facility.duration_hours = facilityData.duration_hours;
-          facility.gender_requirement = facilityData.gender_requirement;
-          facility.applied_on = facilityData.applied_on;
-          facility.student_confirmed = facilityData.student_confirmed;
-          facility.student_comments = facilityData.student_comments;
-          facility.document_type = facilityData.document_type;
-          facility.file_path = facilityData.file_path;
-          facility.application_status = facilityData.application_status || 'applied';
-
-          await queryRunner.manager.save(FacilityRecords, facility);
-        }
-        console.log(`✅ ${params.facility_records.length} facility record(s) created`);
-      } catch (error) {
-        console.error('❌ Failed to create facility records:', error.message);
-        throw new Error(`Failed to create facility records: ${error.message}`);
-      }
-    }
-
-    // Step 9: Create address change requests if provided
-    if (params.address_change_requests && params.address_change_requests.length > 0) {
-      try {
-        console.log('📝 Creating address change requests...');
-        for (const requestData of params.address_change_requests) {
-          const request = new AddressChangeRequest();
-          request.student = studentData;
-          request.current_address = requestData.current_address;
-          request.new_address = requestData.new_address;
-          request.effective_date = requestData.effective_date;
-          request.change_reason = requestData.change_reason;
-          request.impact_acknowledged = requestData.impact_acknowledged;
-          request.status = requestData.status || 'pending';
-          request.reviewed_at = requestData.reviewed_at;
-          request.reviewed_by = requestData.reviewed_by;
-          request.review_comments = requestData.review_comments;
-
-          await queryRunner.manager.save(AddressChangeRequest, request);
-        }
-        console.log(`✅ ${params.address_change_requests.length} address change request(s) created`);
-      } catch (error) {
-        console.error('❌ Failed to create address change requests:', error.message);
-        throw new Error(`Failed to create address change requests: ${error.message}`);
-      }
-    }
-
-    // Step 10: Create job status updates if provided
-    if (params.job_status_updates && params.job_status_updates.length > 0) {
-      try {
-        console.log('💼 Creating job status updates...');
-        for (const jobData of params.job_status_updates) {
-          const jobStatus = new JobStatusUpdate();
-          jobStatus.student = studentData;
-          jobStatus.status = jobData.status;
-          jobStatus.last_updated_on = jobData.last_updated_on;
-          jobStatus.employer_name = jobData.employer_name;
-          jobStatus.job_role = jobData.job_role;
-          jobStatus.start_date = jobData.start_date;
-          jobStatus.employment_type = jobData.employment_type;
-          jobStatus.offer_letter_path = jobData.offer_letter_path;
-          jobStatus.actively_applying = jobData.actively_applying;
-          jobStatus.expected_timeline = jobData.expected_timeline;
-          jobStatus.searching_comments = jobData.searching_comments;
-          jobStatus.created_at = jobData.created_at;
-
-          await queryRunner.manager.save(JobStatusUpdate, jobStatus);
-        }
-        console.log(`✅ ${params.job_status_updates.length} job status update(s) created`);
-      } catch (error) {
-        console.error('❌ Failed to create job status updates:', error.message);
-        throw new Error(`Failed to create job status updates: ${error.message}`);
-      }
-    }
-
-    // Step 11: Create user account if email is provided
+    // Step 8: Create user account if email is provided
     if (params.email) {
       try {
         console.log('🔧 Attempting to create user account for email:', params.email);
@@ -340,7 +269,7 @@ export interface ICreateStudent {
   status?: 'active' | 'inactive' | 'graduated' | 'withdrawn';
   email?: string; // Email for automatic user account creation
   password?: string; // Password for user account (will be hashed)
-  
+
   // Related entities (optional)
   contact_details?: ICreateContactDetails;
   visa_details?: ICreateVisaDetails;
@@ -348,9 +277,9 @@ export interface ICreateStudent {
   eligibility_status?: ICreateEligibilityStatus;
   student_lifestyle?: ICreateStudentLifestyle;
   placement_preferences?: ICreatePlacementPreferences;
-  facility_records?: ICreateFacilityRecords[];
-  address_change_requests?: ICreateAddressChangeRequest[];
-  job_status_updates?: ICreateJobStatusUpdate[];
+
+  // NOTE: facility_records, address_change_requests, and job_status_updates
+  // are now managed via separate APIs after student creation
 }
 
 // Student update interface
@@ -597,6 +526,130 @@ const getById = async (params: IDetailById) => {
   }
 };
 
+// Add Facility Record (Self Placement)
+const addFacilityRecord = async (studentId: number, facilityData: ICreateFacilityRecords) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🏥 Adding facility record for student:', studentId);
+
+    // Verify student exists
+    const student = await queryRunner.manager.findOne(Student, {
+      where: { student_id: studentId, isDeleted: false }
+    });
+
+    if (!student) {
+      throw new StringError('Student not found');
+    }
+
+    // Validate and sanitize application_status
+    const validStatuses = ['applied', 'under_review', 'accepted', 'rejected', 'confirmed', 'completed'];
+    let applicationStatus = facilityData.application_status?.toLowerCase().trim() || 'applied';
+    
+    if (!validStatuses.includes(applicationStatus)) {
+      throw new StringError(`Invalid application_status: "${facilityData.application_status}". Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    // Create facility record
+    const facility = new FacilityRecords();
+    facility.student = student;
+    facility.facility_name = facilityData.facility_name;
+    facility.facility_type = facilityData.facility_type;
+    facility.branch_site = facilityData.branch_site;
+    facility.facility_address = facilityData.facility_address;
+    facility.contact_person_name = facilityData.contact_person_name;
+    facility.contact_email = facilityData.contact_email;
+    facility.contact_phone = facilityData.contact_phone;
+    facility.supervisor_name = facilityData.supervisor_name;
+    facility.distance_from_student_km = facilityData.distance_from_student_km;
+    facility.slot_id = facilityData.slot_id;
+    facility.course_type = facilityData.course_type;
+    facility.shift_timing = facilityData.shift_timing;
+    facility.start_date = facilityData.start_date;
+    facility.duration_hours = facilityData.duration_hours;
+    facility.gender_requirement = facilityData.gender_requirement;
+    facility.applied_on = facilityData.applied_on;
+    facility.student_confirmed = facilityData.student_confirmed;
+    facility.student_comments = facilityData.student_comments;
+    facility.document_type = facilityData.document_type;
+    facility.file_path = facilityData.file_path;
+    facility.application_status = applicationStatus as 'applied' | 'under_review' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
+
+    const savedFacility = await queryRunner.manager.save(FacilityRecords, facility);
+    console.log('✅ Facility record added successfully');
+
+    return savedFacility;
+  });
+};
+
+// Add Address Change Request
+const addAddressChangeRequest = async (studentId: number, requestData: ICreateAddressChangeRequest) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('📝 Adding address change request for student:', studentId);
+
+    // Verify student exists
+    const student = await queryRunner.manager.findOne(Student, {
+      where: { student_id: studentId, isDeleted: false }
+    });
+
+    if (!student) {
+      throw new StringError('Student not found');
+    }
+
+    // Create address change request
+    const request = new AddressChangeRequest();
+    request.student = student;
+    request.current_address = requestData.current_address;
+    request.new_address = requestData.new_address;
+    request.effective_date = requestData.effective_date;
+    request.change_reason = requestData.change_reason;
+    request.impact_acknowledged = requestData.impact_acknowledged;
+    request.status = requestData.status || 'pending';
+    request.reviewed_at = requestData.reviewed_at;
+    request.reviewed_by = requestData.reviewed_by;
+    request.review_comments = requestData.review_comments;
+
+    const savedRequest = await queryRunner.manager.save(AddressChangeRequest, request);
+    console.log('✅ Address change request added successfully');
+
+    return savedRequest;
+  });
+};
+
+// Add Job Status Update
+const addJobStatusUpdate = async (studentId: number, jobData: ICreateJobStatusUpdate) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('💼 Adding job status update for student:', studentId);
+
+    // Verify student exists
+    const student = await queryRunner.manager.findOne(Student, {
+      where: { student_id: studentId, isDeleted: false }
+    });
+
+    if (!student) {
+      throw new StringError('Student not found');
+    }
+
+    // Create job status update
+    const jobStatus = new JobStatusUpdate();
+    jobStatus.student = student;
+    jobStatus.status = jobData.status;
+    jobStatus.last_updated_on = jobData.last_updated_on;
+    jobStatus.employer_name = jobData.employer_name;
+    jobStatus.job_role = jobData.job_role;
+    jobStatus.start_date = jobData.start_date;
+    jobStatus.employment_type = jobData.employment_type;
+    jobStatus.offer_letter_path = jobData.offer_letter_path;
+    jobStatus.actively_applying = jobData.actively_applying;
+    jobStatus.expected_timeline = jobData.expected_timeline;
+    jobStatus.searching_comments = jobData.searching_comments;
+    jobStatus.created_at = jobData.created_at;
+
+    const savedJobStatus = await queryRunner.manager.save(JobStatusUpdate, jobStatus);
+    console.log('✅ Job status update added successfully');
+
+    return savedJobStatus;
+  });
+};
+
 // Get Student Detail (with validation)
 const detail = async (params: IDetailById) => {
   const query = {
@@ -652,8 +705,8 @@ const getStudentsList = async (params: IStudentQueryParams) => {
 
   // Format response with specific fields
   const response = students.map(student => {
-    const primaryAddress = student.addresses && student.addresses.length > 0 
-      ? student.addresses[0] 
+    const primaryAddress = student.addresses && student.addresses.length > 0
+      ? student.addresses[0]
       : null;
 
     const completedCourses = student.facility_records && student.facility_records.length > 0
@@ -994,6 +1047,73 @@ const getWithUserDetails = async (studentId: number) => {
   };
 };
 
+// Add Self Placement
+const addSelfPlacement = async (studentId: number, placementData: ICreateSelfPlacement) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🏥 Adding self placement for student:', studentId);
+
+    // Verify student exists
+    const student = await queryRunner.manager.findOne(Student, {
+      where: { student_id: studentId, isDeleted: false }
+    });
+
+    if (!student) {
+      throw new StringError('Student not found');
+    }
+
+    // Validate status
+    const validStatuses = ['pending', 'under_review', 'approved', 'rejected'];
+    let status = placementData.status?.toLowerCase().trim() || 'pending';
+    
+    if (!validStatuses.includes(status)) {
+      throw new StringError(`Invalid status: "${placementData.status}". Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    // Create self placement record
+    const selfPlacement = new SelfPlacement();
+    selfPlacement.student = student;
+    selfPlacement.facility_name = placementData.facility_name;
+    selfPlacement.facility_type = placementData.facility_type;
+    selfPlacement.facility_address = placementData.facility_address;
+    selfPlacement.contact_person_name = placementData.contact_person_name;
+    selfPlacement.contact_email = placementData.contact_email;
+    selfPlacement.contact_phone = placementData.contact_phone;
+    selfPlacement.supervisor_name = placementData.supervisor_name;
+    selfPlacement.supporting_documents_path = placementData.supporting_documents_path;
+    selfPlacement.offer_letter_path = placementData.offer_letter_path;
+    selfPlacement.registration_proof_path = placementData.registration_proof_path;
+    selfPlacement.status = status as 'pending' | 'under_review' | 'approved' | 'rejected';
+    selfPlacement.student_comments = placementData.student_comments;
+    selfPlacement.reviewed_at = placementData.reviewed_at;
+    selfPlacement.reviewed_by = placementData.reviewed_by;
+    selfPlacement.review_comments = placementData.review_comments;
+
+    const savedPlacement = await queryRunner.manager.save(SelfPlacement, selfPlacement);
+    console.log('✅ Self placement added successfully');
+
+    return savedPlacement;
+  });
+};
+
+// Self Placement interface
+export interface ICreateSelfPlacement {
+  facility_name: string;
+  facility_type?: string;
+  facility_address?: string;
+  contact_person_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  supervisor_name?: string;
+  supporting_documents_path?: string;
+  offer_letter_path?: string;
+  registration_proof_path?: string;
+  status?: 'pending' | 'under_review' | 'approved' | 'rejected';
+  student_comments?: string;
+  reviewed_at?: Date;
+  reviewed_by?: string;
+  review_comments?: string;
+}
+
 export default {
   create,
   getById,
@@ -1007,5 +1127,9 @@ export default {
   advancedSearch,
   getAllDetails,
   getWithUserDetails,
-  getStudentsList
+  getStudentsList,
+  addFacilityRecord,
+  addAddressChangeRequest,
+  addJobStatusUpdate,
+  addSelfPlacement
 };
