@@ -315,6 +315,55 @@ const getStatistics = async () => {
   };
 };
 
+// Change password
+const changePassword = async (email: string, currentPassword: string, newPassword: string) => {
+  try {
+    // Get user by email
+    const user = await getRepository(User).findOne({
+      where: { loginID: email }
+    });
+
+    if (!user) {
+      throw new StringError('User not found');
+    }
+
+    // Verify current password
+    const isPasswordValid = await PasswordUtility.verifyPassword(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new StringError('Current password is incorrect');
+    }
+
+    // Validate new password
+    if (!newPassword || newPassword.length < 6) {
+      throw new StringError('New password must be at least 6 characters long');
+    }
+
+    // Check if new password is same as current
+    const isSamePassword = await PasswordUtility.verifyPassword(newPassword, user.password);
+    if (isSamePassword) {
+      throw new StringError('New password must be different from current password');
+    }
+
+    // Hash new password
+    const hashedPassword = await PasswordUtility.hashPassword(newPassword);
+
+    // Update password
+    await getRepository(User).update(
+      { id: user.id },
+      {
+        password: hashedPassword,
+        updatedAt: new Date()
+      }
+    );
+
+    console.log('✅ Password changed successfully for user:', email);
+    return { success: true, message: 'Password changed successfully' };
+  } catch (error) {
+    console.error('❌ Error changing password:', error.message);
+    throw error;
+  }
+};
+
 export default {
   create,
   getById,
@@ -325,4 +374,5 @@ export default {
   permanentlyDelete,
   authenticate,
   getStatistics,
+  changePassword,
 };

@@ -94,6 +94,50 @@ router.get(
 
 /**
  * @swagger
+ * /api/user/change-password:
+ *   put:
+ *     summary: Change user password (DEPRECATED - Use /api/me/change-password)
+ *     description: Change password for the authenticated user. This endpoint is deprecated, use /api/me/change-password instead.
+ *     deprecated: true
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - current_password
+ *               - new_password
+ *             properties:
+ *               current_password:
+ *                 type: string
+ *                 description: Current password
+ *                 example: "OldPassword123"
+ *               new_password:
+ *                 type: string
+ *                 description: New password (minimum 6 characters)
+ *                 example: "NewPassword456"
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+// DEPRECATED: This route is kept for backward compatibility
+// New implementations should use /api/me/change-password
+router.put(
+  '/change-password',
+  userController.changePassword,
+);
+
+/**
+ * @swagger
  * /api/user/{id}:
  *   get:
  *     summary: Get user by ID

@@ -87,6 +87,14 @@ export class VisaDetails {
   })
   document_path?: string;
 
+  @Column({
+    type: 'text',
+    nullable: true,
+    name: 'work_limitation',
+    comment: 'Work limitations or restrictions on visa'
+  })
+  work_limitation?: string;
+
   // Relationship
   @ManyToOne(() => Student, student => student.visa_details, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'student_id' })

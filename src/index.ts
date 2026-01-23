@@ -5,6 +5,7 @@ import { createConnection } from 'typeorm';
 import logger from './configs/logger.config';
 import app from './configs/express.config';
 import passwordResetCleanupJob from './jobs/password-reset-cleanup.job';
+import eligibilityCredentialDistributionJob from './jobs/eligibility-credential-distribution.job';
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,6 +17,7 @@ const connect = async () => {
     
     // Start cron jobs
     passwordResetCleanupJob.start();
+    eligibilityCredentialDistributionJob.start();
     
     app.listen(PORT, () => {
       logger.info(`Server running at ${PORT}`);

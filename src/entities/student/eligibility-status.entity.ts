@@ -72,6 +72,14 @@ export class EligibilityStatus {
   })
   override_requested: boolean;
 
+  @Column({
+    type: 'boolean',
+    default: false,
+    name: 'manual_override',
+    comment: 'Whether manual override is applied'
+  })
+  manual_override: boolean;
+
   @Column({ 
     type: 'varchar', 
     length: 100, 

@@ -23,8 +23,9 @@ export default class StudentController extends BaseController {
   // Create a new student with all details
   static async create(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      // Extract email from root level or contact details
-      const email = req.body.email || req.body.contact_details?.email;
+      // Extract email and password with support for login object (preferred) or root level (backward compatible)
+      const email = req.body.login?.email || req.body.email || req.body.contact_details?.email;
+      const password = req.body.login?.password || req.body.password;
 
       const studentData: ICreateStudent = {
         first_name: req.body.first_name,
@@ -35,7 +36,7 @@ export default class StudentController extends BaseController {
         student_type: req.body.student_type || 'domestic',
         status: req.body.status || 'active',
         email: email,
-        password: req.body.password,
+        password: password,
 
         // Pass all related entities
         contact_details: req.body.contact_details,
@@ -280,17 +281,54 @@ export default class StudentController extends BaseController {
         throw new StringError('Invalid student ID');
       }
 
+      console.log('🎯 Controller received body:', JSON.stringify(req.body, null, 2));
+
+      // Support three payload structures:
+      // 1. Wrapped in addresses array: { addresses: [{ line1, ..., change_request: {...} }] }
+      // 2. Flat with nested change_request: { line1, ..., change_request: {...} }
+      // 3. Simple flat: { line1, ..., current_address, ... }
+      
+      let addressData = req.body;
+      
+      // If wrapped in addresses array, extract first element
+      if (req.body.addresses && Array.isArray(req.body.addresses) && req.body.addresses.length > 0) {
+        addressData = req.body.addresses[0];
+        console.log('📦 Extracted from addresses array:', JSON.stringify(addressData, null, 2));
+      }
+
+      // Support nested change_request structure
+      const changeRequest = addressData.change_request || {};
+
       const requestData = {
-        current_address: req.body.current_address,
-        new_address: req.body.new_address,
-        effective_date: req.body.effective_date,
-        change_reason: req.body.change_reason,
-        impact_acknowledged: req.body.impact_acknowledged,
-        status: req.body.status,
-        reviewed_at: req.body.reviewed_at,
-        reviewed_by: req.body.reviewed_by,
-        review_comments: req.body.review_comments
+        // Address fields (from addressData)
+        line1: addressData.line1,
+        line2: addressData.line2,
+        suburb: addressData.suburb,
+        city: addressData.city,
+        state: addressData.state,
+        country: addressData.country,
+        postal_code: addressData.postal_code,
+        address_type: addressData.address_type,
+        is_primary: addressData.is_primary,
+        
+        // Change request fields (can be at addressData root or nested in change_request)
+        current_address: addressData.current_address || changeRequest.current_address,
+        new_address: addressData.new_address || changeRequest.new_address,
+        effective_date: addressData.effective_date || changeRequest.effective_date,
+        change_reason: addressData.change_reason || changeRequest.change_reason,
+        impact_acknowledged: addressData.impact_acknowledged !== undefined 
+          ? addressData.impact_acknowledged 
+          : changeRequest.impact_acknowledged,
+        status: addressData.status || changeRequest.status,
+        reviewed_at: addressData.reviewed_at || changeRequest.reviewed_at,
+        reviewed_by: addressData.reviewed_by || changeRequest.reviewed_by,
+        review_comments: addressData.review_comments || changeRequest.review_comments,
+        
+        // Pass nested structure if exists
+        change_request: changeRequest
       };
+
+      console.log('📤 Controller sending to service:', JSON.stringify(requestData, null, 2));
 
       const request = await StudentService.addAddressChangeRequest(studentId, requestData);
       ApiResponseUtility.createdSuccess(res, request, 'Address change request added successfully');

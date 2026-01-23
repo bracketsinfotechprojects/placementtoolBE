@@ -176,74 +176,6 @@ router.get('/simplified', FacilityController.listSimplified);
 
 /**
  * @swagger
- * /api/facilities/{id}:
- *   get:
- *     summary: Get facility by ID
- *     tags:
- *       - Facilities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Success
- *       401:
- *         description: Unauthorized
- */
-router.get('/:id', FacilityController.getById);
-
-/**
- * @swagger
- * /api/facilities/{id}:
- *   put:
- *     summary: Update facility
- *     tags:
- *       - Facilities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               organization_name:
- *                 type: string
- *                 example: "Updated Sunshine Care Home"
- *               registered_business_name:
- *                 type: string
- *                 example: "Updated Sunshine Care Pty Ltd"
- *               website_url:
- *                 type: string
- *                 example: "https://newsunshinecare.com.au"
- *               abn_registration_number:
- *                 type: string
- *                 example: "98765432109"
- *               source_of_data:
- *                 type: string
- *                 example: "Updated Source"
- *     responses:
- *       200:
- *         description: Updated
- *       401:
- *         description: Unauthorized
- */
-router.put('/:id', FacilityController.update);
-
-/**
- * @swagger
  * /api/facilities/{id}/complete:
  *   put:
  *     summary: Update facility with all related data (attributes, branches, agreements, etc.)
@@ -314,29 +246,6 @@ router.put('/:id/complete', FacilityController.updateComplete);
 
 /**
  * @swagger
- * /api/facilities/{id}:
- *   delete:
- *     summary: Delete facility
- *     tags:
- *       - Facilities
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Deleted
- *       401:
- *         description: Unauthorized
- */
-router.delete('/:id', FacilityController.delete);
-
-/**
- * @swagger
  * /api/facilities/{id}/permanent:
  *   delete:
  *     summary: Permanently delete facility
@@ -357,6 +266,97 @@ router.delete('/:id', FacilityController.delete);
  *         description: Unauthorized
  */
 router.delete('/:id/permanent', FacilityController.permanentlyDelete);
+
+/**
+ * @swagger
+ * /api/facilities/{id}:
+ *   get:
+ *     summary: Get facility by ID
+ *     tags:
+ *       - Facilities
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Success
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/:id', FacilityController.getById);
+
+/**
+ * @swagger
+ * /api/facilities/{id}:
+ *   put:
+ *     summary: Update facility
+ *     tags:
+ *       - Facilities
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name:
+ *                 type: string
+ *                 example: "Updated Sunshine Care Home"
+ *               registered_business_name:
+ *                 type: string
+ *                 example: "Updated Sunshine Care Pty Ltd"
+ *               website_url:
+ *                 type: string
+ *                 example: "https://newsunshinecare.com.au"
+ *               abn_registration_number:
+ *                 type: string
+ *                 example: "98765432109"
+ *               source_of_data:
+ *                 type: string
+ *                 example: "Updated Source"
+ *     responses:
+ *       200:
+ *         description: Updated
+ *       401:
+ *         description: Unauthorized
+ */
+router.put('/:id', FacilityController.update);
+
+/**
+ * @swagger
+ * /api/facilities/{id}:
+ *   delete:
+ *     summary: Delete facility
+ *     tags:
+ *       - Facilities
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Deleted
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/:id', FacilityController.delete);
 
 // Facility Attributes
 /**
