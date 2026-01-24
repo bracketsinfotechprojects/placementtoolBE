@@ -386,6 +386,17 @@ router.get('/', StudentController.list);
  *           type: string
  *         description: Search by student name
  *       - in: query
+ *         name: activation_status
+ *         schema:
+ *           type: string
+ *           enum: [active, deactivated, all]
+ *           default: active
+ *         description: |
+ *           Filter by activation status (isDeleted field):
+ *           - active: Show only active students (isDeleted = 0)
+ *           - deactivated: Show only deactivated students (isDeleted = 1)
+ *           - all: Show both active and deactivated students
+ *       - in: query
  *         name: sort_by
  *         schema:
  *           type: string
@@ -446,6 +457,11 @@ router.get('/', StudentController.list);
  *                         type: boolean
  *                         example: true
  *                         description: True if all eligibility criteria are met
+ *                       activation_status:
+ *                         type: string
+ *                         enum: [active, deactivated]
+ *                         example: "active"
+ *                         description: Student activation status (active = isDeleted 0, deactivated = isDeleted 1)
  *                       created_on:
  *                         type: string
  *                         format: date-time
@@ -2468,5 +2484,116 @@ router.post('/batch-send-credentials', EligibilityCredentialController.batchSend
  *         description: Server error
  */
 router.post('/:studentId/notify-eligibility', EligibilityCredentialController.notifyEligibilityStatus);
+
+/**
+ * @swagger
+ * /api/students/{id}/activate:
+ *   patch:
+ *     summary: Activate student
+ *     description: |
+ *       Activate a student by setting isDeleted to 0 (false).
+ *       This makes the student visible in the system and allows them to be included in queries.
+ *       
+ *       **Use Cases:**
+ *       - Reactivate a previously deactivated student
+ *       - Restore student access after temporary suspension
+ *       - Undo accidental deactivation
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: Student activated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Student activated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Student activated successfully"
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.patch('/:id/activate', StudentController.activate);
+
+/**
+ * @swagger
+ * /api/students/{id}/deactivate:
+ *   patch:
+ *     summary: Deactivate student
+ *     description: |
+ *       Deactivate a student by setting isDeleted to 1 (true).
+ *       This soft-deletes the student, hiding them from normal queries while preserving their data.
+ *       
+ *       **Use Cases:**
+ *       - Temporarily suspend student access
+ *       - Archive inactive students
+ *       - Soft delete without losing historical data
+ *       
+ *       **Note:** This is different from DELETE which is a hard delete.
+ *       Deactivated students can be reactivated using the activate endpoint.
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: Student deactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Student deactivated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Student deactivated successfully"
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.patch('/:id/deactivate', StudentController.deactivate);
 
 export default router;

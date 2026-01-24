@@ -327,6 +327,7 @@ export interface IStudentQueryParams {
   sort_order?: string;
   limit?: number;
   page?: number;
+  activation_status?: 'active' | 'deactivated' | 'all'; // Filter by isDeleted: active=0, deactivated=1, all=both
 }
 
 // Student detail response interface
@@ -799,10 +800,21 @@ const getStudentsList = async (params: IStudentQueryParams) => {
     .leftJoinAndSelect('student.addresses', 'address', 'address.is_primary = :isPrimary', { isPrimary: true })
     .leftJoinAndSelect('student.contact_details', 'contact')
     .leftJoinAndSelect('student.eligibility_status', 'eligibility')
-    .leftJoinAndSelect('student.facility_records', 'facility', 'facility.application_status = :status', { status: 'completed' })
-    .where('student.isDeleted = :isDeleted', { isDeleted: false });
+    .leftJoinAndSelect('student.facility_records', 'facility', 'facility.application_status = :status', { status: 'completed' });
 
-  // Apply filters
+  // Apply activation_status filter (isDeleted)
+  if (params.activation_status === 'active') {
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
+  } else if (params.activation_status === 'deactivated') {
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: true });
+  } else if (params.activation_status === 'all') {
+    // No filter - show both active and deactivated
+  } else {
+    // Default: show only active students (isDeleted = false)
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
+  }
+
+  // Apply other filters
   if (params.status) {
     studentRepo.andWhere('student.status = :status', { status: params.status });
   }
@@ -871,6 +883,7 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       city: primaryAddress?.city || 'N/A',
       status: student.status,
       checklist_approval: checklistApproval,
+      activation_status: student.isDeleted ? 'deactivated' : 'active', // Add activation status to response
       created_on: student.createdAt
     };
   });
@@ -1712,6 +1725,52 @@ export interface IUpdateSelfPlacement {
   review_comments?: string;
 }
 
+// Activate student (set isDeleted to 0)
+const activate = async (params: IDetailById) => {
+  const studentRepo = getRepository(Student);
+  
+  // Check if student exists
+  const student = await studentRepo.findOne({
+    where: { student_id: params.id }
+  });
+
+  if (!student) {
+    throw new StringError('Student not found');
+  }
+
+  // Update isDeleted to 0 (false)
+  await studentRepo.update(
+    { student_id: params.id },
+    { isDeleted: false, updatedAt: new Date() }
+  );
+
+  console.log(`✅ Student ${params.id} activated successfully`);
+  return { message: 'Student activated successfully' };
+};
+
+// Deactivate student (set isDeleted to 1)
+const deactivate = async (params: IDetailById) => {
+  const studentRepo = getRepository(Student);
+  
+  // Check if student exists
+  const student = await studentRepo.findOne({
+    where: { student_id: params.id }
+  });
+
+  if (!student) {
+    throw new StringError('Student not found');
+  }
+
+  // Update isDeleted to 1 (true)
+  await studentRepo.update(
+    { student_id: params.id },
+    { isDeleted: true, updatedAt: new Date() }
+  );
+
+  console.log(`✅ Student ${params.id} deactivated successfully`);
+  return { message: 'Student deactivated successfully' };
+};
+
 export default {
   create,
   getById,
@@ -1732,5 +1791,7 @@ export default {
   addSelfPlacement,
   updateAddressChangeRequest,
   updateJobStatusUpdate,
-  updateSelfPlacement
+  updateSelfPlacement,
+  activate,
+  deactivate
 };

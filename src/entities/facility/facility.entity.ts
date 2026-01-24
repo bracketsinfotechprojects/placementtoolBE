@@ -65,6 +65,22 @@ export class Facility extends BaseEntity {
     })
     source_of_data: string;
 
+    @Column({
+        type: 'json',
+        nullable: true,
+        name: 'states_covered',
+        comment: 'Array of states where facility operates (e.g., ["NSW", "VIC", "QLD"])'
+    })
+    states_covered: string[];
+
+    @Column({
+        type: 'json',
+        nullable: true,
+        name: 'categories',
+        comment: 'Array of care categories offered (e.g., ["Aged Care", "Residential Care"])'
+    })
+    categories: string[];
+
     // Relations
     @OneToMany(() => FacilityAttribute, attribute => attribute.facility)
     attributes: FacilityAttribute[];

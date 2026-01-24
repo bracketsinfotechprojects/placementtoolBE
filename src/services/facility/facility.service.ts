@@ -44,6 +44,10 @@ const create = async (params: ICreateFacility) => {
     facility.website_url = params.website_url;
     facility.abn_registration_number = params.abn_registration_number;
     facility.source_of_data = params.source_of_data;
+    
+    // Store states and categories as JSON arrays
+    facility.states_covered = params.states_covered || [];
+    facility.categories = params.categories || [];
 
     const savedFacility = await queryRunner.manager.save(facility);
     const facilityId = savedFacility.facility_id;
@@ -228,6 +232,8 @@ const update = async (params: IUpdateFacility) => {
     website_url: params.website_url,
     abn_registration_number: params.abn_registration_number,
     source_of_data: params.source_of_data,
+    states_covered: params.states_covered,
+    categories: params.categories,
     updatedAt: new Date()
   };
 
@@ -252,7 +258,7 @@ const updateComplete = async (params: IUpdateCompleteFacility) => {
 
     // Update main facility fields
     if (params.organization_name || params.registered_business_name || params.website_url || 
-        params.abn_registration_number || params.source_of_data) {
+        params.abn_registration_number || params.source_of_data || params.states_covered || params.categories) {
       const updateData: Partial<Facility> = {
         updatedAt: new Date()
       };
@@ -262,6 +268,8 @@ const updateComplete = async (params: IUpdateCompleteFacility) => {
       if (params.website_url !== undefined) updateData.website_url = params.website_url;
       if (params.abn_registration_number !== undefined) updateData.abn_registration_number = params.abn_registration_number;
       if (params.source_of_data !== undefined) updateData.source_of_data = params.source_of_data;
+      if (params.states_covered !== undefined) updateData.states_covered = params.states_covered;
+      if (params.categories !== undefined) updateData.categories = params.categories;
 
       await queryRunner.manager.update(Facility, { facility_id: facilityId }, updateData);
     }
@@ -477,6 +485,8 @@ export interface ICreateFacility {
   source_of_data?: string;
   email?: string;
   password?: string;
+  states_covered?: string[];
+  categories?: string[];
   attributes?: Array<{
     attribute_type: any;
     attribute_value: string;
@@ -552,6 +562,8 @@ export interface IUpdateFacility {
   website_url?: string;
   abn_registration_number?: string;
   source_of_data?: string;
+  states_covered?: string[];
+  categories?: string[];
 }
 
 export interface IUpdateCompleteFacility {
@@ -561,6 +573,8 @@ export interface IUpdateCompleteFacility {
   website_url?: string;
   abn_registration_number?: string;
   source_of_data?: string;
+  states_covered?: string[];
+  categories?: string[];
   attributes?: Array<{
     attribute_type: any;
     attribute_value: string;

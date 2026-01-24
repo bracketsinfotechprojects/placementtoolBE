@@ -224,6 +224,7 @@ export default class StudentController extends BaseController {
         keyword: req.query.keyword as string,
         status: req.query.status as string,
         student_type: req.query.student_type as string,
+        activation_status: req.query.activation_status as 'active' | 'deactivated' | 'all',
         sort_by: req.query.sort_by as string,
         sort_order: req.query.sort_order as string,
         ...pagination
@@ -480,5 +481,23 @@ export default class StudentController extends BaseController {
       const updatedPlacement = await StudentService.updateSelfPlacement(updateData);
       ApiResponseUtility.success(res, updatedPlacement, 'Self placement updated successfully');
     }, 'Failed to update self placement');
+  }
+
+  // Activate student (set isDeleted to 0)
+  static async activate(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const id = StudentController.parseId(req);
+      const result = await StudentService.activate({ id });
+      ApiResponseUtility.success(res, result, 'Student activated successfully');
+    }, 'Failed to activate student');
+  }
+
+  // Deactivate student (set isDeleted to 1)
+  static async deactivate(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const id = StudentController.parseId(req);
+      const result = await StudentService.deactivate({ id });
+      ApiResponseUtility.success(res, result, 'Student deactivated successfully');
+    }, 'Failed to deactivate student');
   }
 }

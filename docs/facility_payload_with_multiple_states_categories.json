@@ -1,0 +1,215 @@
+{
+  "organization_name": "National Care Network",
+  "registered_business_name": "National Care Network Pty Ltd",
+  "website_url": "https://nationalcare.com.au",
+  "abn_registration_number": "98765432101",
+  "source_of_data": "Manual Entry",
+  "email": "admin@nationalcare.com.au",
+  "password": "SecurePass123!",
+  "attributes": [
+    {
+      "attribute_type": "State",
+      "attribute_value": "NSW"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "VIC"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "QLD"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "SA"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "WA"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Aged Care"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Residential Care"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Disability Care"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Palliative Care"
+    }
+  ],
+  "organization_structures": [
+    {
+      "deal_with": "Head Office",
+      "head_office_addr": "Level 5, 123 Corporate Drive, Sydney NSW 2000",
+      "contact_name": "Sarah Johnson",
+      "designation": "National Operations Manager",
+      "phone": "0412345678",
+      "email": "sarah.johnson@nationalcare.com.au",
+      "alternate_contact": "Michael Brown - 0498765432",
+      "notes": "Available Monday to Friday, 9am-5pm AEST. Preferred contact: Email"
+    }
+  ],
+  "branches": [
+    {
+      "site_code": "NSW001",
+      "full_address": "456 Care Street, Sydney NSW 2000",
+      "suburb": "Sydney CBD",
+      "city": "Sydney",
+      "state": "NSW",
+      "postcode": "2000",
+      "site_type": "Residential Aged Care Facility",
+      "palliative_care": true,
+      "dementia_care": true,
+      "num_beds": 80,
+      "gender_rules": "Mixed - Male and Female residents accepted",
+      "contact_name": "Emma Wilson",
+      "contact_role": "Site Manager",
+      "contact_phone": "0298765432",
+      "contact_email": "emma.wilson@nationalcare.com.au",
+      "contact_comments": "Preferred contact: Email. Available 8am-4pm weekdays"
+    },
+    {
+      "site_code": "VIC001",
+      "full_address": "789 Health Avenue, Melbourne VIC 3000",
+      "suburb": "Melbourne CBD",
+      "city": "Melbourne",
+      "state": "VIC",
+      "postcode": "3000",
+      "site_type": "Residential Aged Care Facility",
+      "palliative_care": true,
+      "dementia_care": false,
+      "num_beds": 60,
+      "gender_rules": "Mixed - Male and Female residents accepted",
+      "contact_name": "James Anderson",
+      "contact_role": "Facility Coordinator",
+      "contact_phone": "0387654321",
+      "contact_email": "james.anderson@nationalcare.com.au",
+      "contact_comments": "Available Monday to Saturday, 7am-3pm"
+    },
+    {
+      "site_code": "QLD001",
+      "full_address": "321 Sunshine Boulevard, Brisbane QLD 4000",
+      "suburb": "Brisbane City",
+      "city": "Brisbane",
+      "state": "QLD",
+      "postcode": "4000",
+      "site_type": "Disability Care Facility",
+      "palliative_care": false,
+      "dementia_care": false,
+      "num_beds": 40,
+      "gender_rules": "Mixed - Male and Female residents accepted",
+      "contact_name": "Lisa Chen",
+      "contact_role": "Site Manager",
+      "contact_phone": "0712345678",
+      "contact_email": "lisa.chen@nationalcare.com.au",
+      "contact_comments": "Available 24/7. Emergency contact available"
+    },
+    {
+      "site_code": "SA001",
+      "full_address": "555 Adelaide Terrace, Adelaide SA 5000",
+      "suburb": "Adelaide CBD",
+      "city": "Adelaide",
+      "state": "SA",
+      "postcode": "5000",
+      "site_type": "Residential Aged Care Facility",
+      "palliative_care": true,
+      "dementia_care": true,
+      "num_beds": 50,
+      "gender_rules": "Female only",
+      "contact_name": "Patricia Moore",
+      "contact_role": "Site Manager",
+      "contact_phone": "0887654321",
+      "contact_email": "patricia.moore@nationalcare.com.au",
+      "contact_comments": "Preferred contact: Phone. Available 8am-5pm weekdays"
+    },
+    {
+      "site_code": "WA001",
+      "full_address": "888 Perth Street, Perth WA 6000",
+      "suburb": "Perth CBD",
+      "city": "Perth",
+      "state": "WA",
+      "postcode": "6000",
+      "site_type": "Residential Aged Care Facility",
+      "palliative_care": false,
+      "dementia_care": true,
+      "num_beds": 70,
+      "gender_rules": "Mixed - Male and Female residents accepted",
+      "contact_name": "David Thompson",
+      "contact_role": "Facility Manager",
+      "contact_phone": "0898765432",
+      "contact_email": "david.thompson@nationalcare.com.au",
+      "contact_comments": "Available Monday to Friday, 9am-5pm AWST"
+    }
+  ],
+  "agreements": [
+    {
+      "sent_students": true,
+      "with_mou": true,
+      "no_mou_but_taken": false,
+      "mou_exists_no_spot": false,
+      "total_students": 50,
+      "last_placement": "2025-01-15",
+      "has_mou": true,
+      "signed_on": "2024-03-01",
+      "expiry_date": "2027-03-01",
+      "company_name": "National Care Network Pty Ltd",
+      "payment_required": true,
+      "amount_per_spot": 750.00,
+      "payment_notes": "Payment per student per placement period. Invoice issued monthly. 30-day payment terms.",
+      "mou_document": "/documents/mou_national_care_2024.pdf",
+      "insurance_doc": "/documents/insurance_national_care_2024.pdf"
+    }
+  ],
+  "documents_required": [
+    {
+      "document_name": "Police Check (National)",
+      "notice_period_days": 14,
+      "orientation_req": true,
+      "facilitator_req": false
+    },
+    {
+      "document_name": "Working with Children Check",
+      "notice_period_days": 7,
+      "orientation_req": true,
+      "facilitator_req": true
+    },
+    {
+      "document_name": "COVID-19 Vaccination Certificate",
+      "notice_period_days": 3,
+      "orientation_req": false,
+      "facilitator_req": false
+    },
+    {
+      "document_name": "First Aid Certificate",
+      "notice_period_days": 7,
+      "orientation_req": true,
+      "facilitator_req": false
+    },
+    {
+      "document_name": "Professional Indemnity Insurance",
+      "notice_period_days": 14,
+      "orientation_req": false,
+      "facilitator_req": false
+    }
+  ],
+  "rules": [
+    {
+      "obligations": "Facility must provide adequate supervision, support, and safe working environment for all students.",
+      "obligations_univ": "University must provide comprehensive insurance coverage and ensure students meet all pre-placement requirements.",
+      "obligations_student": "Students must maintain professional conduct at all times, respect patient privacy, and follow all facility policies and procedures.",
+      "process_notes": "Contact site manager 2 weeks prior to placement start date. Complete orientation on first day. Submit weekly progress reports.",
+      "shift_rules": "Standard shifts: 8am-4pm weekdays. No night shifts or weekend work unless specifically arranged. Maximum 8 hours per day.",
+      "attendance_policy": "100% attendance required. Any absence must be reported immediately to both facility and university. Medical certificates required for sick leave.",
+      "dress_code": "Business casual attire. Closed-toe shoes mandatory. Name badge must be worn at all times. No jeans or sneakers.",
+      "behaviour_rules": "Professional conduct expected at all times. Respect patient privacy and confidentiality. No mobile phone use in patient areas. Follow infection control protocols.",
+      "special_instr": "Parking available at rear entrance. Report to reception 15 minutes before shift start. Bring own lunch - microwave and fridge available in staff room."
+    }
+  ]
+}
