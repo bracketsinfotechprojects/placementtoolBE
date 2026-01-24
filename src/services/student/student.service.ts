@@ -843,12 +843,30 @@ const getStudentsList = async (params: IStudentQueryParams) => {
     studentRepo.andWhere('address.city IN (:...cities)', { cities: cityValues });
   }
 
-  // Apply name search filter
+  // Apply name search filter (supports comma-separated names)
   if (params.keyword) {
-    studentRepo.andWhere(
-      '(LOWER(student.first_name) LIKE LOWER(:keyword) OR LOWER(student.last_name) LIKE LOWER(:keyword))',
-      { keyword: `%${params.keyword}%` }
-    );
+    // Split by comma to support multiple name searches
+    const keywords = params.keyword.split(',').map(k => k.trim()).filter(k => k);
+    
+    if (keywords.length === 1) {
+      // Single keyword - search in first_name OR last_name
+      studentRepo.andWhere(
+        '(LOWER(student.first_name) LIKE LOWER(:keyword) OR LOWER(student.last_name) LIKE LOWER(:keyword))',
+        { keyword: `%${keywords[0]}%` }
+      );
+    } else {
+      // Multiple keywords - search for any of them
+      const nameConditions = keywords.map((_, index) => 
+        `(LOWER(student.first_name) LIKE LOWER(:keyword${index}) OR LOWER(student.last_name) LIKE LOWER(:keyword${index}))`
+      ).join(' OR ');
+      
+      const keywordParams: any = {};
+      keywords.forEach((keyword, index) => {
+        keywordParams[`keyword${index}`] = `%${keyword}%`;
+      });
+      
+      studentRepo.andWhere(`(${nameConditions})`, keywordParams);
+    }
   }
 
   // Sorting
