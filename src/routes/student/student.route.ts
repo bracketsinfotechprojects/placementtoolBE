@@ -386,6 +386,61 @@ router.get('/', StudentController.list);
  *           type: string
  *         description: Search by student name
  *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by student status. Supports multiple values.
+ *           Examples:
+ *           - Single: ?status=active
+ *           - Multiple (array): ?status=active&status=inactive
+ *           - Multiple (comma): ?status=active,inactive
+ *         example: "active,inactive"
+ *       - in: query
+ *         name: student_type
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by student type. Supports multiple values.
+ *           Examples:
+ *           - Single: ?student_type=domestic
+ *           - Multiple (array): ?student_type=domestic&student_type=international
+ *           - Multiple (comma): ?student_type=domestic,international
+ *         example: "domestic,international"
+ *       - in: query
+ *         name: city
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by city. Supports multiple values.
+ *           Examples:
+ *           - Single: ?city=Sydney
+ *           - Multiple (array): ?city=Sydney&city=Melbourne
+ *           - Multiple (comma): ?city=Sydney,Melbourne
+ *         example: "Sydney,Melbourne"
+ *       - in: query
+ *         name: course_completed
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by completed courses. Supports multiple values and partial matching.
+ *           Examples:
+ *           - Single: ?course_completed=Frontend
+ *           - Multiple (array): ?course_completed=Frontend&course_completed=Backend
+ *           - Multiple (comma): ?course_completed=Frontend,Backend
+ *         example: "Frontend,Backend"
+ *       - in: query
+ *         name: checklist_approval
+ *         schema:
+ *           type: string
+ *           enum: [true, false, all]
+ *         description: |
+ *           Filter by checklist approval status:
+ *           - true: Show only students with all eligibility criteria met
+ *           - false: Show only students with incomplete eligibility
+ *           - all: Show all students (no filter)
+ *         example: "true"
+ *       - in: query
  *         name: activation_status
  *         schema:
  *           type: string

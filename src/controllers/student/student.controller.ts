@@ -222,8 +222,11 @@ export default class StudentController extends BaseController {
 
       const queryParams: IStudentQueryParams = {
         keyword: req.query.keyword as string,
-        status: req.query.status as string,
-        student_type: req.query.student_type as string,
+        status: req.query.status as string | string[],
+        student_type: req.query.student_type as string | string[],
+        city: req.query.city as string | string[],
+        course_completed: req.query.course_completed as string | string[],
+        checklist_approval: req.query.checklist_approval as 'true' | 'false' | 'all',
         activation_status: req.query.activation_status as 'active' | 'deactivated' | 'all',
         sort_by: req.query.sort_by as string,
         sort_order: req.query.sort_order as string,

@@ -316,8 +316,8 @@ export interface IUpdateStudent {
 // Student query parameters interface
 export interface IStudentQueryParams {
   keyword?: string;
-  status?: string;
-  student_type?: string;
+  status?: string | string[]; // Support single or multiple values
+  student_type?: string | string[]; // Support single or multiple values
   nationality?: string;
   min_age?: number;
   max_age?: number;
@@ -328,6 +328,9 @@ export interface IStudentQueryParams {
   limit?: number;
   page?: number;
   activation_status?: 'active' | 'deactivated' | 'all'; // Filter by isDeleted: active=0, deactivated=1, all=both
+  city?: string | string[]; // Support single or multiple cities
+  course_completed?: string | string[]; // Support single or multiple courses
+  checklist_approval?: 'true' | 'false' | 'all'; // Filter by eligibility approval
 }
 
 // Student detail response interface
@@ -800,7 +803,7 @@ const getStudentsList = async (params: IStudentQueryParams) => {
     .leftJoinAndSelect('student.addresses', 'address', 'address.is_primary = :isPrimary', { isPrimary: true })
     .leftJoinAndSelect('student.contact_details', 'contact')
     .leftJoinAndSelect('student.eligibility_status', 'eligibility')
-    .leftJoinAndSelect('student.facility_records', 'facility', 'facility.application_status = :status', { status: 'completed' });
+    .leftJoinAndSelect('student.facility_records', 'facility'); // ← REMOVED status filter to show ALL courses
 
   // Apply activation_status filter (isDeleted)
   if (params.activation_status === 'active') {
@@ -814,15 +817,33 @@ const getStudentsList = async (params: IStudentQueryParams) => {
     studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
   }
 
-  // Apply other filters
-  if (params.status) {
-    studentRepo.andWhere('student.status = :status', { status: params.status });
+  // Helper function to handle single or multiple values
+  const parseFilterValues = (value: string | string[] | undefined): string[] | null => {
+    if (!value) return null;
+    if (Array.isArray(value)) return value;
+    // Support comma-separated values in a single string
+    return value.split(',').map(v => v.trim()).filter(v => v);
+  };
+
+  // Apply status filter (supports multiple values)
+  const statusValues = parseFilterValues(params.status);
+  if (statusValues && statusValues.length > 0) {
+    studentRepo.andWhere('student.status IN (:...statuses)', { statuses: statusValues });
   }
 
-  if (params.student_type) {
-    studentRepo.andWhere('student.student_type = :student_type', { student_type: params.student_type });
+  // Apply student_type filter (supports multiple values)
+  const studentTypeValues = parseFilterValues(params.student_type);
+  if (studentTypeValues && studentTypeValues.length > 0) {
+    studentRepo.andWhere('student.student_type IN (:...studentTypes)', { studentTypes: studentTypeValues });
   }
 
+  // Apply city filter (supports multiple values)
+  const cityValues = parseFilterValues(params.city);
+  if (cityValues && cityValues.length > 0) {
+    studentRepo.andWhere('address.city IN (:...cities)', { cities: cityValues });
+  }
+
+  // Apply name search filter
   if (params.keyword) {
     studentRepo.andWhere(
       '(LOWER(student.first_name) LIKE LOWER(:keyword) OR LOWER(student.last_name) LIKE LOWER(:keyword))',
@@ -883,12 +904,47 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       city: primaryAddress?.city || 'N/A',
       status: student.status,
       checklist_approval: checklistApproval,
-      activation_status: student.isDeleted ? 'deactivated' : 'active', // Add activation status to response
+      activation_status: student.isDeleted ? 'deactivated' : 'active',
       created_on: student.createdAt
     };
   });
 
-  return { response, pagination: pagRes.pagination };
+  // Apply post-query filters (for fields that require complex logic)
+  let filteredResponse = response;
+
+  // Filter by course_completed (supports multiple values)
+  const courseValues = parseFilterValues(params.course_completed);
+  if (courseValues && courseValues.length > 0) {
+    filteredResponse = filteredResponse.filter(student => {
+      if (student.course_completed === 'N/A') return false;
+      const studentCourses = student.course_completed.split(',').map(c => c.trim().toLowerCase());
+      return courseValues.some(course => 
+        studentCourses.some(sc => sc.includes(course.toLowerCase()))
+      );
+    });
+  }
+
+  // Filter by checklist_approval
+  if (params.checklist_approval === 'true') {
+    filteredResponse = filteredResponse.filter(student => student.checklist_approval === true);
+  } else if (params.checklist_approval === 'false') {
+    filteredResponse = filteredResponse.filter(student => student.checklist_approval === false);
+  }
+
+  // Update pagination if post-query filters were applied
+  if (courseValues || params.checklist_approval) {
+    const filteredTotal = filteredResponse.length;
+    const updatedPagRes = ApiUtility.getPagination(filteredTotal, params.limit, params.page);
+    
+    // Apply pagination to filtered results
+    const start = ApiUtility.getOffset(params.limit, params.page);
+    const end = start + (params.limit || 10);
+    filteredResponse = filteredResponse.slice(start, end);
+    
+    return { response: filteredResponse, pagination: updatedPagRes.pagination };
+  }
+
+  return { response: filteredResponse, pagination: pagRes.pagination };
 };
 
 // Get all student details (comprehensive with relations and user account, excluding password)
@@ -1728,6 +1784,7 @@ export interface IUpdateSelfPlacement {
 // Activate student (set isDeleted to 0)
 const activate = async (params: IDetailById) => {
   const studentRepo = getRepository(Student);
+  const userRepo = getRepository(User);
   
   // Check if student exists
   const student = await studentRepo.findOne({
@@ -1738,19 +1795,31 @@ const activate = async (params: IDetailById) => {
     throw new StringError('Student not found');
   }
 
-  // Update isDeleted to 0 (false)
+  // Update student isDeleted to 0 (false)
   await studentRepo.update(
     { student_id: params.id },
     { isDeleted: false, updatedAt: new Date() }
   );
 
-  console.log(`✅ Student ${params.id} activated successfully`);
+  // Also update user account if exists (match by studentID)
+  const userUpdateResult = await userRepo.update(
+    { studentID: params.id },
+    { isDeleted: false, updatedAt: new Date() }
+  );
+
+  if (userUpdateResult.affected && userUpdateResult.affected > 0) {
+    console.log(`✅ Student ${params.id} and associated user account activated successfully`);
+  } else {
+    console.log(`✅ Student ${params.id} activated successfully (no user account found)`);
+  }
+
   return { message: 'Student activated successfully' };
 };
 
 // Deactivate student (set isDeleted to 1)
 const deactivate = async (params: IDetailById) => {
   const studentRepo = getRepository(Student);
+  const userRepo = getRepository(User);
   
   // Check if student exists
   const student = await studentRepo.findOne({
@@ -1761,13 +1830,24 @@ const deactivate = async (params: IDetailById) => {
     throw new StringError('Student not found');
   }
 
-  // Update isDeleted to 1 (true)
+  // Update student isDeleted to 1 (true)
   await studentRepo.update(
     { student_id: params.id },
     { isDeleted: true, updatedAt: new Date() }
   );
 
-  console.log(`✅ Student ${params.id} deactivated successfully`);
+  // Also update user account if exists (match by studentID)
+  const userUpdateResult = await userRepo.update(
+    { studentID: params.id },
+    { isDeleted: true, updatedAt: new Date() }
+  );
+
+  if (userUpdateResult.affected && userUpdateResult.affected > 0) {
+    console.log(`✅ Student ${params.id} and associated user account deactivated successfully`);
+  } else {
+    console.log(`✅ Student ${params.id} deactivated successfully (no user account found)`);
+  }
+
   return { message: 'Student deactivated successfully' };
 };
 
