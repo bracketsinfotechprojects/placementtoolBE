@@ -10,6 +10,7 @@ import userRouter from './user/user.route';
 import studentRouter from './student/student.route';
 import facilityRouter from './facility/facility.route';
 import cleanupRouter from './admin/cleanup.route';
+import activationRouter from './common/activation.route';
 
 const router = express.Router();
 
@@ -23,5 +24,8 @@ router.use('/user', jwtAuth, adminOnly, userRouter); // Admin only
 router.use('/students', jwtAuth, studentRouter); // Authenticated users
 router.use('/facilities', jwtAuth, facilityRouter); // Authenticated users
 router.use('/admin/cleanup', jwtAuth, adminOnly, cleanupRouter); // Admin only
+
+// Generic activation route (must be after specific routes to avoid conflicts)
+router.use('/', jwtAuth, activationRouter); // Generic activation for any table
 
 export default router;

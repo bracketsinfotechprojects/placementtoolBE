@@ -166,7 +166,6 @@ router.post('/logout', AuthController.logout);
  *       - In development mode, OTP is also returned in the response for testing
  *     tags:
  *       - Authentication
- *       - Password Reset
  *     requestBody:
  *       required: true
  *       content:
@@ -242,7 +241,6 @@ router.post('/forgot-password', schemaValidator(passwordResetSchema.requestPassw
  *       - OTP is not deleted after verification (only after password reset)
  *     tags:
  *       - Authentication
- *       - Password Reset
  *     requestBody:
  *       required: true
  *       content:
@@ -321,7 +319,6 @@ router.post('/verify-otp', schemaValidator(passwordResetSchema.verifyOTP), Passw
  *       - User can login with the new password immediately
  *     tags:
  *       - Authentication
- *       - Password Reset
  *     requestBody:
  *       required: true
  *       content:

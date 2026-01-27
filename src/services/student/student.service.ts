@@ -229,41 +229,47 @@ const create = async (params: ICreateStudent) => {
       }
     }
 
-    // Step 8: Create user account ONLY if student is eligible
-    // Note: User accounts are now created based on eligibility status
-    // Use POST /api/students/:id/send-credentials to create account and send credentials
-    if (params.email && params.password && params.createAccountImmediately) {
+    // Step 8: Create user account if email and password provided
+    // Support both direct email/password and login object format
+    const email = params.email || params.login?.email;
+    const password = params.password || params.login?.password;
+    
+    if (email && password) {
       try {
-        console.log('🔧 Creating user account immediately (createAccountImmediately=true)');
+        console.log('🔧 Creating user account...');
 
-        const hashedPassword = await PasswordUtility.hashPassword(params.password);
-        const roleId = await RoleService.getRoleIdByName('student');
+        const hashedPassword = await PasswordUtility.hashPassword(password);
+        const roleId = await RoleService.getRoleIdByName('Student');
 
         const user = new User();
-        user.loginID = params.email;
+        user.loginID = email;
         user.password = hashedPassword;
         user.roleID = roleId;
         user.studentID = studentData.student_id;
-        user.status = 'inactive'; // Default to inactive, will be activated when credentials are sent
+        user.facilityID = null;
+        user.supervisorID = null;
+        user.placementExecutiveID = null;
+        user.trainerID = null;
+        user.status = 'active';
 
         await queryRunner.manager.save(User, user);
-        console.log('✅ User account created successfully with status: inactive');
+        console.log('✅ User account created successfully');
         console.log('📋 Password encrypted and stored securely');
         console.log('🔗 Student ID linked to user account');
-        console.log('ℹ️ User status will be set to active when credentials are sent');
 
       } catch (userError) {
         console.error('❌ Failed to create user account:', userError.message);
         throw new Error(`Failed to create user account: ${userError.message}`);
       }
-    } else if (params.email) {
-      console.log('ℹ️ Email provided but user account NOT created');
-      console.log('💡 User account will be created when student becomes eligible');
-      console.log('📧 Use POST /api/students/:id/send-credentials after eligibility approval');
+    } else if (email) {
+      console.log('ℹ️ Email provided but no password - user account NOT created');
     }
 
     console.log('🎉 Student creation transaction committed successfully!');
     console.log('📊 Summary: Student and all related entities created');
+    console.log(`✅ STUDENT ID: ${studentData.student_id}`);
+    console.log(`✅ DATABASE: ${process.env.DB_NAME || 'testcrm'}`);
+    console.log(`✅ Check with: SELECT * FROM students WHERE student_id = ${studentData.student_id};`);
     return ApiUtility.sanitizeStudent(studentData);
   });
 };
@@ -277,9 +283,12 @@ export interface ICreateStudent {
   nationality?: string;
   student_type?: string;
   status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
-  email?: string; // Email for contact details and future user account
-  password?: string; // Password for user account (optional, only if createAccountImmediately=true)
-  createAccountImmediately?: boolean; // Set to true to create user account during student creation (bypasses eligibility check)
+  email?: string; // Email for contact details and user account
+  password?: string; // Password for user account (optional)
+  login?: { // Alternative format for email/password
+    email: string;
+    password: string;
+  };
 
   // Related entities (optional)
   contact_details?: ICreateContactDetails;
@@ -1799,76 +1808,6 @@ export interface IUpdateSelfPlacement {
   review_comments?: string;
 }
 
-// Activate student (set isDeleted to 0)
-const activate = async (params: IDetailById) => {
-  const studentRepo = getRepository(Student);
-  const userRepo = getRepository(User);
-  
-  // Check if student exists
-  const student = await studentRepo.findOne({
-    where: { student_id: params.id }
-  });
-
-  if (!student) {
-    throw new StringError('Student not found');
-  }
-
-  // Update student isDeleted to 0 (false)
-  await studentRepo.update(
-    { student_id: params.id },
-    { isDeleted: false, updatedAt: new Date() }
-  );
-
-  // Also update user account if exists (match by studentID)
-  const userUpdateResult = await userRepo.update(
-    { studentID: params.id },
-    { isDeleted: false, updatedAt: new Date() }
-  );
-
-  if (userUpdateResult.affected && userUpdateResult.affected > 0) {
-    console.log(`✅ Student ${params.id} and associated user account activated successfully`);
-  } else {
-    console.log(`✅ Student ${params.id} activated successfully (no user account found)`);
-  }
-
-  return { message: 'Student activated successfully' };
-};
-
-// Deactivate student (set isDeleted to 1)
-const deactivate = async (params: IDetailById) => {
-  const studentRepo = getRepository(Student);
-  const userRepo = getRepository(User);
-  
-  // Check if student exists
-  const student = await studentRepo.findOne({
-    where: { student_id: params.id }
-  });
-
-  if (!student) {
-    throw new StringError('Student not found');
-  }
-
-  // Update student isDeleted to 1 (true)
-  await studentRepo.update(
-    { student_id: params.id },
-    { isDeleted: true, updatedAt: new Date() }
-  );
-
-  // Also update user account if exists (match by studentID)
-  const userUpdateResult = await userRepo.update(
-    { studentID: params.id },
-    { isDeleted: true, updatedAt: new Date() }
-  );
-
-  if (userUpdateResult.affected && userUpdateResult.affected > 0) {
-    console.log(`✅ Student ${params.id} and associated user account deactivated successfully`);
-  } else {
-    console.log(`✅ Student ${params.id} deactivated successfully (no user account found)`);
-  }
-
-  return { message: 'Student deactivated successfully' };
-};
-
 export default {
   create,
   getById,
@@ -1889,7 +1828,7 @@ export default {
   addSelfPlacement,
   updateAddressChangeRequest,
   updateJobStatusUpdate,
-  updateSelfPlacement,
-  activate,
-  deactivate
+  updateSelfPlacement
+  // activate and deactivate removed - use generic activation API instead:
+  // PATCH /api/students/{id}/activate?activate={true|false}
 };

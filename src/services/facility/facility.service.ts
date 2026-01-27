@@ -66,15 +66,17 @@ const create = async (params: ICreateFacility) => {
       // Get Facility role ID by mapping role name
       const facilityRoleId = await RoleService.getRoleIdByName('Facility');
 
-      // Create user with email as loginID
+      // Create user with email as loginID and link to facility
       const user = new User();
       user.loginID = params.email;
       user.password = await PasswordUtility.hashPassword(params.password);
       user.roleID = facilityRoleId;
+      user.facilityID = facilityId; // Link user to facility
       user.studentID = null;
       user.status = 'active';
 
       await queryRunner.manager.save(user);
+      console.log(`✅ Created facility user account with facilityID=${facilityId}`);
     }
 
     // Create attributes

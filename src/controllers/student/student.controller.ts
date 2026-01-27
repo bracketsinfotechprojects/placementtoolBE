@@ -486,21 +486,6 @@ export default class StudentController extends BaseController {
     }, 'Failed to update self placement');
   }
 
-  // Activate student (set isDeleted to 0)
-  static async activate(req: Request, res: Response) {
-    await StudentController.executeAction(res, async () => {
-      const id = StudentController.parseId(req);
-      const result = await StudentService.activate({ id });
-      ApiResponseUtility.success(res, result, 'Student activated successfully');
-    }, 'Failed to activate student');
-  }
-
-  // Deactivate student (set isDeleted to 1)
-  static async deactivate(req: Request, res: Response) {
-    await StudentController.executeAction(res, async () => {
-      const id = StudentController.parseId(req);
-      const result = await StudentService.deactivate({ id });
-      ApiResponseUtility.success(res, result, 'Student deactivated successfully');
-    }, 'Failed to deactivate student');
-  }
+  // Old activate/deactivate methods removed
+  // Use generic activation API instead: PATCH /api/students/{id}/activate?activate={true|false}
 }
