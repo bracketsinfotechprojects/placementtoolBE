@@ -433,7 +433,37 @@ const list = async (params: IFacilityQueryParams) => {
   const { facilities, total } = await FacilityRepository.findWithFilters(params);
   const pagRes = ApiUtility.getPagination(total, params.limit, params.page);
 
-  return { response: facilities, pagination: pagRes.pagination };
+  // Transform to include requested fields
+  const formattedFacilities = facilities.map(facility => {
+    // Get primary organization structure (first one)
+    const primaryOrg = facility.organizationStructures && facility.organizationStructures.length > 0
+      ? facility.organizationStructures[0]
+      : null;
+
+    // Get primary agreement (first one)
+    const primaryAgreement = facility.agreements && facility.agreements.length > 0
+      ? facility.agreements[0]
+      : null;
+
+    return {
+      facility_id: facility.facility_id,
+      organization_name: facility.organization_name,
+      email: primaryOrg?.email || null,
+      phone: primaryOrg?.phone || null,
+      website_url: facility.website_url || null,
+      mou_start_date: primaryAgreement?.signed_on || null,
+      mou_end_date: primaryAgreement?.expiry_date || null,
+      created_at: facility.createdAt,
+      
+      // Additional useful fields
+      states_covered: facility.states_covered || [],
+      categories: facility.categories || [],
+      has_mou: primaryAgreement?.has_mou || false,
+      source_of_data: facility.source_of_data || null
+    };
+  });
+
+  return { response: formattedFacilities, pagination: pagRes.pagination };
 };
 
 const listSimplified = async (params: IFacilityQueryParams) => {
