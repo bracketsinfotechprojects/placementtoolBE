@@ -41,6 +41,12 @@ export default class FacilityController extends BaseController {
       const params: IFacilityQueryParams = {
         keyword: req.query.keyword as string,
         source_of_data: req.query.source_of_data as string,
+        state: req.query.state as string | string[],
+        category: req.query.category as string | string[],
+        has_mou: req.query.has_mou as 'true' | 'false' | 'all',
+        mou_expiring_soon: req.query.mou_expiring_soon as 'true' | 'false',
+        created_from: req.query.created_from as string,
+        created_to: req.query.created_to as string,
         sort_by: req.query.sort_by as string,
         sort_order: req.query.sort_order as string,
         ...BaseController.parsePaginationParams(req.query)
