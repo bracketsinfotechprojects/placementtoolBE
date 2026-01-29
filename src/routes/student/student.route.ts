@@ -373,7 +373,13 @@ router.get('/', StudentController.list);
  *         schema:
  *           type: string
  *           enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
- *         description: Filter by student status
+ *         description: |
+ *           Filter by student status. Supports multiple values.
+ *           Examples:
+ *           - Single: ?status=active
+ *           - Multiple (array): ?status=active&status=inactive
+ *           - Multiple (comma): ?status=active,inactive
+ *         example: "active,inactive"
  *       - in: query
  *         name: student_type
  *         schema:
@@ -385,17 +391,6 @@ router.get('/', StudentController.list);
  *         schema:
  *           type: string
  *         description: Search by student name
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *         description: |
- *           Filter by student status. Supports multiple values.
- *           Examples:
- *           - Single: ?status=active
- *           - Multiple (array): ?status=active&status=inactive
- *           - Multiple (comma): ?status=active,inactive
- *         example: "active,inactive"
  *       - in: query
  *         name: student_type
  *         schema:

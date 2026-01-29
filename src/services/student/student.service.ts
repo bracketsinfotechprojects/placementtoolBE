@@ -912,13 +912,14 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       ? student.facility_records.map(f => f.course_type).filter(Boolean).join(', ')
       : 'N/A';
 
-    // Calculate Checklist_approval: all required fields must be true
+    // Calculate Checklist_approval: all required fields must be true OR override_requested is true
     const checklistApproval = eligibilityStatus
-      ? eligibilityStatus.classes_completed === true &&
+      ? (eligibilityStatus.classes_completed === true &&
         eligibilityStatus.fees_paid === true &&
         eligibilityStatus.assignments_submitted === true &&
         eligibilityStatus.documents_submitted === true &&
-        eligibilityStatus.trainer_consent === true
+        eligibilityStatus.trainer_consent === true) ||
+        eligibilityStatus.override_requested === true
       : false;
 
     return {
