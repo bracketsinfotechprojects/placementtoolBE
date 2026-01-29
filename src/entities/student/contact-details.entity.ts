@@ -48,10 +48,37 @@ export class ContactDetails {
     type: 'varchar', 
     length: 20, 
     nullable: true,
+    name: 'alternate_contact',
+    comment: 'Alternate contact number'
+  })
+  alternate_contact?: string;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 20, 
+    nullable: true,
     name: 'emergency_contact',
     comment: 'Emergency contact number'
   })
   emergency_contact?: string;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 100, 
+    nullable: true,
+    name: 'emergency_contact_name',
+    comment: 'Emergency contact person name'
+  })
+  emergency_contact_name?: string;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 50, 
+    nullable: true,
+    name: 'relationship',
+    comment: 'Relationship with emergency contact'
+  })
+  relationship?: string;
 
   @Column({
     type: 'enum',

@@ -61,6 +61,38 @@ export class User extends BaseEntity {
   })
   studentID: number;
 
+  @Column({ 
+    type: 'int',
+    nullable: true,
+    name: 'facilityID',
+    comment: 'Foreign key to facilities table (for facility users with roleID = 2)'
+  })
+  facilityID: number;
+
+  @Column({ 
+    type: 'int',
+    nullable: true,
+    name: 'supervisorID',
+    comment: 'Foreign key to supervisors table (for supervisor users with roleID = 3)'
+  })
+  supervisorID: number;
+
+  @Column({ 
+    type: 'int',
+    nullable: true,
+    name: 'placementExecutiveID',
+    comment: 'Foreign key to placement_executives table (for placement executive users with roleID = 4)'
+  })
+  placementExecutiveID: number;
+
+  @Column({ 
+    type: 'int',
+    nullable: true,
+    name: 'trainerID',
+    comment: 'Foreign key to trainers table (for trainer users with roleID = 5)'
+  })
+  trainerID: number;
+
   @Column({
     type: 'varchar',
     length: 20,
@@ -83,17 +115,30 @@ export class User extends BaseEntity {
   // Validation hooks
   @BeforeInsert()
   @BeforeUpdate()
-  validateStudentID() {
-    // If studentID is provided, ensure the user has Student role (roleID = 6)
-    if (this.studentID !== null && this.studentID !== undefined) {
-      if (this.roleID !== 6) {
-        throw new Error('studentID can only be set for users with Student role (roleID = 6)');
+  validateRoleLinks() {
+    // Role-specific validation
+    const roleValidations: Array<{ roleID: number; field: keyof User; name: string }> = [
+      { roleID: 6, field: 'studentID', name: 'Student' },
+      { roleID: 2, field: 'facilityID', name: 'Facility' },
+      { roleID: 3, field: 'supervisorID', name: 'Supervisor' },
+      { roleID: 4, field: 'placementExecutiveID', name: 'Placement Executive' },
+      { roleID: 5, field: 'trainerID', name: 'Trainer' }
+    ];
+
+    for (const validation of roleValidations) {
+      const fieldValue = this[validation.field] as number | null | undefined;
+      
+      // If field is provided (not null and not undefined), ensure user has the correct role
+      if (fieldValue !== null && fieldValue !== undefined) {
+        if (this.roleID !== validation.roleID) {
+          throw new Error(`${validation.field} can only be set for users with ${validation.name} role (roleID = ${validation.roleID})`);
+        }
       }
-    }
-    
-    // If user is a student (roleID = 6), studentID should be provided
-    if (this.roleID === 6 && !this.studentID) {
-      throw new Error('Student role users must have a studentID');
+      
+      // If user has this role, the field should be provided (not null and not undefined)
+      if (this.roleID === validation.roleID && (fieldValue === null || fieldValue === undefined)) {
+        throw new Error(`${validation.name} role users must have a ${validation.field}`);
+      }
     }
   }
 

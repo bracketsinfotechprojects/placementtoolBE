@@ -86,12 +86,24 @@ export class Student extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: ['active', 'inactive', 'graduated', 'withdrawn'],
+    enum: [
+      'active',
+      'inactive',
+      'internship_completed',
+      'eligible_for_certification',
+      'placement_initiated',
+      'self_placement_verification_pending',
+      'self_placement_approved',
+      'certified',
+      'completed',
+      'graduated',
+      'withdrawn'
+    ],
     default: 'active',
     name: 'status',
     comment: 'Student status'
   })
-  status: 'active' | 'inactive' | 'graduated' | 'withdrawn';
+  status: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
 
   // Relationships
   @OneToMany(() => ContactDetails, contact => contact.student, { cascade: true })

@@ -56,7 +56,10 @@ const create = async (params: ICreateStudent) => {
         contactDetails.student = studentData;
         contactDetails.primary_mobile = params.contact_details.primary_mobile;
         contactDetails.email = params.contact_details.email || params.email;
+        contactDetails.alternate_contact = params.contact_details.alternate_contact;
         contactDetails.emergency_contact = params.contact_details.emergency_contact;
+        contactDetails.emergency_contact_name = params.contact_details.emergency_contact_name;
+        contactDetails.relationship = params.contact_details.relationship;
         contactDetails.contact_type = params.contact_details.contact_type || 'mobile';
         contactDetails.is_primary = params.contact_details.is_primary !== undefined ? params.contact_details.is_primary : true;
         contactDetails.verified_at = params.contact_details.verified_at;
@@ -82,6 +85,7 @@ const create = async (params: ICreateStudent) => {
         visaDetails.status = params.visa_details.status || 'active';
         visaDetails.issuing_country = params.visa_details.issuing_country;
         visaDetails.document_path = params.visa_details.document_path;
+        visaDetails.work_limitation = params.visa_details.work_limitation;
 
         await queryRunner.manager.save(VisaDetails, visaDetails);
         console.log('✅ Visa details created');
@@ -99,6 +103,8 @@ const create = async (params: ICreateStudent) => {
           const address = new Address();
           address.student = studentData;
           address.line1 = addressData.line1;
+          address.line2 = addressData.line2;
+          address.suburb = addressData.suburb;
           address.city = addressData.city;
           address.state = addressData.state;
           address.country = addressData.country;
@@ -139,6 +145,7 @@ const create = async (params: ICreateStudent) => {
         eligibilityStatus.documents_submitted = params.eligibility_status.documents_submitted;
         eligibilityStatus.trainer_consent = params.eligibility_status.trainer_consent;
         eligibilityStatus.override_requested = params.eligibility_status.override_requested;
+        eligibilityStatus.manual_override = params.eligibility_status.manual_override || false;
         eligibilityStatus.requested_by = params.eligibility_status.requested_by;
         eligibilityStatus.reason = params.eligibility_status.reason;
         eligibilityStatus.comments = params.eligibility_status.comments;
@@ -222,23 +229,27 @@ const create = async (params: ICreateStudent) => {
       }
     }
 
-    // Step 8: Create user account if email is provided
-    if (params.email) {
+    // Step 8: Create user account if email and password provided
+    // Support both direct email/password and login object format
+    const email = params.email || params.login?.email;
+    const password = params.password || params.login?.password;
+    
+    if (email && password) {
       try {
-        console.log('🔧 Attempting to create user account for email:', params.email);
+        console.log('🔧 Creating user account...');
 
-        if (!params.password) {
-          throw new Error('Password is required for user account creation');
-        }
-
-        const hashedPassword = await PasswordUtility.hashPassword(params.password);
-        const roleId = await RoleService.getRoleIdByName('student');
+        const hashedPassword = await PasswordUtility.hashPassword(password);
+        const roleId = await RoleService.getRoleIdByName('Student');
 
         const user = new User();
-        user.loginID = params.email;
+        user.loginID = email;
         user.password = hashedPassword;
         user.roleID = roleId;
         user.studentID = studentData.student_id;
+        user.facilityID = null;
+        user.supervisorID = null;
+        user.placementExecutiveID = null;
+        user.trainerID = null;
         user.status = 'active';
 
         await queryRunner.manager.save(User, user);
@@ -250,10 +261,15 @@ const create = async (params: ICreateStudent) => {
         console.error('❌ Failed to create user account:', userError.message);
         throw new Error(`Failed to create user account: ${userError.message}`);
       }
+    } else if (email) {
+      console.log('ℹ️ Email provided but no password - user account NOT created');
     }
 
     console.log('🎉 Student creation transaction committed successfully!');
     console.log('📊 Summary: Student and all related entities created');
+    console.log(`✅ STUDENT ID: ${studentData.student_id}`);
+    console.log(`✅ DATABASE: ${process.env.DB_NAME || 'testcrm'}`);
+    console.log(`✅ Check with: SELECT * FROM students WHERE student_id = ${studentData.student_id};`);
     return ApiUtility.sanitizeStudent(studentData);
   });
 };
@@ -266,9 +282,13 @@ export interface ICreateStudent {
   gender?: string;
   nationality?: string;
   student_type?: string;
-  status?: 'active' | 'inactive' | 'graduated' | 'withdrawn';
-  email?: string; // Email for automatic user account creation
-  password?: string; // Password for user account (will be hashed)
+  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  email?: string; // Email for contact details and user account
+  password?: string; // Password for user account (optional)
+  login?: { // Alternative format for email/password
+    email: string;
+    password: string;
+  };
 
   // Related entities (optional)
   contact_details?: ICreateContactDetails;
@@ -291,7 +311,7 @@ export interface IUpdateStudent {
   gender?: string;
   nationality?: string;
   student_type?: string;
-  status?: 'active' | 'inactive' | 'graduated' | 'withdrawn';
+  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
 
   // Related entities (optional) - same as create
   contact_details?: ICreateContactDetails;
@@ -305,8 +325,8 @@ export interface IUpdateStudent {
 // Student query parameters interface
 export interface IStudentQueryParams {
   keyword?: string;
-  status?: string;
-  student_type?: string;
+  status?: string | string[]; // Support single or multiple values
+  student_type?: string | string[]; // Support single or multiple values
   nationality?: string;
   min_age?: number;
   max_age?: number;
@@ -316,6 +336,10 @@ export interface IStudentQueryParams {
   sort_order?: string;
   limit?: number;
   page?: number;
+  activation_status?: 'active' | 'deactivated' | 'all'; // Filter by isDeleted: active=0, deactivated=1, all=both
+  city?: string | string[]; // Support single or multiple cities
+  course_completed?: string | string[]; // Support single or multiple courses
+  checklist_approval?: 'true' | 'false' | 'all'; // Filter by eligibility approval
 }
 
 // Student detail response interface
@@ -387,7 +411,10 @@ export interface IAdvancedSearchParams {
 export interface ICreateContactDetails {
   primary_mobile?: string;
   email?: string;
+  alternate_contact?: string;
   emergency_contact?: string;
+  emergency_contact_name?: string;
+  relationship?: string;
   contact_type?: 'mobile' | 'landline' | 'whatsapp';
   is_primary?: boolean;
   verified_at?: Date;
@@ -402,11 +429,14 @@ export interface ICreateVisaDetails {
   status?: 'active' | 'expired' | 'revoked' | 'pending';
   issuing_country?: string;
   document_path?: string;
+  work_limitation?: string;
 }
 
 // Address creation interface
 export interface ICreateAddress {
   line1?: string;
+  line2?: string;
+  suburb?: string;
   city?: string;
   state?: string;
   country?: string;
@@ -423,6 +453,7 @@ export interface ICreateEligibilityStatus {
   documents_submitted?: boolean;
   trainer_consent?: boolean;
   override_requested?: boolean;
+  manual_override?: boolean;
   requested_by?: string;
   reason?: string;
   comments?: string;
@@ -505,6 +536,30 @@ export interface ICreateAddressChangeRequest {
   reviewed_at?: Date;
   reviewed_by?: string;
   review_comments?: string;
+  
+  // New detailed address fields - if provided, will update addresses table
+  line1?: string;
+  line2?: string;
+  suburb?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  address_type?: 'current' | 'permanent' | 'temporary' | 'mailing';
+  is_primary?: boolean;
+  
+  // Nested change_request object (alternative structure)
+  change_request?: {
+    current_address?: string;
+    new_address?: string;
+    effective_date?: Date;
+    change_reason?: string;
+    impact_acknowledged?: boolean;
+    status?: 'pending' | 'approved' | 'rejected' | 'implemented';
+    reviewed_at?: Date;
+    reviewed_by?: string;
+    review_comments?: string;
+  };
 }
 
 // Job status update creation interface
@@ -592,32 +647,111 @@ const addFacilityRecord = async (studentId: number, facilityData: ICreateFacilit
 const addAddressChangeRequest = async (studentId: number, requestData: ICreateAddressChangeRequest) => {
   return await TransactionUtility.executeInTransaction(async (queryRunner) => {
     console.log('📝 Adding address change request for student:', studentId);
+    console.log('📦 Request data received:', JSON.stringify(requestData, null, 2));
 
     // Verify student exists
     const student = await queryRunner.manager.findOne(Student, {
-      where: { student_id: studentId, isDeleted: false }
+      where: { student_id: studentId, isDeleted: false },
+      relations: ['addresses']
     });
 
     if (!student) {
       throw new StringError('Student not found');
     }
 
-    // Create address change request
+    // Support nested change_request structure
+    const changeRequestData = requestData.change_request || requestData;
+    console.log('📋 Change request data:', JSON.stringify(changeRequestData, null, 2));
+
+    // Check if detailed address fields are provided (at root level)
+    const hasDetailedAddress = requestData.line1 || requestData.city || requestData.state;
+    console.log('🏠 Has detailed address:', hasDetailedAddress);
+
+    // Format new address text from detailed fields if provided
+    let newAddressText = changeRequestData.new_address;
+    if (hasDetailedAddress) {
+      newAddressText = [
+        requestData.line1,
+        requestData.line2,
+        requestData.suburb,
+        requestData.city,
+        requestData.state,
+        requestData.country,
+        requestData.postal_code
+      ].filter(part => part).join(', ');
+      console.log('📍 Formatted new address:', newAddressText);
+    }
+
+    // Create address change request (existing functionality)
     const request = new AddressChangeRequest();
     request.student = student;
-    request.current_address = requestData.current_address;
-    request.new_address = requestData.new_address;
-    request.effective_date = requestData.effective_date;
-    request.change_reason = requestData.change_reason;
-    request.impact_acknowledged = requestData.impact_acknowledged;
-    request.status = requestData.status || 'pending';
-    request.reviewed_at = requestData.reviewed_at;
-    request.reviewed_by = requestData.reviewed_by;
-    request.review_comments = requestData.review_comments;
+    request.current_address = changeRequestData.current_address;
+    request.new_address = newAddressText || changeRequestData.new_address;
+    request.effective_date = changeRequestData.effective_date;
+    request.change_reason = changeRequestData.change_reason;
+    request.impact_acknowledged = changeRequestData.impact_acknowledged || false;
+    request.status = changeRequestData.status || 'pending';
+    request.reviewed_at = changeRequestData.reviewed_at;
+    request.reviewed_by = changeRequestData.reviewed_by;
+    request.review_comments = changeRequestData.review_comments;
+
+    console.log('💾 Saving address change request:', {
+      current_address: request.current_address,
+      new_address: request.new_address,
+      effective_date: request.effective_date,
+      change_reason: request.change_reason,
+      status: request.status
+    });
 
     const savedRequest = await queryRunner.manager.save(AddressChangeRequest, request);
-    console.log('✅ Address change request added successfully');
+    console.log('✅ Address change request added successfully with ID:', savedRequest.acr_id);
 
+    // NEW FEATURE: If detailed address fields provided, update addresses table
+    if (hasDetailedAddress) {
+      console.log('🏠 Updating addresses table with new address details...');
+
+      // If is_primary is true, unset other primary addresses
+      if (requestData.is_primary) {
+        console.log('🔄 Unsetting other primary addresses...');
+        await queryRunner.manager.update(
+          Address,
+          { student: { student_id: studentId }, is_primary: true },
+          { is_primary: false }
+        );
+      }
+
+      // Create new address record
+      const newAddress = new Address();
+      newAddress.student = student;
+      newAddress.line1 = requestData.line1;
+      newAddress.line2 = requestData.line2;
+      newAddress.suburb = requestData.suburb;
+      newAddress.city = requestData.city;
+      newAddress.state = requestData.state;
+      newAddress.country = requestData.country;
+      newAddress.postal_code = requestData.postal_code;
+      newAddress.address_type = requestData.address_type || 'current';
+      newAddress.is_primary = requestData.is_primary !== undefined ? requestData.is_primary : true;
+
+      console.log('💾 Saving new address:', {
+        line1: newAddress.line1,
+        city: newAddress.city,
+        state: newAddress.state,
+        is_primary: newAddress.is_primary
+      });
+
+      const savedAddress = await queryRunner.manager.save(Address, newAddress);
+      console.log('✅ Address updated in addresses table with ID:', savedAddress.address_id);
+
+      return {
+        address_change_request: savedRequest,
+        address_updated: true,
+        new_address_id: savedAddress.address_id
+      };
+    }
+
+    // Return existing functionality response
+    console.log('📤 Returning simple response (no address update)');
     return savedRequest;
   });
 };
@@ -676,23 +810,72 @@ const detail = async (params: IDetailById) => {
 const getStudentsList = async (params: IStudentQueryParams) => {
   const studentRepo = getRepository(Student).createQueryBuilder('student')
     .leftJoinAndSelect('student.addresses', 'address', 'address.is_primary = :isPrimary', { isPrimary: true })
-    .leftJoinAndSelect('student.facility_records', 'facility', 'facility.application_status = :status', { status: 'completed' })
-    .where('student.isDeleted = :isDeleted', { isDeleted: false });
+    .leftJoinAndSelect('student.contact_details', 'contact')
+    .leftJoinAndSelect('student.eligibility_status', 'eligibility')
+    .leftJoinAndSelect('student.facility_records', 'facility'); // ← REMOVED status filter to show ALL courses
 
-  // Apply filters
-  if (params.status) {
-    studentRepo.andWhere('student.status = :status', { status: params.status });
+  // Apply activation_status filter (isDeleted)
+  if (params.activation_status === 'active') {
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
+  } else if (params.activation_status === 'deactivated') {
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: true });
+  } else if (params.activation_status === 'all') {
+    // No filter - show both active and deactivated
+  } else {
+    // Default: show only active students (isDeleted = false)
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
   }
 
-  if (params.student_type) {
-    studentRepo.andWhere('student.student_type = :student_type', { student_type: params.student_type });
+  // Helper function to handle single or multiple values
+  const parseFilterValues = (value: string | string[] | undefined): string[] | null => {
+    if (!value) return null;
+    if (Array.isArray(value)) return value;
+    // Support comma-separated values in a single string
+    return value.split(',').map(v => v.trim()).filter(v => v);
+  };
+
+  // Apply status filter (supports multiple values)
+  const statusValues = parseFilterValues(params.status);
+  if (statusValues && statusValues.length > 0) {
+    studentRepo.andWhere('student.status IN (:...statuses)', { statuses: statusValues });
   }
 
+  // Apply student_type filter (supports multiple values)
+  const studentTypeValues = parseFilterValues(params.student_type);
+  if (studentTypeValues && studentTypeValues.length > 0) {
+    studentRepo.andWhere('student.student_type IN (:...studentTypes)', { studentTypes: studentTypeValues });
+  }
+
+  // Apply city filter (supports multiple values)
+  const cityValues = parseFilterValues(params.city);
+  if (cityValues && cityValues.length > 0) {
+    studentRepo.andWhere('address.city IN (:...cities)', { cities: cityValues });
+  }
+
+  // Apply name search filter (supports comma-separated names)
   if (params.keyword) {
-    studentRepo.andWhere(
-      '(LOWER(student.first_name) LIKE LOWER(:keyword) OR LOWER(student.last_name) LIKE LOWER(:keyword))',
-      { keyword: `%${params.keyword}%` }
-    );
+    // Split by comma to support multiple name searches
+    const keywords = params.keyword.split(',').map(k => k.trim()).filter(k => k);
+    
+    if (keywords.length === 1) {
+      // Single keyword - search in first_name OR last_name
+      studentRepo.andWhere(
+        '(LOWER(student.first_name) LIKE LOWER(:keyword) OR LOWER(student.last_name) LIKE LOWER(:keyword))',
+        { keyword: `%${keywords[0]}%` }
+      );
+    } else {
+      // Multiple keywords - search for any of them
+      const nameConditions = keywords.map((_, index) => 
+        `(LOWER(student.first_name) LIKE LOWER(:keyword${index}) OR LOWER(student.last_name) LIKE LOWER(:keyword${index}))`
+      ).join(' OR ');
+      
+      const keywordParams: any = {};
+      keywords.forEach((keyword, index) => {
+        keywordParams[`keyword${index}`] = `%${keyword}%`;
+      });
+      
+      studentRepo.andWhere(`(${nameConditions})`, keywordParams);
+    }
   }
 
   // Sorting
@@ -717,22 +900,79 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       ? student.addresses[0]
       : null;
 
+    const contactDetails = student.contact_details && student.contact_details.length > 0
+      ? student.contact_details[0]
+      : null;
+
+    const eligibilityStatus = student.eligibility_status && student.eligibility_status.length > 0
+      ? student.eligibility_status[0]
+      : null;
+
     const completedCourses = student.facility_records && student.facility_records.length > 0
       ? student.facility_records.map(f => f.course_type).filter(Boolean).join(', ')
       : 'N/A';
 
+    // Calculate Checklist_approval: all required fields must be true OR override_requested is true
+    const checklistApproval = eligibilityStatus
+      ? (eligibilityStatus.classes_completed === true &&
+        eligibilityStatus.fees_paid === true &&
+        eligibilityStatus.assignments_submitted === true &&
+        eligibilityStatus.documents_submitted === true &&
+        eligibilityStatus.trainer_consent === true) ||
+        eligibilityStatus.override_requested === true
+      : false;
+
     return {
       student_id: student.student_id,
       name: `${student.first_name} ${student.last_name}`,
+      email: contactDetails?.email || 'N/A',
+      primary_phone: contactDetails?.primary_mobile || 'N/A',
       student_type: student.student_type || 'N/A',
       course_completed: completedCourses,
       city: primaryAddress?.city || 'N/A',
       status: student.status,
+      checklist_approval: checklistApproval,
+      activation_status: student.isDeleted ? 'deactivated' : 'active',
       created_on: student.createdAt
     };
   });
 
-  return { response, pagination: pagRes.pagination };
+  // Apply post-query filters (for fields that require complex logic)
+  let filteredResponse = response;
+
+  // Filter by course_completed (supports multiple values)
+  const courseValues = parseFilterValues(params.course_completed);
+  if (courseValues && courseValues.length > 0) {
+    filteredResponse = filteredResponse.filter(student => {
+      if (student.course_completed === 'N/A') return false;
+      const studentCourses = student.course_completed.split(',').map(c => c.trim().toLowerCase());
+      return courseValues.some(course => 
+        studentCourses.some(sc => sc.includes(course.toLowerCase()))
+      );
+    });
+  }
+
+  // Filter by checklist_approval
+  if (params.checklist_approval === 'true') {
+    filteredResponse = filteredResponse.filter(student => student.checklist_approval === true);
+  } else if (params.checklist_approval === 'false') {
+    filteredResponse = filteredResponse.filter(student => student.checklist_approval === false);
+  }
+
+  // Update pagination if post-query filters were applied
+  if (courseValues || params.checklist_approval) {
+    const filteredTotal = filteredResponse.length;
+    const updatedPagRes = ApiUtility.getPagination(filteredTotal, params.limit, params.page);
+    
+    // Apply pagination to filtered results
+    const start = ApiUtility.getOffset(params.limit, params.page);
+    const end = start + (params.limit || 10);
+    filteredResponse = filteredResponse.slice(start, end);
+    
+    return { response: filteredResponse, pagination: updatedPagRes.pagination };
+  }
+
+  return { response: filteredResponse, pagination: pagRes.pagination };
 };
 
 // Get all student details (comprehensive with relations and user account, excluding password)
@@ -860,7 +1100,10 @@ const update = async (params: IUpdateStudent) => {
         contactDetails.student = student;
         contactDetails.primary_mobile = params.contact_details.primary_mobile;
         contactDetails.email = params.contact_details.email;
+        contactDetails.alternate_contact = params.contact_details.alternate_contact;
         contactDetails.emergency_contact = params.contact_details.emergency_contact;
+        contactDetails.emergency_contact_name = params.contact_details.emergency_contact_name;
+        contactDetails.relationship = params.contact_details.relationship;
         contactDetails.contact_type = params.contact_details.contact_type || 'mobile';
         contactDetails.is_primary = params.contact_details.is_primary !== undefined ? params.contact_details.is_primary : true;
         contactDetails.verified_at = params.contact_details.verified_at;
@@ -895,6 +1138,7 @@ const update = async (params: IUpdateStudent) => {
         visaDetails.status = params.visa_details.status || 'active';
         visaDetails.issuing_country = params.visa_details.issuing_country;
         visaDetails.document_path = params.visa_details.document_path;
+        visaDetails.work_limitation = params.visa_details.work_limitation;
 
         await queryRunner.manager.save(VisaDetails, visaDetails);
         console.log('✅ Visa details updated');
@@ -921,6 +1165,8 @@ const update = async (params: IUpdateStudent) => {
           const address = new Address();
           address.student = student;
           address.line1 = addressData.line1;
+          address.line2 = addressData.line2;
+          address.suburb = addressData.suburb;
           address.city = addressData.city;
           address.state = addressData.state;
           address.country = addressData.country;
@@ -967,6 +1213,7 @@ const update = async (params: IUpdateStudent) => {
         eligibilityStatus.documents_submitted = params.eligibility_status.documents_submitted;
         eligibilityStatus.trainer_consent = params.eligibility_status.trainer_consent;
         eligibilityStatus.override_requested = params.eligibility_status.override_requested;
+        eligibilityStatus.manual_override = params.eligibility_status.manual_override || false;
         eligibilityStatus.requested_by = params.eligibility_status.requested_by;
         eligibilityStatus.reason = params.eligibility_status.reason;
         eligibilityStatus.comments = params.eligibility_status.comments;
@@ -1583,4 +1830,6 @@ export default {
   updateAddressChangeRequest,
   updateJobStatusUpdate,
   updateSelfPlacement
+  // activate and deactivate removed - use generic activation API instead:
+  // PATCH /api/students/{id}/activate?activate={true|false}
 };

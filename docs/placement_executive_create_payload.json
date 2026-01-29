@@ -1,0 +1,13 @@
+{
+  "full_name": "John Smith",
+  "mobile_number": "0412345678",
+  "email": "john.smith@example.com",
+  "photograph": "/uploads/photos/john-smith.jpg",
+  "joining_date": "2024-01-15",
+  "employment_type": "full-time",
+  "facility_types_handled": ["Aged Care", "Disability"],
+  "login": {
+    "userID": "john.smith",
+    "password": "SecurePass123"
+  }
+}

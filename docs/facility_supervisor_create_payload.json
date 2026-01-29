@@ -1,0 +1,20 @@
+{
+  "full_name": "Atul Dhuri",
+  "designation": "Senior Supervisor",
+  "mobile_number": "09004576271",
+  "email": "dhuriatu@gmail.com",
+  "photograph": "/uploads/photos/atul-dhuri.jpg",
+  "facility_id": 1,
+  "branch_site": "Main Branch",
+  "facility_types": ["Home Care"],
+  "facility_address": "123 Main St, Sydney NSW 2000",
+  "max_students_can_handle": 10,
+  "id_proof_document": "/uploads/documents/id-proof.pdf",
+  "police_check_document": "/uploads/documents/police-check.pdf",
+  "authorization_letter_document": "/uploads/documents/auth-letter.pdf",
+  "portal_access_enabled": true,
+  "login": {
+    "userID": "atul.dhuri",
+    "password": "SecurePass123"
+  }
+}

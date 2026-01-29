@@ -178,4 +178,33 @@ export default class UserController {
       ApiResponseUtility.serverError(res, error.message);
     }
   }
+
+  // Change password
+  static async changePassword(req: Request, res: Response) {
+    try {
+      const { current_password, new_password } = req.body;
+
+      // Validate required fields
+      if (!current_password || !new_password) {
+        ApiResponseUtility.badRequest(res, 'Current password and new password are required');
+        return;
+      }
+
+      // Get email from authenticated user (from JWT token)
+      const user = (req as any).user;
+      if (!user || !user.loginID) {
+        ApiResponseUtility.unauthorized(res, 'User not authenticated');
+        return;
+      }
+
+      const result = await UserService.changePassword(user.loginID, current_password, new_password);
+      ApiResponseUtility.success(res, result, result.message);
+    } catch (error) {
+      if (error instanceof StringError) {
+        ApiResponseUtility.badRequest(res, error.message);
+      } else {
+        ApiResponseUtility.serverError(res, error.message);
+      }
+    }
+  }
 }

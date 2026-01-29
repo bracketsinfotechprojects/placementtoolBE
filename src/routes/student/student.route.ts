@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import StudentController from '../../controllers/student/student.controller';
+import EligibilityCredentialController from '../../controllers/student/eligibility-credential.controller';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ const router = Router();
  *                 example: "international"
  *               status:
  *                 type: string
- *                 enum: [active, inactive, graduated, withdrawn]
+ *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
  *               email:
  *                 type: string
@@ -349,7 +350,7 @@ router.get('/', StudentController.list);
  * /api/students/list:
  *   get:
  *     summary: Get students list with specific fields
- *     description: Get list of students with Name, Student Type, Course Completed, City, Status, and Created On
+ *     description: Get list of students with Name, Email, Primary Phone, Student Type, Course Completed, City, Status, Checklist Approval, and Created On
  *     tags:
  *       - Students
  *     security:
@@ -371,8 +372,14 @@ router.get('/', StudentController.list);
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, inactive, graduated, withdrawn]
- *         description: Filter by student status
+ *           enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *         description: |
+ *           Filter by student status. Supports multiple values.
+ *           Examples:
+ *           - Single: ?status=active
+ *           - Multiple (array): ?status=active&status=inactive
+ *           - Multiple (comma): ?status=active,inactive
+ *         example: "active,inactive"
  *       - in: query
  *         name: student_type
  *         schema:
@@ -384,6 +391,61 @@ router.get('/', StudentController.list);
  *         schema:
  *           type: string
  *         description: Search by student name
+ *       - in: query
+ *         name: student_type
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by student type. Supports multiple values.
+ *           Examples:
+ *           - Single: ?student_type=domestic
+ *           - Multiple (array): ?student_type=domestic&student_type=international
+ *           - Multiple (comma): ?student_type=domestic,international
+ *         example: "domestic,international"
+ *       - in: query
+ *         name: city
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by city. Supports multiple values.
+ *           Examples:
+ *           - Single: ?city=Sydney
+ *           - Multiple (array): ?city=Sydney&city=Melbourne
+ *           - Multiple (comma): ?city=Sydney,Melbourne
+ *         example: "Sydney,Melbourne"
+ *       - in: query
+ *         name: course_completed
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by completed courses. Supports multiple values and partial matching.
+ *           Examples:
+ *           - Single: ?course_completed=Frontend
+ *           - Multiple (array): ?course_completed=Frontend&course_completed=Backend
+ *           - Multiple (comma): ?course_completed=Frontend,Backend
+ *         example: "Frontend,Backend"
+ *       - in: query
+ *         name: checklist_approval
+ *         schema:
+ *           type: string
+ *           enum: [true, false, all]
+ *         description: |
+ *           Filter by checklist approval status:
+ *           - true: Show only students with all eligibility criteria met
+ *           - false: Show only students with incomplete eligibility
+ *           - all: Show all students (no filter)
+ *         example: "true"
+ *       - in: query
+ *         name: activation_status
+ *         schema:
+ *           type: string
+ *           enum: [active, deactivated, all]
+ *           default: active
+ *         description: |
+ *           Filter by activation status (isDeleted field):
+ *           - active: Show only active students (isDeleted = 0)
+ *           - deactivated: Show only deactivated students (isDeleted = 1)
+ *           - all: Show both active and deactivated students
  *       - in: query
  *         name: sort_by
  *         schema:
@@ -422,6 +484,13 @@ router.get('/', StudentController.list);
  *                       name:
  *                         type: string
  *                         example: "John Doe"
+ *                       email:
+ *                         type: string
+ *                         example: "john.doe@example.com"
+ *                       primary_phone:
+ *                         type: string
+ *                         example: "+61-412-345-678"
+ *                         description: Primary mobile number from contact details
  *                       student_type:
  *                         type: string
  *                         example: "international"
@@ -434,6 +503,15 @@ router.get('/', StudentController.list);
  *                       status:
  *                         type: string
  *                         example: "active"
+ *                       checklist_approval:
+ *                         type: boolean
+ *                         example: true
+ *                         description: True if all eligibility criteria are met
+ *                       activation_status:
+ *                         type: string
+ *                         enum: [active, deactivated]
+ *                         example: "active"
+ *                         description: Student activation status (active = isDeleted 0, deactivated = isDeleted 1)
  *                       created_on:
  *                         type: string
  *                         format: date-time
@@ -532,30 +610,6 @@ router.post('/bulk-update-status', StudentController.bulkUpdateStatus);
 
 /**
  * @swagger
- * /api/students/{id}:
- *   get:
- *     summary: Get student details
- *     description: Retrieve specific student information
- *     tags:
- *       - Students
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Student found
- *       404:
- *         description: Student not found
- */
-router.get('/:id', StudentController.detail);
-
-/**
- * @swagger
  * /api/students/{id}/all-details:
  *   get:
  *     summary: Get all student details (comprehensive)
@@ -630,7 +684,7 @@ router.get('/:id', StudentController.detail);
  *                       example: "international"
  *                     status:
  *                       type: string
- *                       enum: [active, inactive, graduated, withdrawn]
+ *                       enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                       example: "active"
  *                     contact_details:
  *                       type: array
@@ -1009,6 +1063,30 @@ router.get('/:id/all-details', StudentController.getAllDetails);
 /**
  * @swagger
  * /api/students/{id}:
+ *   get:
+ *     summary: Get student details
+ *     description: Retrieve specific student information
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Student found
+ *       404:
+ *         description: Student not found
+ */
+router.get('/:id', StudentController.detail);
+
+/**
+ * @swagger
+ * /api/students/{id}:
  *   put:
  *     summary: Update student with all related entities
  *     description: |
@@ -1064,7 +1142,7 @@ router.get('/:id/all-details', StudentController.getAllDetails);
  *                 example: "international"
  *               status:
  *                 type: string
- *                 enum: [active, inactive, graduated, withdrawn]
+ *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
  *               contact_details:
  *                 type: object
@@ -1352,28 +1430,6 @@ router.put('/:id', StudentController.update);
 
 /**
  * @swagger
- * /api/students/{id}:
- *   delete:
- *     summary: Delete student
- *     description: Soft delete student (mark as inactive)
- *     tags:
- *       - Students
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Student deleted successfully
- */
-router.delete('/:id', StudentController.delete);
-
-/**
- * @swagger
  * /api/students/{id}/permanent:
  *   delete:
  *     summary: Permanently delete student
@@ -1393,6 +1449,28 @@ router.delete('/:id', StudentController.delete);
  *         description: Student permanently deleted
  */
 router.delete('/:id/permanent', StudentController.permanentlyDelete);
+
+/**
+ * @swagger
+ * /api/students/{id}:
+ *   delete:
+ *     summary: Delete student
+ *     description: Soft delete student (mark as inactive)
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Student deleted successfully
+ */
+router.delete('/:id', StudentController.delete);
 
 /**
  * @swagger
@@ -1559,8 +1637,19 @@ router.post('/:studentId/facility-records', StudentController.addFacilityRecord)
  * @swagger
  * /api/students/{studentId}/address-change-requests:
  *   post:
- *     summary: Add address change request
- *     description: Submit a request to change student address
+ *     summary: Add address change request and optionally update address
+ *     description: |
+ *       Submit a request to change student address. 
+ *       
+ *       **Three payload structures supported:**
+ *       1. **Simple mode:** Provide current_address and new_address as text strings
+ *       2. **Detailed mode:** Provide detailed address fields at root level
+ *       3. **Nested mode (NEW):** Provide address fields at root + change_request nested object
+ *       
+ *       When detailed fields are provided, the API will:
+ *       - Create an address change request record
+ *       - Update the addresses table with the new address
+ *       - Return both the request and the new address_id
  *     tags:
  *       - Students
  *       - Address Management
@@ -1579,24 +1668,93 @@ router.post('/:studentId/facility-records', StudentController.addFacilityRecord)
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - current_address
- *               - new_address
- *               - effective_date
  *             properties:
+ *               line1:
+ *                 type: string
+ *                 description: Address line 1 (triggers address table update)
+ *                 example: "456 George Street"
+ *               line2:
+ *                 type: string
+ *                 description: Address line 2
+ *                 example: "Unit 12, Level 5"
+ *               suburb:
+ *                 type: string
+ *                 description: Suburb
+ *                 example: "Haymarket"
+ *               city:
+ *                 type: string
+ *                 description: City
+ *                 example: "Sydney"
+ *               state:
+ *                 type: string
+ *                 description: State
+ *                 example: "NSW"
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *                 example: "Australia"
+ *               postal_code:
+ *                 type: string
+ *                 description: Postal code
+ *                 example: "2000"
+ *               address_type:
+ *                 type: string
+ *                 enum: [current, permanent, temporary, mailing]
+ *                 description: Type of address
+ *                 example: "current"
+ *               is_primary:
+ *                 type: boolean
+ *                 description: Set as primary address
+ *                 example: true
+ *               change_request:
+ *                 type: object
+ *                 description: Nested change request details (optional)
+ *                 properties:
+ *                   current_address:
+ *                     type: string
+ *                     example: "123 Main Street, Sydney NSW 2000"
+ *                   new_address:
+ *                     type: string
+ *                     example: "789 New Street, Sydney NSW 2001"
+ *                   effective_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2026-03-01"
+ *                   change_reason:
+ *                     type: string
+ *                     example: "Moving closer to placement facility"
+ *                   impact_acknowledged:
+ *                     type: boolean
+ *                     example: true
+ *                   status:
+ *                     type: string
+ *                     enum: [pending, approved, rejected, implemented]
+ *                     example: "pending"
+ *                   reviewed_at:
+ *                     type: string
+ *                     format: date-time
+ *                     nullable: true
+ *                   reviewed_by:
+ *                     type: string
+ *                     nullable: true
+ *                   review_comments:
+ *                     type: string
+ *                     nullable: true
  *               current_address:
  *                 type: string
- *                 example: "101 Sunrise Apartments, Pune"
+ *                 description: Current address (can be at root or in change_request)
+ *                 example: "123 Main Street, Sydney NSW 2000"
  *               new_address:
  *                 type: string
- *                 example: "200 Tech Hub, Pune"
+ *                 description: New address (can be at root or in change_request)
+ *                 example: "789 New Street, Sydney NSW 2001"
  *               effective_date:
  *                 type: string
  *                 format: date
- *                 example: "2026-04-15"
+ *                 example: "2026-03-01"
  *               change_reason:
  *                 type: string
- *                 example: "Closer to training center"
+ *                 example: "Moving closer to placement facility"
  *               impact_acknowledged:
  *                 type: boolean
  *                 example: true
@@ -1604,9 +1762,101 @@ router.post('/:studentId/facility-records', StudentController.addFacilityRecord)
  *                 type: string
  *                 enum: [pending, approved, rejected, implemented]
  *                 example: "pending"
+ *           examples:
+ *             nestedStructure:
+ *               summary: Nested structure (your requested format)
+ *               value:
+ *                 line1: "456 George Street"
+ *                 line2: "Unit 12, Level 5"
+ *                 suburb: "Haymarket"
+ *                 city: "Sydney"
+ *                 state: "NSW"
+ *                 country: "Australia"
+ *                 postal_code: "2000"
+ *                 address_type: "current"
+ *                 is_primary: true
+ *                 change_request:
+ *                   current_address: "123 Main Street, Sydney NSW 2000"
+ *                   new_address: "789 New Street, Sydney NSW 2001"
+ *                   effective_date: "2026-03-01"
+ *                   change_reason: "Moving closer to placement facility"
+ *                   impact_acknowledged: true
+ *                   status: "pending"
+ *                   reviewed_at: null
+ *                   reviewed_by: null
+ *                   review_comments: null
+ *             simpleMode:
+ *               summary: Simple mode (existing functionality)
+ *               value:
+ *                 current_address: "101 Sunrise Apartments, Pune"
+ *                 new_address: "200 Tech Hub, Pune"
+ *                 effective_date: "2026-04-15"
+ *                 change_reason: "Closer to training center"
+ *                 impact_acknowledged: true
+ *             detailedMode:
+ *               summary: Detailed mode (flat structure)
+ *               value:
+ *                 line1: "456 George Street"
+ *                 line2: "Unit 12, Level 5"
+ *                 suburb: "Haymarket"
+ *                 city: "Sydney"
+ *                 state: "NSW"
+ *                 country: "Australia"
+ *                 postal_code: "2000"
+ *                 address_type: "current"
+ *                 is_primary: true
+ *                 effective_date: "2026-04-15"
+ *                 change_reason: "Relocated to Sydney"
+ *                 impact_acknowledged: true
  *     responses:
  *       201:
  *         description: Address change request added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Address change request added successfully"
+ *                 data:
+ *                   oneOf:
+ *                     - type: object
+ *                       description: Simple mode response
+ *                       properties:
+ *                         acr_id:
+ *                           type: integer
+ *                           example: 1
+ *                         student_id:
+ *                           type: integer
+ *                           example: 123
+ *                         current_address:
+ *                           type: string
+ *                         new_address:
+ *                           type: string
+ *                         status:
+ *                           type: string
+ *                     - type: object
+ *                       description: Detailed mode response (with address update)
+ *                       properties:
+ *                         address_change_request:
+ *                           type: object
+ *                           properties:
+ *                             acr_id:
+ *                               type: integer
+ *                               example: 1
+ *                             new_address:
+ *                               type: string
+ *                               example: "456 George Street, Unit 12, Level 5, Haymarket, Sydney, NSW, Australia, 2000"
+ *                         address_updated:
+ *                           type: boolean
+ *                           example: true
+ *                         new_address_id:
+ *                           type: integer
+ *                           example: 45
  *       400:
  *         description: Bad request
  *       404:
@@ -2044,5 +2294,248 @@ router.put('/:studentId/job-status-updates/:jsuId', StudentController.updateJobS
  *         description: Server error
  */
 router.put('/:studentId/self-placements/:placementId', StudentController.updateSelfPlacement);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/send-credentials:
+ *   post:
+ *     summary: Send login credentials to eligible student
+ *     description: |
+ *       Check student's eligibility status and send login credentials via email if eligible.
+ *       Resets password for existing user account and updates statuses.
+ *       
+ *       **Eligibility Requirements:**
+ *       - Student must have overall_status = 'eligible' or 'override'
+ *       - Student must have valid email in contact details
+ *       - Student must have existing user account (created during student creation)
+ *       
+ *       **What happens:**
+ *       1. Checks eligibility status
+ *       2. Generates secure temporary password
+ *       3. Resets password for existing user account
+ *       4. Updates user status to 'active'
+ *       5. Updates student status to 'placement_initiated'
+ *       6. Sends beautifully formatted email with credentials
+ *       
+ *       **Status Updates:**
+ *       - User table: status → 'active'
+ *       - Students table: status → 'placement_initiated'
+ *     tags:
+ *       - Students
+ *       - Eligibility & Credentials
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: Credentials sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset and credentials sent successfully. User status set to active, student status set to placement_initiated."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     student_id:
+ *                       type: integer
+ *                       example: 123
+ *                     user_id:
+ *                       type: integer
+ *                       example: 456
+ *                     login_id:
+ *                       type: string
+ *                       example: "student@example.com"
+ *                     user_status:
+ *                       type: string
+ *                       example: "active"
+ *                     student_status:
+ *                       type: string
+ *                       example: "placement_initiated"
+ *                     email_sent:
+ *                       type: boolean
+ *                       example: true
+ *                     password_reset:
+ *                       type: boolean
+ *                       example: true
+ *                     eligibility_status:
+ *                       type: string
+ *                       example: "eligible"
+ *       400:
+ *         description: Student not eligible or user account not found
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/:studentId/send-credentials', EligibilityCredentialController.sendCredentialsToStudent);
+
+/**
+ * @swagger
+ * /api/students/batch-send-credentials:
+ *   post:
+ *     summary: Batch send credentials to all eligible students
+ *     description: |
+ *       Process all eligible students and send login credentials to those who don't have accounts yet.
+ *       This is useful for bulk processing after eligibility updates.
+ *       
+ *       **Use Cases:**
+ *       - After batch eligibility approval
+ *       - Periodic credential distribution
+ *       - Initial system setup
+ *       
+ *       **Process:**
+ *       - Finds all students with status 'eligible' or 'override'
+ *       - Skips students who already have user accounts (configurable)
+ *       - Creates accounts and sends credentials
+ *       - Returns detailed summary
+ *     tags:
+ *       - Students
+ *       - Eligibility & Credentials
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 default: 100
+ *                 description: Maximum number of students to process
+ *                 example: 50
+ *               skipExistingUsers:
+ *                 type: boolean
+ *                 default: true
+ *                 description: Skip students who already have user accounts
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Batch processing completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Batch processing completed"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total_processed:
+ *                       type: integer
+ *                       example: 25
+ *                     credentials_sent:
+ *                       type: integer
+ *                       example: 20
+ *                     already_have_accounts:
+ *                       type: integer
+ *                       example: 3
+ *                     not_eligible:
+ *                       type: integer
+ *                       example: 1
+ *                     errors:
+ *                       type: integer
+ *                       example: 1
+ *                     details:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           student_id:
+ *                             type: integer
+ *                           name:
+ *                             type: string
+ *                           success:
+ *                             type: boolean
+ *                           message:
+ *                             type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/batch-send-credentials', EligibilityCredentialController.batchSendCredentials);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/notify-eligibility:
+ *   post:
+ *     summary: Send eligibility status notification
+ *     description: |
+ *       Send an email notification to student about their current eligibility status.
+ *       Does NOT create user account - only sends status notification.
+ *       
+ *       **Status Types:**
+ *       - eligible: Congratulations message
+ *       - not_eligible: Requirements not met message
+ *       - pending: Under review message
+ *       - override: Override applied message
+ *       
+ *       **Use Cases:**
+ *       - Notify students of status changes
+ *       - Inform about pending requirements
+ *       - Communicate eligibility decisions
+ *     tags:
+ *       - Students
+ *       - Eligibility & Credentials
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: Notification sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Eligibility status notification sent"
+ *       400:
+ *         description: Student or email not found
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/:studentId/notify-eligibility', EligibilityCredentialController.notifyEligibilityStatus);
+
+// Old activate/deactivate routes removed
+// Use generic activation API instead: PATCH /api/students/{id}/activate?activate={true|false}
 
 export default router;

@@ -35,6 +35,24 @@ export class Address {
 
   @Column({ 
     type: 'varchar', 
+    length: 255, 
+    nullable: true,
+    name: 'line2',
+    comment: 'Address line 2'
+  })
+  line2?: string;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 100, 
+    nullable: true,
+    name: 'suburb',
+    comment: 'Suburb'
+  })
+  suburb?: string;
+
+  @Column({ 
+    type: 'varchar', 
     length: 100, 
     nullable: true,
     name: 'city',
@@ -93,7 +111,7 @@ export class Address {
 
   // Helper methods
   getFullAddress(): string {
-    const parts = [this.line1, this.city, this.state, this.country, this.postal_code];
+    const parts = [this.line1, this.line2, this.suburb, this.city, this.state, this.country, this.postal_code];
     return parts.filter(part => part).join(', ');
   }
 

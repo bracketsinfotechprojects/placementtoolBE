@@ -68,7 +68,18 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
       throw new StringError('Email and password are required');
     }
 
-    // Find user by loginID
+    // First, check if user exists (including deleted users)
+    const userExists = await getRepository(User).findOne({
+      where: { loginID }
+    });
+
+    // If user exists but is deleted, give specific message
+    if (userExists && userExists.isDeleted) {
+      console.log('❌ User account is deactivated:', loginID);
+      throw new StringError('Your account has been deactivated. Please contact support for assistance.');
+    }
+
+    // Find active user by loginID
     const user = await getRepository(User).findOne({
       where: { loginID, isDeleted: false }
     });

@@ -1,0 +1,30 @@
+{
+  "organization_name": "Multi-State Care Facility",
+  "registered_business_name": "Multi-State Care Pty Ltd",
+  "website_url": "https://multistatecare.com.au",
+  "abn_registration_number": "11223344556",
+  "email": "admin@multistatecare.com.au",
+  "password": "Password123!",
+  "attributes": [
+    {
+      "attribute_type": "State",
+      "attribute_value": "NSW"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "VIC"
+    },
+    {
+      "attribute_type": "State",
+      "attribute_value": "QLD"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Aged Care"
+    },
+    {
+      "attribute_type": "Category",
+      "attribute_value": "Residential Care"
+    }
+  ]
+}
