@@ -120,6 +120,14 @@ router.post('/', FacilityController.create);
  *         description: Filter by website URL (partial match)
  *         example: "carewellservices.com.au"
  *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, all]
+ *           default: active
+ *         description: Filter by facility status (active = not deleted, inactive = deleted, all = both)
+ *         example: "active"
+ *       - in: query
  *         name: source_of_data
  *         schema:
  *           type: string
