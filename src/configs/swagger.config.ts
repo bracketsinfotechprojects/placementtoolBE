@@ -171,7 +171,7 @@ const options = {
             has_mou: { type: 'boolean' },
             signed_on: { type: 'string', format: 'date' },
             expiry_date: { type: 'string', format: 'date' },
-            company_name: { type: 'string' },
+            company_name: { type: 'array', items: { type: 'string' } },
             payment_required: { type: 'boolean' },
             amount_per_spot: { type: 'number', format: 'decimal' },
             payment_notes: { type: 'string' },

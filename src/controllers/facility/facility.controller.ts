@@ -54,7 +54,7 @@ export default class FacilityController extends BaseController {
         website_url: req.query.website_url as string,
         
         // Status filter
-        status: req.query.status as 'active' | 'inactive' | 'all',
+        status: req.query.activation_status as 'active' | 'inactive' | 'all',
         
         // Array filters (support multiple values)
         source_of_data: parseArrayParam(req.query.source_of_data),

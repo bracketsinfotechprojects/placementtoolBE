@@ -116,7 +116,7 @@ export default class UserController {
     try {
       const queryParams: IUserQueryParams = {
         keyword: req.query.keyword as string,
-        status: req.query.status as string,
+        status: req.query.activation_status as string,
         userRole: req.query.userRole as string,
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
         page: req.query.page ? parseInt(req.query.page as string, 10) : 1

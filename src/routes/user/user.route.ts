@@ -77,10 +77,10 @@ router.post(
  *           type: integer
  *         description: Page number
  *       - in: query
- *         name: status
+ *         name: activation_status
  *         schema:
  *           type: string
- *         description: Filter by status
+ *         description: Filter by activation status (active/inactive)
  *     responses:
  *       200:
  *         description: Users retrieved successfully
