@@ -65,11 +65,22 @@ const router = express.Router();
  *                 type: string
  *                 format: email
  *                 example: "admin@sunshinecare.com.au"
- *                 description: "Email address for facility login (optional)"
+ *                 description: "Email address for facility login (optional, use either this OR login object)"
  *               password:
  *                 type: string
  *                 example: "SecurePass123"
- *                 description: "Password for facility login (optional)"
+ *                 description: "Password for facility login (optional, use either this OR login object)"
+ *               login:
+ *                 type: object
+ *                 description: "Alternative way to provide login credentials (use either this OR email/password)"
+ *                 properties:
+ *                   email:
+ *                     type: string
+ *                     format: email
+ *                     example: "admin@sunshinecare.com.au"
+ *                   password:
+ *                     type: string
+ *                     example: "SecurePass123"
  *     responses:
  *       201:
  *         description: Created
@@ -120,12 +131,12 @@ router.post('/', FacilityController.create);
  *         description: Filter by website URL (partial match)
  *         example: "carewellservices.com.au"
  *       - in: query
- *         name: status
+ *         name: activation_status
  *         schema:
  *           type: string
  *           enum: [active, inactive, all]
  *           default: active
- *         description: Filter by facility status (active = not deleted, inactive = deleted, all = both)
+ *         description: Filter by facility activation status (active = not deleted, inactive = deleted, all = both)
  *         example: "active"
  *       - in: query
  *         name: source_of_data

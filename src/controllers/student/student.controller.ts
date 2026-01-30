@@ -117,7 +117,7 @@ export default class StudentController extends BaseController {
 
       const queryParams: IStudentQueryParams = {
         keyword: req.query.keyword as string,
-        status: req.query.status as string,
+        status: req.query.activation_status as string,
         student_type: req.query.student_type as string,
         nationality: req.query.nationality as string,
         min_age: req.query.min_age ? parseInt(req.query.min_age as string, 10) : undefined,
@@ -185,7 +185,7 @@ export default class StudentController extends BaseController {
         name: req.query.name as string,
         nationality: req.query.nationality as string,
         student_type: req.query.student_type as string,
-        status: req.query.status as string,
+        status: req.query.activation_status as string,
         min_age: req.query.min_age ? parseInt(req.query.min_age as string, 10) : undefined,
         max_age: req.query.max_age ? parseInt(req.query.max_age as string, 10) : undefined,
         has_visa: req.query.has_visa ? req.query.has_visa === 'true' : undefined,
@@ -222,7 +222,7 @@ export default class StudentController extends BaseController {
 
       const queryParams: IStudentQueryParams = {
         keyword: req.query.keyword as string,
-        status: req.query.status as string | string[],
+        status: req.query.activation_status as string | string[],
         student_type: req.query.student_type as string | string[],
         city: req.query.city as string | string[],
         course_completed: req.query.course_completed as string | string[],

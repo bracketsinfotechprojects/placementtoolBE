@@ -4,8 +4,10 @@
   "website_url": "https://sunshinecare.com.au",
   "abn_registration_number": "12345678901",
   "source_of_data": "Manual Entry",
-  "email": "admin@sunshinecare.com.au",
-  "password": "SecurePassword123",
+  "login": {
+    "email": "admin@sunshinecare.com.au",
+    "password": "SecurePassword123"
+  },
   "attributes": [
     {
       "attribute_type": "Category",
