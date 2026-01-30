@@ -38,7 +38,21 @@ export default class FacilityRepository {
   static buildFilteredQuery(params: IFacilityFilters): SelectQueryBuilder<Facility> {
     let query = this.getBaseQuery();
 
-    // Keyword search
+    // Organization name filter (exact or partial match)
+    if (params.organization_name) {
+      query = query.andWhere('LOWER(facility.organization_name) LIKE LOWER(:org_name)', { 
+        org_name: `%${params.organization_name}%` 
+      });
+    }
+
+    // Website URL filter
+    if (params.website_url) {
+      query = query.andWhere('LOWER(facility.website_url) LIKE LOWER(:website)', { 
+        website: `%${params.website_url}%` 
+      });
+    }
+
+    // Keyword search (searches across multiple fields)
     if (params.keyword) {
       query = query.andWhere(
         '(LOWER(facility.organization_name) LIKE LOWER(:keyword) OR LOWER(facility.registered_business_name) LIKE LOWER(:keyword) OR facility.abn_registration_number LIKE :keyword)',
@@ -46,16 +60,15 @@ export default class FacilityRepository {
       );
     }
 
-    // Source of data filter
+    // Source of data filter (supports multiple values)
     if (params.source_of_data) {
-      query = query.andWhere('facility.source_of_data = :source', { 
-        source: params.source_of_data 
-      });
+      const sources = Array.isArray(params.source_of_data) ? params.source_of_data : [params.source_of_data];
+      query = query.andWhere('facility.source_of_data IN (:...sources)', { sources });
     }
 
-    // State filter (supports multiple states)
-    if (params.state) {
-      const states = Array.isArray(params.state) ? params.state : [params.state];
+    // States covered filter (supports multiple states - ANY match)
+    if (params.states_covered) {
+      const states = Array.isArray(params.states_covered) ? params.states_covered : [params.states_covered];
       const stateConditions = states.map((_, index) => 
         `JSON_CONTAINS(facility.states_covered, JSON_QUOTE(:state${index}))`
       ).join(' OR ');
@@ -68,9 +81,9 @@ export default class FacilityRepository {
       query = query.andWhere(`(${stateConditions})`, stateParams);
     }
 
-    // Category filter (supports multiple categories)
-    if (params.category) {
-      const categories = Array.isArray(params.category) ? params.category : [params.category];
+    // Categories filter (supports multiple categories - ANY match)
+    if (params.categories) {
+      const categories = Array.isArray(params.categories) ? params.categories : [params.categories];
       const categoryConditions = categories.map((_, index) => 
         `JSON_CONTAINS(facility.categories, JSON_QUOTE(:category${index}))`
       ).join(' OR ');
@@ -78,6 +91,36 @@ export default class FacilityRepository {
       const categoryParams: any = {};
       categories.forEach((category, index) => {
         categoryParams[`category${index}`] = category;
+      });
+      
+      query = query.andWhere(`(${categoryConditions})`, categoryParams);
+    }
+
+    // Legacy state filter (for backward compatibility)
+    if (params.state) {
+      const states = Array.isArray(params.state) ? params.state : [params.state];
+      const stateConditions = states.map((_, index) => 
+        `JSON_CONTAINS(facility.states_covered, JSON_QUOTE(:legacyState${index}))`
+      ).join(' OR ');
+      
+      const stateParams: any = {};
+      states.forEach((state, index) => {
+        stateParams[`legacyState${index}`] = state;
+      });
+      
+      query = query.andWhere(`(${stateConditions})`, stateParams);
+    }
+
+    // Legacy category filter (for backward compatibility)
+    if (params.category) {
+      const categories = Array.isArray(params.category) ? params.category : [params.category];
+      const categoryConditions = categories.map((_, index) => 
+        `JSON_CONTAINS(facility.categories, JSON_QUOTE(:legacyCategory${index}))`
+      ).join(' OR ');
+      
+      const categoryParams: any = {};
+      categories.forEach((category, index) => {
+        categoryParams[`legacyCategory${index}`] = category;
       });
       
       query = query.andWhere(`(${categoryConditions})`, categoryParams);
@@ -93,6 +136,13 @@ export default class FacilityRepository {
     if (params.created_to) {
       query = query.andWhere('facility.createdAt <= :created_to', { 
         created_to: params.created_to 
+      });
+    }
+
+    // Created at exact date filter
+    if (params.created_at) {
+      query = query.andWhere('DATE(facility.createdAt) = :created_at', { 
+        created_at: params.created_at 
       });
     }
 
@@ -127,10 +177,38 @@ export default class FacilityRepository {
     query = query.leftJoinAndSelect('facility.organizationStructures', 'organizationStructures')
                  .leftJoinAndSelect('facility.agreements', 'agreements');
 
-    // Apply MOU filters after joining agreements
+    // Email filter (from organization structures)
+    if (params.email) {
+      query = query.andWhere('LOWER(organizationStructures.email) LIKE LOWER(:email)', { 
+        email: `%${params.email}%` 
+      });
+    }
+
+    // Phone filter (from organization structures)
+    if (params.phone) {
+      query = query.andWhere('organizationStructures.phone LIKE :phone', { 
+        phone: `%${params.phone}%` 
+      });
+    }
+
+    // MOU filters after joining agreements
     if (params.has_mou && params.has_mou !== 'all') {
       const hasMou = params.has_mou === 'true';
       query = query.andWhere('agreements.has_mou = :has_mou', { has_mou: hasMou });
+    }
+
+    // MOU start date filter (signed_on) - exact match or use with created_from/to for range
+    if (params.mou_start_date) {
+      query = query.andWhere('DATE(agreements.signed_on) = :mou_start_date', { 
+        mou_start_date: params.mou_start_date 
+      });
+    }
+
+    // MOU end date filter (expiry_date) - exact match or use with created_from/to for range
+    if (params.mou_end_date) {
+      query = query.andWhere('DATE(agreements.expiry_date) = :mou_end_date', { 
+        mou_end_date: params.mou_end_date 
+      });
     }
 
     // MOU expiring soon filter (within 30 days)
@@ -170,12 +248,32 @@ export default class FacilityRepository {
 }
 
 export interface IFacilityFilters {
+  // Text search filters
   keyword?: string;
-  source_of_data?: string;
+  organization_name?: string;
+  email?: string;
+  phone?: string;
+  website_url?: string;
+  
+  // Array filters (support multiple values)
+  source_of_data?: string | string[];
+  states_covered?: string | string[];
+  categories?: string | string[];
+  
+  // Legacy filters (for backward compatibility)
   state?: string | string[];
   category?: string | string[];
+  
+  // Boolean filters
   has_mou?: 'true' | 'false' | 'all';
   mou_expiring_soon?: 'true' | 'false';
+  
+  // Date filters (exact match)
+  mou_start_date?: string;
+  mou_end_date?: string;
+  created_at?: string;
+  
+  // Date range filters (legacy - for backward compatibility)
   created_from?: string;
   created_to?: string;
 }
