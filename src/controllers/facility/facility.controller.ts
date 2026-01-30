@@ -53,6 +53,9 @@ export default class FacilityController extends BaseController {
         phone: req.query.phone as string,
         website_url: req.query.website_url as string,
         
+        // Status filter
+        status: req.query.status as 'active' | 'inactive' | 'all',
+        
         // Array filters (support multiple values)
         source_of_data: parseArrayParam(req.query.source_of_data),
         states_covered: parseArrayParam(req.query.states_covered),

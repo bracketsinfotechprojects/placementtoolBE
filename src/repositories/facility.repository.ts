@@ -9,10 +9,15 @@ import { FacilityRule } from '../entities/facility/facility-rule.entity';
 import ApiUtility from '../utilities/api.utility';
 
 export default class FacilityRepository {
-  private static getBaseQuery(): SelectQueryBuilder<Facility> {
-    return getRepository(Facility)
-      .createQueryBuilder('facility')
-      .where('facility.isDeleted = :isDeleted', { isDeleted: false });
+  private static getBaseQuery(includeDeleted: boolean = false): SelectQueryBuilder<Facility> {
+    const query = getRepository(Facility).createQueryBuilder('facility');
+    
+    // By default, exclude deleted facilities
+    if (!includeDeleted) {
+      query.where('facility.isDeleted = :isDeleted', { isDeleted: false });
+    }
+    
+    return query;
   }
 
   static async findById(id: number): Promise<Facility | undefined> {
@@ -36,7 +41,19 @@ export default class FacilityRepository {
   }
 
   static buildFilteredQuery(params: IFacilityFilters): SelectQueryBuilder<Facility> {
-    let query = this.getBaseQuery();
+    // Check if we need to include deleted facilities based on status filter
+    const includeDeleted = params.status === 'inactive' || params.status === 'all';
+    let query = this.getBaseQuery(includeDeleted);
+
+    // Status filter (maps to isDeleted flag)
+    if (params.status) {
+      if (params.status === 'active') {
+        query = query.andWhere('facility.isDeleted = :isDeleted', { isDeleted: false });
+      } else if (params.status === 'inactive') {
+        query = query.andWhere('facility.isDeleted = :isDeleted', { isDeleted: true });
+      }
+      // 'all' - no filter, show both active and inactive
+    }
 
     // Organization name filter (exact or partial match)
     if (params.organization_name) {
@@ -254,6 +271,9 @@ export interface IFacilityFilters {
   email?: string;
   phone?: string;
   website_url?: string;
+  
+  // Status filter (maps to isDeleted)
+  status?: 'active' | 'inactive' | 'all';
   
   // Array filters (support multiple values)
   source_of_data?: string | string[];
