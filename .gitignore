@@ -46,6 +46,10 @@ check-*.js
 verify-*.js
 fix-*.js
 
+# Uploaded files
+uploads/
+!uploads/.gitkeep
+
 # Migration scripts (keep in migrations folder only)
 add-*.js
 clear-*.js
