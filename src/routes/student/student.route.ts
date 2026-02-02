@@ -426,6 +426,16 @@ router.get('/', StudentController.list);
  *           - Multiple (comma): ?course_completed=Frontend,Backend
  *         example: "Frontend,Backend"
  *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by student work progress status. Supports multiple values.
+ *           Examples:
+ *           - Single: ?status=active
+ *           - Multiple (comma): ?status=active,graduated,completed
+ *         example: "active,graduated"
+ *       - in: query
  *         name: checklist_approval
  *         schema:
  *           type: string
@@ -492,7 +502,9 @@ router.get('/', StudentController.list);
  *                         example: "Sydney"
  *                       status:
  *                         type: string
+ *                         enum: [active, graduated, completed, internship_completed, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, withdrawn]
  *                         example: "active"
+ *                         description: Student work progress status
  *                       checklist_approval:
  *                         type: boolean
  *                         example: true
