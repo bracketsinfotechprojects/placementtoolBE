@@ -11,7 +11,12 @@ import { Facility } from './facility.entity';
 
 export enum AttributeType {
   CATEGORY = 'Category',
-  STATE = 'State'
+  STATE = 'State',
+  CARE_TYPE = 'care_type',
+  CAPACITY = 'capacity',
+  FACILITY_TYPE = 'facility_type',
+  ACCREDITATION = 'accreditation',
+  SPECIALTY = 'specialty'
 }
 
 @Entity('facility_attributes', { orderBy: { attribute_id: 'DESC' } })

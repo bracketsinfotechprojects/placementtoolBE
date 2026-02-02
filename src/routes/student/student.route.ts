@@ -336,9 +336,16 @@ router.post('/', StudentController.create);
  *         schema:
  *           type: integer
  *       - in: query
- *         name: status
+ *         name: activation_status
  *         schema:
  *           type: string
+ *           enum: [active, inactive, all]
+ *           default: active
+ *         description: |
+ *           Filter by activation status.
+ *           - active: isDeleted = 0 AND status != 'inactive' (all statuses except inactive)
+ *           - inactive: isDeleted = 1 OR status = 'inactive'
+ *           - all: Show all records
  *     responses:
  *       200:
  *         description: Students retrieved successfully
@@ -369,23 +376,17 @@ router.get('/', StudentController.list);
  *           default: 1
  *         description: Page number
  *       - in: query
- *         name: status
+ *         name: activation_status
  *         schema:
  *           type: string
- *           enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *           enum: [active, inactive, all]
+ *           default: active
  *         description: |
- *           Filter by student status. Supports multiple values.
- *           Examples:
- *           - Single: ?status=active
- *           - Multiple (array): ?status=active&status=inactive
- *           - Multiple (comma): ?status=active,inactive
- *         example: "active,inactive"
- *       - in: query
- *         name: student_type
- *         schema:
- *           type: string
- *           enum: [domestic, international]
- *         description: Filter by student type
+ *           Filter by activation status.
+ *           - active: Returns records where isDeleted = 0 AND status != 'inactive' (includes all statuses: active, graduated, completed, internship_completed, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, withdrawn, etc. EXCEPT inactive)
+ *           - inactive: Returns records where isDeleted = 1 OR status = 'inactive'
+ *           - all: Returns all records (no filter)
+ *         example: "active"
  *       - in: query
  *         name: keyword
  *         schema:
@@ -435,17 +436,6 @@ router.get('/', StudentController.list);
  *           - false: Show only students with incomplete eligibility
  *           - all: Show all students (no filter)
  *         example: "true"
- *       - in: query
- *         name: activation_status
- *         schema:
- *           type: string
- *           enum: [active, deactivated, all]
- *           default: active
- *         description: |
- *           Filter by activation status (isDeleted field):
- *           - active: Show only active students (isDeleted = 0)
- *           - deactivated: Show only deactivated students (isDeleted = 1)
- *           - all: Show both active and deactivated students
  *       - in: query
  *         name: sort_by
  *         schema:
@@ -569,10 +559,55 @@ router.get('/stats', StudentController.getStatistics);
  *         name: name
  *         schema:
  *           type: string
+ *         description: Search by student name
  *       - in: query
  *         name: nationality
  *         schema:
  *           type: string
+ *         description: Filter by nationality
+ *       - in: query
+ *         name: student_type
+ *         schema:
+ *           type: string
+ *         description: Filter by student type
+ *       - in: query
+ *         name: activation_status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, all]
+ *           default: active
+ *         description: |
+ *           Filter by activation status.
+ *           - active: Returns records where isDeleted = 0 AND status != 'inactive' (includes all statuses: active, graduated, completed, internship_completed, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, withdrawn, etc. EXCEPT inactive)
+ *           - inactive: Returns records where isDeleted = 1 OR status = 'inactive'
+ *           - all: Returns all records (no filter)
+ *       - in: query
+ *         name: min_age
+ *         schema:
+ *           type: integer
+ *         description: Minimum age filter
+ *       - in: query
+ *         name: max_age
+ *         schema:
+ *           type: integer
+ *         description: Maximum age filter
+ *       - in: query
+ *         name: has_visa
+ *         schema:
+ *           type: boolean
+ *         description: Filter by visa status
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of records per page
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
  *     responses:
  *       200:
  *         description: Search results

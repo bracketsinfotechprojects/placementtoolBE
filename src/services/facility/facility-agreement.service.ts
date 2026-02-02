@@ -53,7 +53,7 @@ export interface ICreateFacilityAgreement {
   has_mou?: boolean;
   signed_on?: Date;
   expiry_date?: Date;
-  company_name?: string;
+  company_name?: string[];
   payment_required?: boolean;
   amount_per_spot?: number;
   payment_notes?: string;

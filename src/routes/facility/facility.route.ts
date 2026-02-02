@@ -65,11 +65,22 @@ const router = express.Router();
  *                 type: string
  *                 format: email
  *                 example: "admin@sunshinecare.com.au"
- *                 description: "Email address for facility login (optional)"
+ *                 description: "Email address for facility login (optional, use either this OR login object)"
  *               password:
  *                 type: string
  *                 example: "SecurePass123"
- *                 description: "Password for facility login (optional)"
+ *                 description: "Password for facility login (optional, use either this OR login object)"
+ *               login:
+ *                 type: object
+ *                 description: "Alternative way to provide login credentials (use either this OR email/password)"
+ *                 properties:
+ *                   email:
+ *                     type: string
+ *                     format: email
+ *                     example: "admin@sunshinecare.com.au"
+ *                   password:
+ *                     type: string
+ *                     example: "SecurePass123"
  *     responses:
  *       201:
  *         description: Created
@@ -82,7 +93,8 @@ router.post('/', FacilityController.create);
  * @swagger
  * /api/facilities:
  *   get:
- *     summary: List facilities (full details)
+ *     summary: List facilities (full details with advanced filters)
+ *     description: Returns facilities with organization name, email, phone, website, MOU dates, states, categories, and more. Supports multiple filter options including array filters for states and categories.
  *     tags:
  *       - Facilities
  *     security:
@@ -92,19 +104,196 @@ router.post('/', FacilityController.create);
  *         name: keyword
  *         schema:
  *           type: string
+ *         description: Search across organization name, registered business name, and ABN
+ *         example: "CareWell"
+ *       - in: query
+ *         name: organization_name
+ *         schema:
+ *           type: string
+ *         description: Filter by organization name (partial match)
+ *         example: "CareWell Services"
+ *       - in: query
+ *         name: email
+ *         schema:
+ *           type: string
+ *         description: Filter by email address (partial match)
+ *         example: "laura.mitchell@carewellservices.com.au"
+ *       - in: query
+ *         name: phone
+ *         schema:
+ *           type: string
+ *         description: Filter by phone number (partial match)
+ *         example: "0411222333"
+ *       - in: query
+ *         name: website_url
+ *         schema:
+ *           type: string
+ *         description: Filter by website URL (partial match)
+ *         example: "carewellservices.com.au"
+ *       - in: query
+ *         name: activation_status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, all]
+ *           default: active
+ *         description: Filter by facility activation status (active = not deleted, inactive = deleted, all = both)
+ *         example: "active"
+ *       - in: query
+ *         name: source_of_data
+ *         schema:
+ *           type: string
+ *         description: Filter by source of data (supports comma-separated values for multiple sources)
+ *         example: "Manual Entry,Import"
+ *       - in: query
+ *         name: states_covered
+ *         schema:
+ *           type: string
+ *         description: Filter by states covered (supports comma-separated values, matches ANY)
+ *         example: "NSW,VIC,QLD"
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: string
+ *         description: Filter by categories (supports comma-separated values, matches ANY)
+ *         example: "Aged Care,Disability Support"
+ *       - in: query
+ *         name: has_mou
+ *         schema:
+ *           type: string
+ *           enum: [true, false, all]
+ *         description: Filter by MOU status
+ *         example: "true"
+ *       - in: query
+ *         name: mou_expiring_soon
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *         description: Filter facilities with MOU expiring within 30 days
+ *         example: "true"
+ *       - in: query
+ *         name: mou_start_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by MOU start date (exact match)
+ *         example: "2024-05-15"
+ *       - in: query
+ *         name: mou_end_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by MOU end date (exact match)
+ *         example: "2027-05-15"
+ *       - in: query
+ *         name: created_at
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by creation date (exact match)
+ *         example: "2026-01-27"
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           default: facility_id
+ *         description: Field to sort by
+ *         example: "organization_name"
+ *       - in: query
+ *         name: sort_order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 20
+ *         description: Number of results per page
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Page number
  *     responses:
  *       200:
  *         description: Success
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facilities retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       facility_id:
+ *                         type: integer
+ *                         example: 1
+ *                       organization_name:
+ *                         type: string
+ *                         example: "CareWell Services"
+ *                       email:
+ *                         type: string
+ *                         example: "laura.mitchell@carewellservices.com.au"
+ *                       phone:
+ *                         type: string
+ *                         example: "0411222333"
+ *                       website_url:
+ *                         type: string
+ *                         example: "https://carewellservices.com.au"
+ *                       mou_start_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2024-05-15"
+ *                       mou_end_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2027-05-15"
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2026-01-27T13:46:36.057Z"
+ *                       states_covered:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["NSW", "VIC", "QLD", "TAS", "ACT"]
+ *                       categories:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Aged Care", "Community Care", "Disability Support"]
+ *                       has_mou:
+ *                         type: boolean
+ *                         example: true
+ *                       source_of_data:
+ *                         type: string
+ *                         example: "Manual Entry"
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 50
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 20
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
  *       401:
  *         description: Unauthorized
  */

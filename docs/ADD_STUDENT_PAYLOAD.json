@@ -1,0 +1,105 @@
+{
+  "first_name": "James",
+  "last_name": "Nguyen",
+  "dob": "2000-11-05",
+  "gender": "male",
+  "nationality": "Vietnamese",
+  "student_type": "international",
+  "status": "active",
+  "login": {
+    "email": "james.nguyen@student.university.edu.au",
+    "password": "test123"
+  },
+  "contact_details": {
+    "primary_mobile": "+84901234567",
+    "email": "james.nguyen.personal@gmail.com",
+    "alternate_contact": "+84987654321",
+    "emergency_contact": "+61412345678",
+    "emergency_contact_name": "Anna Nguyen",
+    "relationship": "Mother",
+    "contact_type": "mobile",
+    "is_primary": true,
+    "verified_at": "2026-01-20T09:30:00.000Z"
+  },
+  "visa_details": {
+    "visa_type": "Student Visa (Subclass 500)",
+    "visa_number": "VISA1234567779",
+    "start_date": "2025-01-10",
+    "expiry_date": "2027-12-31",
+    "status": "active",
+    "issuing_country": "Australia",
+    "work_limitation": "Permitted to work up to 48 hours per fortnight during study period. Unlimited hours during scheduled course breaks.",
+    "document_path": "/uploads/visas/visa_james.pdf"
+  },
+  "addresses": [
+    {
+      "line1": "12 King Street",
+      "line2": "Apartment 8B",
+      "suburb": "Newtown",
+      "city": "Sydney",
+      "state": "NSW",
+      "country": "Australia",
+      "postal_code": "2042",
+      "address_type": "current",
+      "is_primary": true
+    },
+    {
+      "line1": "34 Hoa Mai Road",
+      "suburb": "District 7",
+      "city": "Ho Chi Minh City",
+      "state": "HCMC",
+      "country": "Vietnam",
+      "postal_code": "700000",
+      "address_type": "permanent",
+      "is_primary": false
+    }
+  ],
+  "eligibility_status": {
+    "classes_completed": true,
+    "fees_paid": true,
+    "assignments_submitted": true,
+    "documents_submitted": true,
+    "trainer_consent": true,
+    "override_requested": false,
+    "requested_by": null,
+    "reason": null,
+    "comments": "All requirements completed successfully.",
+    "overall_status": "eligible"
+  },
+  "student_lifestyle": {
+    "currently_working": false,
+    "working_hours": null,
+    "has_dependents": false,
+    "married": false,
+    "driving_license": false,
+    "own_vehicle": false,
+    "public_transport_only": true,
+    "can_travel_long_distance": true,
+    "drop_support_available": true,
+    "fully_flexible": true,
+    "rush_placement_required": false,
+    "preferred_days": "Tuesday, Thursday",
+    "preferred_time_slots": "Afternoon 1PM-5PM",
+    "additional_notes": "Open to placements across NSW. Prefers healthcare and community service roles."
+  },
+  "placement_preferences": {
+    "preferred_states": "NSW",
+    "preferred_cities": "Sydney",
+    "max_travel_distance_km": 20,
+    "morning_only": false,
+    "evening_only": true,
+    "night_shift": false,
+    "weekend_only": true,
+    "part_time": true,
+    "full_time": false,
+    "with_friend": false,
+    "friend_name_or_id": null,
+    "with_spouse": false,
+    "spouse_name_or_id": null,
+    "earliest_start_date": "2026-04-01",
+    "latest_start_date": "2026-06-30",
+    "specific_month_preference": "May 2026",
+    "urgency_level": "immediate",
+    "additional_preferences": "Interested in aged care facilities with weekend shifts."
+  }
+}

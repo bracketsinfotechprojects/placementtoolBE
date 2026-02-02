@@ -18,11 +18,20 @@ const create = async (params: ICreateFacility) => {
     throw new Error('organization_name is required');
   }
 
+  // Support both formats: direct email/password OR login object
+  let email = params.email;
+  let password = params.password;
+  
+  if (params.login) {
+    email = params.login.email;
+    password = params.login.password;
+  }
+
   // Validate email and password if provided
-  if (params.email && !params.password) {
+  if (email && !password) {
     throw new Error('password is required when email is provided');
   }
-  if (params.password && !params.email) {
+  if (password && !email) {
     throw new Error('email is required when password is provided');
   }
 
@@ -53,14 +62,14 @@ const create = async (params: ICreateFacility) => {
     const facilityId = savedFacility.facility_id;
 
     // Create user account if email and password provided
-    if (params.email && params.password) {
+    if (email && password) {
       // Check if email already exists
       const existingUser = await queryRunner.manager.findOne(User, {
-        where: { loginID: params.email }
+        where: { loginID: email }
       });
 
       if (existingUser) {
-        throw new Error(`Email '${params.email}' already exists`);
+        throw new Error(`Email '${email}' already exists`);
       }
 
       // Get Facility role ID by mapping role name
@@ -68,8 +77,8 @@ const create = async (params: ICreateFacility) => {
 
       // Create user with email as loginID and link to facility
       const user = new User();
-      user.loginID = params.email;
-      user.password = await PasswordUtility.hashPassword(params.password);
+      user.loginID = email;
+      user.password = await PasswordUtility.hashPassword(password);
       user.roleID = facilityRoleId;
       user.facilityID = facilityId; // Link user to facility
       user.studentID = null;
@@ -201,12 +210,20 @@ const create = async (params: ICreateFacility) => {
 
   } catch (error) {
     // Rollback transaction on any error
-    await queryRunner.rollbackTransaction();
+    try {
+      await queryRunner.rollbackTransaction();
+    } catch (rollbackError) {
+      console.error('⚠️ Rollback error (transaction may not have started):', rollbackError);
+    }
     console.error('❌ Transaction failed, rolling back all changes:', error);
     throw error;
   } finally {
     // Release query runner
-    await queryRunner.release();
+    try {
+      await queryRunner.release();
+    } catch (releaseError) {
+      console.error('⚠️ Release error:', releaseError);
+    }
   }
 };
 
@@ -517,6 +534,10 @@ export interface ICreateFacility {
   source_of_data?: string;
   email?: string;
   password?: string;
+  login?: {
+    email: string;
+    password: string;
+  };
   states_covered?: string[];
   categories?: string[];
   attributes?: Array<{
@@ -561,7 +582,7 @@ export interface ICreateFacility {
     has_mou?: boolean;
     signed_on?: any;
     expiry_date?: any;
-    company_name?: string;
+    company_name?: string[];
     payment_required?: boolean;
     amount_per_spot?: number;
     payment_notes?: string;
@@ -649,7 +670,7 @@ export interface IUpdateCompleteFacility {
     has_mou?: boolean;
     signed_on?: any;
     expiry_date?: any;
-    company_name?: string;
+    company_name?: string[];
     payment_required?: boolean;
     amount_per_spot?: number;
     payment_notes?: string;
