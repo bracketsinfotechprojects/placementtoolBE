@@ -87,6 +87,7 @@ export default class FileRepository {
     file.file_size = fileData.file_size;
     file.version = fileData.version || 1;
     file.is_active = true;
+    file.expiry_date = fileData.expiry_date || null;
 
     return await getRepository(File).save(file);
   }
@@ -225,6 +226,7 @@ export interface ICreateFile {
   mime_type?: string;
   file_size?: number;
   version?: number;
+  expiry_date?: Date | null;
 }
 
 export interface IFileQueryParams {

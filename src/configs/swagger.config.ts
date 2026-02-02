@@ -214,6 +214,53 @@ const options = {
             updatedAt: { type: 'string', format: 'date-time' },
             isDeleted: { type: 'boolean' }
           }
+        },
+        File: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            entity_type: { type: 'string', enum: ['student', 'facility', 'placement', 'visa', 'job', 'agreement', 'trainer'] },
+            entity_id: { type: 'integer' },
+            doc_type: { type: 'string', enum: ['AADHAAR', 'PASSPORT', 'VISA_DOCUMENT', 'OFFER_LETTER', 'REGISTRATION_PROOF', 'SUPPORTING_DOCUMENT', 'MOU_DOCUMENT', 'INSURANCE_DOCUMENT', 'PLACEMENT_DOCUMENT', 'JOB_OFFER', 'WORK_CHILD_CHECK', 'POLICE_CHECK', 'ACCRED_CERT', 'FIRSTAID_CERT', 'INSURANCE_DOCS', 'RESUME', 'OTHER'] },
+            file_path: { type: 'string' },
+            file_name: { type: 'string' },
+            mime_type: { type: 'string' },
+            file_size: { type: 'integer' },
+            version: { type: 'integer' },
+            is_active: { type: 'boolean' },
+            uploaded_at: { type: 'string', format: 'date-time' },
+            expiry_date: { type: 'string', format: 'date', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        Trainer: {
+          type: 'object',
+          properties: {
+            trainer_id: { type: 'integer' },
+            first_name: { type: 'string' },
+            last_name: { type: 'string' },
+            gender: { type: 'string' },
+            date_of_birth: { type: 'string', format: 'date' },
+            mobile_number: { type: 'string' },
+            alternate_contact: { type: 'string' },
+            email: { type: 'string' },
+            trainer_type: { type: 'string' },
+            course_auth: { type: 'string' },
+            acc_numbers: { type: 'string' },
+            yoe: { type: 'integer' },
+            state_covered: { type: 'array', items: { type: 'string' } },
+            cities_covered: { type: 'array', items: { type: 'string' } },
+            available_days: { type: 'array', items: { type: 'string' } },
+            time_slots: { type: 'array', items: { type: 'string' } },
+            suprise_visit: { type: 'boolean' },
+            photograph: { type: 'string' },
+            user_id: { type: 'integer' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
         }
       }
     },

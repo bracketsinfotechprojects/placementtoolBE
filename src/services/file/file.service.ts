@@ -9,6 +9,7 @@ import { StringError } from '../../errors/string.error';
 import { getRepository } from 'typeorm';
 import { Student } from '../../entities/student/student.entity';
 import { Facility } from '../../entities/facility/facility.entity';
+import { Trainer } from '../../entities/trainer/trainer.entity';
 
 export default class FileService {
   
@@ -34,6 +35,13 @@ export default class FileService {
           where: { facility_id: entityId, isDeleted: false } 
         });
         exists = !!facility;
+        break;
+      
+      case EntityType.TRAINER:
+        const trainer = await getRepository(Trainer).findOne({ 
+          where: { trainer_id: entityId, isDeleted: false } 
+        });
+        exists = !!trainer;
         break;
       
       // Add other entity types as needed
@@ -154,7 +162,7 @@ export default class FileService {
    * Upload file
    */
   static async uploadFile(params: IUploadFileParams): Promise<File> {
-    const { file, entity_type, entity_id, doc_type } = params;
+    const { file, entity_type, entity_id, doc_type, expiry_date } = params;
 
     // 1. Validate entity exists
     await this.validateEntityExists(entity_type, entity_id);
@@ -393,7 +401,10 @@ export default class FileService {
    * Upload multiple files
    */
   static async uploadMultipleFiles(params: IUploadMultipleFilesParams): Promise<File[]> {
-    const { files, entity_type, entity_id, doc_types } = params;
+    const { files, entity_type, entity_id, doc_types, expiry_date } = params;
+    
+    // Convert expiry_date string to Date if provided
+    const expiryDate = expiry_date ? new Date(expiry_date) : null;
 
     // Validate entity exists once
     await this.validateEntityExists(entity_type, entity_id);
@@ -453,7 +464,8 @@ export default class FileService {
           file_name: file.originalname,
           mime_type: file.mimetype,
           file_size: file.size,
-          version
+          version,
+          expiry_date: expiryDate
         });
 
         uploadedFiles.push(fileRecord);
@@ -507,6 +519,7 @@ export interface IUploadFileParams {
   entity_type: EntityType;
   entity_id: number;
   doc_type: DocumentType;
+  expiry_date?: string;
 }
 
 export interface IListFilesParams {
@@ -528,4 +541,5 @@ export interface IUploadMultipleFilesParams {
   entity_type: EntityType;
   entity_id: number;
   doc_types: DocumentType[];
+  expiry_date?: string;
 }

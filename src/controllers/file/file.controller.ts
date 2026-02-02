@@ -64,7 +64,8 @@ export default class FileController extends BaseController {
         file: req.file,
         entity_type: entity_type as EntityType,
         entity_id: entityId,
-        doc_type: doc_type as DocumentType
+        doc_type: doc_type as DocumentType,
+        expiry_date: req.body.expiry_date
       };
 
       const fileRecord = await FileService.uploadFile(uploadParams);
@@ -397,7 +398,8 @@ export default class FileController extends BaseController {
         files: req.files as Express.Multer.File[],
         entity_type: entity_type as EntityType,
         entity_id: entityId,
-        doc_types: docTypesArray
+        doc_types: docTypesArray,
+        expiry_date: req.body.expiry_date
       };
 
       const fileRecords = await FileService.uploadMultipleFiles(uploadParams);
