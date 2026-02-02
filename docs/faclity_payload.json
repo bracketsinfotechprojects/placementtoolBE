@@ -1,11 +1,11 @@
 {
-  "organization_name": "National Care Network",
-  "registered_business_name": "National Care Network Pty Ltd",
-  "website_url": "https://nationalcare.com.au",
+  "organization_name": "Discovery",
+  "registered_business_name": "Discovery Pty Ltd",
+  "website_url": "https://discovery.com.au",
   "abn_registration_number": "98765432101",
   "source_of_data": "Manual Entry",
-  "email": "admin@nationalcare.com.au",
-  "password": "facility123",
+  "email": "discovery@nationalcare1.com.au",
+  "password": "Facility123",
   "states_covered": [
     "NSW",
     "VIC",
@@ -67,6 +67,24 @@
       "contact_phone": "0387654321",
       "contact_email": "james.anderson@nationalcare.com.au",
       "contact_comments": "Available Monday to Saturday, 7am-3pm"
+    },
+    {
+      "site_code": "QLD001",
+      "full_address": "321 Sunshine Boulevard, Brisbane QLD 4000",
+      "suburb": "Brisbane City",
+      "city": "Brisbane",
+      "state": "QLD",
+      "postcode": "4000",
+      "site_type": "Disability Care Facility",
+      "palliative_care": false,
+      "dementia_care": false,
+      "num_beds": 40,
+      "gender_rules": "Mixed - Male and Female residents accepted",
+      "contact_name": "Lisa Chen",
+      "contact_role": "Site Manager",
+      "contact_phone": "0712345678",
+      "contact_email": "lisa.chen@nationalcare.com.au",
+      "contact_comments": "Available 24/7. Emergency contact available"
     }
   ],
   "agreements": [
@@ -80,7 +98,7 @@
       "has_mou": true,
       "signed_on": "2024-03-01",
       "expiry_date": "2027-03-01",
-      "company_name": "National Care Network Pty Ltd",
+      "company_name": ["National Care Network Pty Ltd", "ABC"],
       "payment_required": true,
       "amount_per_spot": 750.00,
       "payment_notes": "Payment per student per placement period. Invoice issued monthly.",
@@ -100,6 +118,12 @@
       "notice_period_days": 7,
       "orientation_req": true,
       "facilitator_req": true
+    },
+    {
+      "document_name": "COVID-19 Vaccination Certificate",
+      "notice_period_days": 3,
+      "orientation_req": false,
+      "facilitator_req": false
     }
   ],
   "rules": [
