@@ -1,0 +1,14 @@
+{
+  "facility_name": "Community Health Clinic",
+  "facility_type": "Clinic",
+  "facility_address": "88 Health Avenue, Adelaide SA 5000",
+  "contact_person_name": "Dr. Michael Wong",
+  "contact_email": "michael.wong@clinic.com",
+  "contact_phone": "+61882345678",
+  "supervisor_name": "Practice Manager Jane Smith",
+  "supporting_documents_path": "/uploads/self-placement/supporting_docs_123.pdf",
+  "offer_letter_path": "/uploads/self-placement/offer_letter_123.pdf",
+  "registration_proof_path": "/uploads/self-placement/registration_proof_123.pdf",
+  "student_comments": "I arranged this placement myself with the clinic. They have agreed to supervise my training.",
+  "status": "pending"
+}

@@ -210,12 +210,20 @@ const create = async (params: ICreateFacility) => {
 
   } catch (error) {
     // Rollback transaction on any error
-    await queryRunner.rollbackTransaction();
+    try {
+      await queryRunner.rollbackTransaction();
+    } catch (rollbackError) {
+      console.error('⚠️ Rollback error (transaction may not have started):', rollbackError);
+    }
     console.error('❌ Transaction failed, rolling back all changes:', error);
     throw error;
   } finally {
     // Release query runner
-    await queryRunner.release();
+    try {
+      await queryRunner.release();
+    } catch (releaseError) {
+      console.error('⚠️ Release error:', releaseError);
+    }
   }
 };
 

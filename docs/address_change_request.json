@@ -1,0 +1,22 @@
+{
+  "line1": "456 George Street",
+  "line2": "Unit 12, Level 5",
+  "suburb": "Haymarket",
+  "city": "Sydney",
+  "state": "NSW",
+  "country": "Australia",
+  "postal_code": "2000",
+  "address_type": "current",
+  "is_primary": true,
+  "change_request": {
+    "current_address": "123 Main Street, Sydney NSW 2000",
+    "new_address": "789 New Street, Sydney NSW 2001",
+    "effective_date": "2026-03-01",
+    "change_reason": "Moving closer to placement facility",
+    "impact_acknowledged": true,
+    "status": "pending",
+    "reviewed_at": null,
+    "reviewed_by": null,
+    "review_comments": null
+  }
+}
