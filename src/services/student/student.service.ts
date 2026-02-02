@@ -336,7 +336,7 @@ export interface IStudentQueryParams {
   sort_order?: string;
   limit?: number;
   page?: number;
-  activation_status?: 'active' | 'deactivated' | 'all'; // Filter by isDeleted: active=0, deactivated=1, all=both
+  activation_status?: 'active' | 'inactive' | 'all'; // active: isDeleted=0 & status!='inactive' | inactive: isDeleted=1 OR status='inactive' | all: show all
   city?: string | string[]; // Support single or multiple cities
   course_completed?: string | string[]; // Support single or multiple courses
   checklist_approval?: 'true' | 'false' | 'all'; // Filter by eligibility approval
@@ -400,6 +400,7 @@ export interface IAdvancedSearchParams {
   nationality?: string;
   student_type?: string;
   status?: string;
+  activation_status?: 'active' | 'inactive' | 'all'; // active: isDeleted=0 & status!='inactive' | inactive: isDeleted=1 OR status='inactive' | all: show all
   min_age?: number;
   max_age?: number;
   has_visa?: boolean;
@@ -814,16 +815,21 @@ const getStudentsList = async (params: IStudentQueryParams) => {
     .leftJoinAndSelect('student.eligibility_status', 'eligibility')
     .leftJoinAndSelect('student.facility_records', 'facility'); // ← REMOVED status filter to show ALL courses
 
-  // Apply activation_status filter (isDeleted)
+  // Apply activation_status filter (simplified)
   if (params.activation_status === 'active') {
-    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
-  } else if (params.activation_status === 'deactivated') {
-    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: true });
+    // Active: isDeleted = 0 AND status != 'inactive'
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false })
+               .andWhere('student.status != :inactiveStatus', { inactiveStatus: 'inactive' });
+  } else if (params.activation_status === 'inactive') {
+    // Inactive: isDeleted = 1 OR status = 'inactive'
+    studentRepo.where('(student.isDeleted = :isDeleted OR student.status = :inactiveStatus)', 
+                     { isDeleted: true, inactiveStatus: 'inactive' });
   } else if (params.activation_status === 'all') {
-    // No filter - show both active and deactivated
+    // All: No filter - show all records
   } else {
-    // Default: show only active students (isDeleted = false)
-    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
+    // Default: show only active (isDeleted = 0 AND status != 'inactive')
+    studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false })
+               .andWhere('student.status != :inactiveStatus', { inactiveStatus: 'inactive' });
   }
 
   // Helper function to handle single or multiple values
@@ -932,7 +938,7 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       city: primaryAddress?.city || 'N/A',
       status: student.status,
       checklist_approval: checklistApproval,
-      activation_status: student.isDeleted ? 'deactivated' : 'active',
+      activation_status: student.isDeleted ? 'inactive' : 'active',
       created_on: student.createdAt
     };
   });
@@ -1337,7 +1343,23 @@ const update = async (params: IUpdateStudent) => {
 // List Students with pagination and filtering
 const list = async (params: IStudentQueryParams) => {
   let studentRepo = getRepository(Student).createQueryBuilder('student');
-  studentRepo = studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
+
+  // Apply activation_status filter (simplified)
+  if (params.activation_status === 'active') {
+    // Active: isDeleted = 0 AND status != 'inactive'
+    studentRepo = studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false })
+                             .andWhere('student.status != :inactiveStatus', { inactiveStatus: 'inactive' });
+  } else if (params.activation_status === 'inactive') {
+    // Inactive: isDeleted = 1 OR status = 'inactive'
+    studentRepo = studentRepo.where('(student.isDeleted = :isDeleted OR student.status = :inactiveStatus)', 
+                                   { isDeleted: true, inactiveStatus: 'inactive' });
+  } else if (params.activation_status === 'all') {
+    // All: No filter - show all records
+  } else {
+    // Default: show only active (isDeleted = 0 AND status != 'inactive')
+    studentRepo = studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false })
+                             .andWhere('student.status != :inactiveStatus', { inactiveStatus: 'inactive' });
+  }
 
   // Text search
   if (params.keyword) {
@@ -1431,7 +1453,23 @@ const bulkUpdateStatus = async (student_ids: number[], status: 'active' | 'inact
 // Advanced search for students
 const advancedSearch = async (params: IAdvancedSearchParams) => {
   let studentRepo = getRepository(Student).createQueryBuilder('student');
-  studentRepo = studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false });
+
+  // Apply activation_status filter (simplified)
+  if (params.activation_status === 'active') {
+    // Active: isDeleted = 0 AND status != 'inactive'
+    studentRepo = studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false })
+                             .andWhere('student.status != :inactiveStatus', { inactiveStatus: 'inactive' });
+  } else if (params.activation_status === 'inactive') {
+    // Inactive: isDeleted = 1 OR status = 'inactive'
+    studentRepo = studentRepo.where('(student.isDeleted = :isDeleted OR student.status = :inactiveStatus)', 
+                                   { isDeleted: true, inactiveStatus: 'inactive' });
+  } else if (params.activation_status === 'all') {
+    // All: No filter - show all records
+  } else {
+    // Default: show only active (isDeleted = 0 AND status != 'inactive')
+    studentRepo = studentRepo.where('student.isDeleted = :isDeleted', { isDeleted: false })
+                             .andWhere('student.status != :inactiveStatus', { inactiveStatus: 'inactive' });
+  }
 
   if (params.name) {
     studentRepo = studentRepo.andWhere(
