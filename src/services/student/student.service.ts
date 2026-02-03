@@ -146,6 +146,7 @@ const create = async (params: ICreateStudent) => {
         eligibilityStatus.trainer_consent = params.eligibility_status.trainer_consent;
         eligibilityStatus.override_requested = params.eligibility_status.override_requested;
         eligibilityStatus.manual_override = params.eligibility_status.manual_override || false;
+        eligibilityStatus.manual_handling = params.eligibility_status.manual_handling || false;
         eligibilityStatus.requested_by = params.eligibility_status.requested_by;
         eligibilityStatus.reason = params.eligibility_status.reason;
         eligibilityStatus.comments = params.eligibility_status.comments;
@@ -455,6 +456,7 @@ export interface ICreateEligibilityStatus {
   trainer_consent?: boolean;
   override_requested?: boolean;
   manual_override?: boolean;
+  manual_handling?: boolean;
   requested_by?: string;
   reason?: string;
   comments?: string;
@@ -918,14 +920,15 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       ? student.facility_records.map(f => f.course_type).filter(Boolean).join(', ')
       : 'N/A';
 
-    // Calculate Checklist_approval: all required fields must be true OR override_requested is true
+    // Calculate Checklist_approval: all required fields must be true OR override_requested is true OR manual_handling is true
     const checklistApproval = eligibilityStatus
       ? (eligibilityStatus.classes_completed === true &&
         eligibilityStatus.fees_paid === true &&
         eligibilityStatus.assignments_submitted === true &&
         eligibilityStatus.documents_submitted === true &&
         eligibilityStatus.trainer_consent === true) ||
-        eligibilityStatus.override_requested === true
+        eligibilityStatus.override_requested === true ||
+        eligibilityStatus.manual_handling === true
       : false;
 
     return {
@@ -938,6 +941,7 @@ const getStudentsList = async (params: IStudentQueryParams) => {
       city: primaryAddress?.city || 'N/A',
       status: student.status,
       checklist_approval: checklistApproval,
+      manual_handling: eligibilityStatus?.manual_handling || false,
       activation_status: student.isDeleted ? 'inactive' : 'active',
       created_on: student.createdAt
     };
@@ -1220,6 +1224,7 @@ const update = async (params: IUpdateStudent) => {
         eligibilityStatus.trainer_consent = params.eligibility_status.trainer_consent;
         eligibilityStatus.override_requested = params.eligibility_status.override_requested;
         eligibilityStatus.manual_override = params.eligibility_status.manual_override || false;
+        eligibilityStatus.manual_handling = params.eligibility_status.manual_handling || false;
         eligibilityStatus.requested_by = params.eligibility_status.requested_by;
         eligibilityStatus.reason = params.eligibility_status.reason;
         eligibilityStatus.comments = params.eligibility_status.comments;
