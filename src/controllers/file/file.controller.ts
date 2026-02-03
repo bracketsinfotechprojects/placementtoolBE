@@ -393,13 +393,65 @@ export default class FileController extends BaseController {
         throw new StringError('entity_id must be a positive integer');
       }
 
+      // Parse expiry_dates (can be JSON array, comma-separated string, or single value for all files)
+      let expiryDatesArray: string[] | undefined;
+      console.log('📨 req.body.expiry_dates:', req.body.expiry_dates);
+      console.log('📨 req.body.expiry_date:', req.body.expiry_date);
+      if (req.body.expiry_dates) {
+        try {
+          expiryDatesArray = typeof req.body.expiry_dates === 'string'
+            ? (req.body.expiry_dates.includes('[') ? JSON.parse(req.body.expiry_dates) : req.body.expiry_dates.split(','))
+            : req.body.expiry_dates;
+        } catch (error) {
+          // Clean up uploaded files
+          req.files.forEach((file: Express.Multer.File) => {
+            if (file.path && fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          });
+          throw new StringError('expiry_dates must be a valid JSON array or comma-separated string');
+        }
+
+        // Validate expiry_dates count matches files count
+        if (expiryDatesArray.length !== req.files.length) {
+          // Clean up uploaded files
+          req.files.forEach((file: Express.Multer.File) => {
+            if (file.path && fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          });
+          throw new StringError(`Number of expiry_dates (${expiryDatesArray.length}) must match number of files (${req.files.length})`);
+        }
+      } else if (req.body.expiry_date) {
+        // Support single expiry_date (can be comma-separated for multiple files)
+        const expiryDateStr = req.body.expiry_date;
+        if (expiryDateStr.includes(',')) {
+          // Split comma-separated values
+          expiryDatesArray = expiryDateStr.split(',').map((d: string) => d.trim());
+        } else {
+          // Apply same expiry_date to all files
+          expiryDatesArray = Array(req.files.length).fill(expiryDateStr);
+        }
+        
+        // Validate expiry_dates count matches files count
+        if (expiryDatesArray.length !== req.files.length) {
+          // Clean up uploaded files
+          req.files.forEach((file: Express.Multer.File) => {
+            if (file.path && fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          });
+          throw new StringError(`Number of expiry_dates (${expiryDatesArray.length}) must match number of files (${req.files.length})`);
+        }
+      }
+
       // Upload files
       const uploadParams = {
         files: req.files as Express.Multer.File[],
         entity_type: entity_type as EntityType,
         entity_id: entityId,
         doc_types: docTypesArray,
-        expiry_date: req.body.expiry_date
+        expiry_dates: expiryDatesArray
       };
 
       const fileRecords = await FileService.uploadMultipleFiles(uploadParams);
