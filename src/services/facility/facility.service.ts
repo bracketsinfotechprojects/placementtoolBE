@@ -158,7 +158,9 @@ const create = async (params: ICreateFacility) => {
         agreement.has_mou = agr.has_mou;
         agreement.signed_on = agr.signed_on;
         agreement.expiry_date = agr.expiry_date;
-        agreement.company_name = agr.company_name;
+        agreement.company_name = agr.company_name
+          ? (Array.isArray(agr.company_name) ? agr.company_name : [agr.company_name])
+          : agr.company_name;
         agreement.payment_required = agr.payment_required;
         agreement.amount_per_spot = agr.amount_per_spot;
         agreement.payment_notes = agr.payment_notes;
@@ -380,7 +382,9 @@ const updateComplete = async (params: IUpdateCompleteFacility) => {
           agreement.has_mou = agr.has_mou;
           agreement.signed_on = agr.signed_on;
           agreement.expiry_date = agr.expiry_date;
-          agreement.company_name = agr.company_name;
+          agreement.company_name = agr.company_name
+            ? (Array.isArray(agr.company_name) ? agr.company_name : [agr.company_name])
+            : agr.company_name;
           agreement.payment_required = agr.payment_required;
           agreement.amount_per_spot = agr.amount_per_spot;
           agreement.payment_notes = agr.payment_notes;
