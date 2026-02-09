@@ -10,6 +10,7 @@ export enum EntityType {
   STUDENT = 'student',
   FACILITY = 'facility',
   PLACEMENT = 'placement',
+  PLACEMENT_EXECUTIVE = 'placement_executive',
   VISA = 'visa',
   JOB = 'job',
   AGREEMENT = 'agreement',
@@ -33,6 +34,7 @@ export enum DocumentType {
   FIRSTAID_CERT = 'FIRSTAID_CERT',
   INSURANCE_DOCS = 'INSURANCE_DOCS',
   RESUME = 'RESUME',
+  PHOTOGRAPH = 'PHOTOGRAPH',
   OTHER = 'OTHER'
 }
 

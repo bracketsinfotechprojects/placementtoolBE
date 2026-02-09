@@ -44,6 +44,11 @@ export default class FileService {
         exists = !!trainer;
         break;
       
+      case EntityType.PLACEMENT_EXECUTIVE:
+        // For now, skip validation (entity is created in the same transaction)
+        exists = true;
+        break;
+      
       // Add other entity types as needed
       case EntityType.PLACEMENT:
       case EntityType.VISA:
