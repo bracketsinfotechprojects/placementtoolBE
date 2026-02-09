@@ -58,11 +58,15 @@ const router = express.Router();
  *                 format: email
  *                 example: "john.doe@example.com"
  *               trainer_type:
- *                 type: string
- *                 example: "Full-time"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Full-time", "Part-time"]
  *               course_auth:
- *                 type: string
- *                 example: "CHC33021 - Certificate III in Individual Support"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["CHC33021 - Certificate III in Individual Support", "CHC43021 - Certificate IV in Ageing Support"]
  *               acc_numbers:
  *                 type: string
  *                 example: "ACC123456"
@@ -92,6 +96,21 @@ const router = express.Router();
  *               suprise_visit:
  *                 type: boolean
  *                 example: true
+ *               wwchildcheck:
+ *                 type: integer
+ *                 example: 1
+ *                 description: "0=Pending, 1=Approved, 2=Expired"
+ *               wwcExpiryDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-12-31"
+ *               policeCheckNumber:
+ *                 type: string
+ *                 example: "POL-2024-12345"
+ *               policeCheckExpiryDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-06-30"
  *               photograph:
  *                 type: string
  *                 example: "/uploads/photos/john-doe.jpg"
@@ -230,9 +249,13 @@ router.get('/:id', TrainerController.getById);
  *               email:
  *                 type: string
  *               trainer_type:
- *                 type: string
+ *                 type: array
+ *                 items:
+ *                   type: string
  *               course_auth:
- *                 type: string
+ *                 type: array
+ *                 items:
+ *                   type: string
  *               acc_numbers:
  *                 type: string
  *               yoe:
@@ -255,6 +278,16 @@ router.get('/:id', TrainerController.getById);
  *                   type: string
  *               suprise_visit:
  *                 type: boolean
+ *               wwchildcheck:
+ *                 type: integer
+ *               wwcExpiryDate:
+ *                 type: string
+ *                 format: date
+ *               policeCheckNumber:
+ *                 type: string
+ *               policeCheckExpiryDate:
+ *                 type: string
+ *                 format: date
  *               photograph:
  *                 type: string
  *     responses:

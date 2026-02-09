@@ -77,6 +77,10 @@ const create = async (params: ICreateTrainer) => {
     trainer.available_days = params.available_days || [];
     trainer.time_slots = params.time_slots || [];
     trainer.suprise_visit = params.suprise_visit || false;
+    trainer.wwchildcheck = params.wwchildcheck;
+    trainer.wwcExpiryDate = params.wwcExpiryDate ? new Date(params.wwcExpiryDate) : null;
+    trainer.policeCheckNumber = params.policeCheckNumber;
+    trainer.policeCheckExpiryDate = params.policeCheckExpiryDate ? new Date(params.policeCheckExpiryDate) : null;
     trainer.photograph = params.photograph;
     trainer.user_id = null; // Will be updated after user creation
 
@@ -158,6 +162,10 @@ const update = async (params: IUpdateTrainer) => {
   if (params.available_days !== undefined) updateData.available_days = params.available_days;
   if (params.time_slots !== undefined) updateData.time_slots = params.time_slots;
   if (params.suprise_visit !== undefined) updateData.suprise_visit = params.suprise_visit;
+  if (params.wwchildcheck !== undefined) updateData.wwchildcheck = params.wwchildcheck;
+  if (params.wwcExpiryDate !== undefined) updateData.wwcExpiryDate = new Date(params.wwcExpiryDate);
+  if (params.policeCheckNumber !== undefined) updateData.policeCheckNumber = params.policeCheckNumber;
+  if (params.policeCheckExpiryDate !== undefined) updateData.policeCheckExpiryDate = new Date(params.policeCheckExpiryDate);
   if (params.photograph !== undefined) updateData.photograph = params.photograph;
 
   await getRepository(Trainer).update({ trainer_id: params.id }, updateData);
@@ -199,8 +207,8 @@ export interface ICreateTrainer {
   mobile_number: string;
   alternate_contact?: string;
   email: string;
-  trainer_type?: string;
-  course_auth?: string;
+  trainer_type?: string[];
+  course_auth?: string[];
   acc_numbers?: string;
   yoe?: number;
   state_covered?: string[];
@@ -208,6 +216,10 @@ export interface ICreateTrainer {
   available_days?: string[];
   time_slots?: string[];
   suprise_visit?: boolean;
+  wwchildcheck?: number;
+  wwcExpiryDate?: string;
+  policeCheckNumber?: string;
+  policeCheckExpiryDate?: string;
   photograph?: string;
   login: {
     userID: string;
@@ -224,8 +236,8 @@ export interface IUpdateTrainer {
   mobile_number?: string;
   alternate_contact?: string;
   email?: string;
-  trainer_type?: string;
-  course_auth?: string;
+  trainer_type?: string[];
+  course_auth?: string[];
   acc_numbers?: string;
   yoe?: number;
   state_covered?: string[];
@@ -233,6 +245,10 @@ export interface IUpdateTrainer {
   available_days?: string[];
   time_slots?: string[];
   suprise_visit?: boolean;
+  wwchildcheck?: number;
+  wwcExpiryDate?: string;
+  policeCheckNumber?: string;
+  policeCheckExpiryDate?: string;
   photograph?: string;
 }
 

@@ -50,9 +50,11 @@ const router = express.Router();
  *                 format: date
  *                 example: "2024-01-15"
  *               employment_type:
- *                 type: string
- *                 enum: [full-time, part-time, contract]
- *                 example: "full-time"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [full-time, part-time, contract]
+ *                 example: ["full-time", "part-time"]
  *               facility_types_handled:
  *                 type: array
  *                 items:
@@ -104,8 +106,10 @@ const router = express.Router();
  *                       format: date
  *                       example: "2024-01-15"
  *                     employment_type:
- *                       type: string
- *                       example: "full-time"
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["full-time", "part-time"]
  *                     facility_types_handled:
  *                       type: array
  *                       items:
@@ -140,7 +144,6 @@ router.post('/', PlacementExecutiveController.create);
  *         name: employment_type
  *         schema:
  *           type: string
- *           enum: [full-time, part-time, contract]
  *         description: Filter by employment type
  *       - in: query
  *         name: sort_by
@@ -263,9 +266,11 @@ router.get('/:id', PlacementExecutiveController.getById);
  *                 format: date
  *                 example: "2024-02-01"
  *               employment_type:
- *                 type: string
- *                 enum: [full-time, part-time, contract]
- *                 example: "part-time"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [full-time, part-time, contract]
+ *                 example: ["part-time", "contract"]
  *               facility_types_handled:
  *                 type: array
  *                 items:

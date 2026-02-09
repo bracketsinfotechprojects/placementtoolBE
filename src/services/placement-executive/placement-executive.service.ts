@@ -172,7 +172,7 @@ export interface ICreatePlacementExecutive {
   email?: string;
   photograph?: string;
   joining_date: string | Date;
-  employment_type: 'full-time' | 'part-time' | 'contract';
+  employment_type: string[];
   facility_types_handled?: string[];
   login: {
     userID: string;
@@ -187,7 +187,7 @@ export interface IUpdatePlacementExecutive {
   email?: string;
   photograph?: string;
   joining_date?: string | Date;
-  employment_type?: 'full-time' | 'part-time' | 'contract';
+  employment_type?: string[];
   facility_types_handled?: string[];
 }
 
