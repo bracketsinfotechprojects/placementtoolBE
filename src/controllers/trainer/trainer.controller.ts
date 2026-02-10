@@ -7,7 +7,8 @@ import { ITrainerQueryParams } from '../../repositories/trainer.repository';
 export default class TrainerController extends BaseController {
   static async create(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const trainer = await TrainerService.create(req.body);
+      const photographFile = req.file;
+      const trainer = await TrainerService.create(req.body, photographFile);
       ApiResponseUtility.createdSuccess(res, trainer, 'Trainer created successfully');
     }, 'Create trainer');
   }

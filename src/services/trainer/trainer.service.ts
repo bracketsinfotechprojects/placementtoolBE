@@ -1,13 +1,82 @@
-import { getRepository, getConnection } from 'typeorm';
+import { getRepository, getConnection, EntityManager } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Express } from 'express';
 import { Trainer } from '../../entities/trainer/trainer.entity';
 import { User } from '../../entities/user/user.entity';
+import { File, EntityType, DocumentType } from '../../entities/file/file.entity';
 import TrainerRepository, { ITrainerQueryParams } from '../../repositories/trainer.repository';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import RoleService from '../role/role.service';
 import { StringError } from '../../errors/string.error';
 
-const create = async (params: ICreateTrainer) => {
+/**
+ * Upload photograph and create file record within transaction
+ */
+const uploadPhotograph = async (
+  file: Express.Multer.File,
+  trainerId: number,
+  manager: EntityManager
+): Promise<string> => {
+  // Validate file type for images
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error('Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed for photographs.');
+  }
+
+  // Generate folder path
+  const folderPath = path.join('uploads', 'trainers', trainerId.toString());
+
+  // Ensure directory exists
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true, mode: 0o755 });
+  }
+
+  // Generate secure filename
+  const ext = path.extname(file.originalname).toLowerCase();
+  const timestamp = Date.now();
+  const filename = `PHOTOGRAPH_${timestamp}${ext}`;
+  const fullPath = path.join(folderPath, filename);
+
+  // Move file from temp location
+  fs.renameSync(file.path, fullPath);
+  fs.chmodSync(fullPath, 0o644);
+
+  // Create file record within the transaction
+  const fileRecord = new File();
+  fileRecord.entity_type = EntityType.TRAINER;
+  fileRecord.entity_id = trainerId;
+  fileRecord.doc_type = DocumentType.PHOTOGRAPH;
+  fileRecord.file_path = fullPath.replace(/\\/g, '/');
+  fileRecord.file_name = file.originalname;
+  fileRecord.mime_type = file.mimetype;
+  fileRecord.file_size = file.size;
+  fileRecord.version = 1;
+  fileRecord.expiry_date = null;
+
+  await manager.save(fileRecord);
+
+  console.log(`✅ Photograph uploaded: ${fullPath}`);
+
+  return fullPath.replace(/\\/g, '/');
+};
+
+/**
+ * Cleanup photograph on rollback
+ */
+const cleanupPhotograph = (photographPath: string) => {
+  try {
+    if (photographPath && fs.existsSync(photographPath)) {
+      fs.unlinkSync(photographPath);
+      console.log(`🗑️ Cleaned up photograph file: ${photographPath}`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to cleanup photograph file:', error);
+  }
+};
+
+const create = async (params: ICreateTrainer, photographFile?: Express.Multer.File) => {
   // Validate required fields
   if (!params.first_name) {
     throw new Error('first_name is required');
@@ -39,6 +108,8 @@ const create = async (params: ICreateTrainer) => {
 
   await queryRunner.connect();
   await queryRunner.startTransaction();
+
+  let photographPath: string | null = null;
 
   try {
     // Check if email already exists
@@ -81,7 +152,7 @@ const create = async (params: ICreateTrainer) => {
     trainer.wwcExpiryDate = params.wwcExpiryDate ? new Date(params.wwcExpiryDate) : null;
     trainer.policeCheckNumber = params.policeCheckNumber;
     trainer.policeCheckExpiryDate = params.policeCheckExpiryDate ? new Date(params.policeCheckExpiryDate) : null;
-    trainer.photograph = params.photograph;
+    trainer.photograph = null; // Will be updated after file upload
     trainer.user_id = null; // Will be updated after user creation
 
     const savedTrainer = await queryRunner.manager.save(trainer);
@@ -105,6 +176,20 @@ const create = async (params: ICreateTrainer) => {
       user_id: savedUser.id
     });
 
+    // Upload photograph if provided (within transaction)
+    if (photographFile) {
+      photographPath = await uploadPhotograph(
+        photographFile,
+        savedTrainer.trainer_id,
+        queryRunner.manager
+      );
+
+      // Update trainer with photograph path
+      await queryRunner.manager.update(Trainer, { trainer_id: savedTrainer.trainer_id }, {
+        photograph: photographPath
+      });
+    }
+
     await queryRunner.commitTransaction();
 
     console.log(`✅ Created trainer with user account (userID=${savedUser.id}, trainerID=${savedTrainer.trainer_id})`);
@@ -112,8 +197,15 @@ const create = async (params: ICreateTrainer) => {
     return await TrainerRepository.findById(savedTrainer.trainer_id);
 
   } catch (error) {
+    // Rollback transaction
     await queryRunner.rollbackTransaction();
     console.error('❌ Transaction failed, rolling back all changes:', error);
+
+    // Cleanup uploaded file if it was moved
+    if (photographPath) {
+      cleanupPhotograph(photographPath);
+    }
+
     throw error;
   } finally {
     await queryRunner.release();
@@ -203,7 +295,7 @@ export interface ICreateTrainer {
   first_name: string;
   last_name: string;
   gender: string;
-  date_of_birth: string;
+  date_of_birth: string | Date;
   mobile_number: string;
   alternate_contact?: string;
   email: string;
@@ -217,10 +309,9 @@ export interface ICreateTrainer {
   time_slots?: string[];
   suprise_visit?: boolean;
   wwchildcheck?: number;
-  wwcExpiryDate?: string;
+  wwcExpiryDate?: string | Date;
   policeCheckNumber?: string;
-  policeCheckExpiryDate?: string;
-  photograph?: string;
+  policeCheckExpiryDate?: string | Date;
   login: {
     userID: string;
     password: string;
@@ -232,7 +323,7 @@ export interface IUpdateTrainer {
   first_name?: string;
   last_name?: string;
   gender?: string;
-  date_of_birth?: string;
+  date_of_birth?: string | Date;
   mobile_number?: string;
   alternate_contact?: string;
   email?: string;
@@ -246,9 +337,9 @@ export interface IUpdateTrainer {
   time_slots?: string[];
   suprise_visit?: boolean;
   wwchildcheck?: number;
-  wwcExpiryDate?: string;
+  wwcExpiryDate?: string | Date;
   policeCheckNumber?: string;
-  policeCheckExpiryDate?: string;
+  policeCheckExpiryDate?: string | Date;
   photograph?: string;
 }
 

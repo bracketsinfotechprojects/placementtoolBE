@@ -7,7 +7,8 @@ import { IPlacementExecutiveQueryParams } from '../../repositories/placement-exe
 export default class PlacementExecutiveController extends BaseController {
   static async create(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const executive = await PlacementExecutiveService.create(req.body);
+      const photographFile = req.file;
+      const executive = await PlacementExecutiveService.create(req.body, photographFile);
       ApiResponseUtility.createdSuccess(res, executive, 'Placement Executive created successfully');
     }, 'Create placement executive');
   }
