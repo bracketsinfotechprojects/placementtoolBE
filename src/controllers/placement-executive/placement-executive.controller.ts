@@ -8,7 +8,35 @@ export default class PlacementExecutiveController extends BaseController {
   static async create(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const photographFile = req.file;
-      const executive = await PlacementExecutiveService.create(req.body, photographFile);
+      
+      // Parse login object from JSON string if received as multipart/form-data
+      let bodyData = req.body;
+      if (bodyData.login && typeof bodyData.login === 'string') {
+        try {
+          bodyData.login = JSON.parse(bodyData.login);
+        } catch (error) {
+          throw new Error('Invalid login JSON format');
+        }
+      }
+      
+      // Parse array fields from JSON strings if received as multipart/form-data
+      if (bodyData.employment_type && typeof bodyData.employment_type === 'string') {
+        try {
+          bodyData.employment_type = JSON.parse(bodyData.employment_type);
+        } catch (error) {
+          // If not valid JSON, split by comma
+          bodyData.employment_type = bodyData.employment_type.split(',').map((s: string) => s.trim());
+        }
+      }
+      if (bodyData.facility_types_handled && typeof bodyData.facility_types_handled === 'string') {
+        try {
+          bodyData.facility_types_handled = JSON.parse(bodyData.facility_types_handled);
+        } catch (error) {
+          bodyData.facility_types_handled = bodyData.facility_types_handled.split(',').map((s: string) => s.trim());
+        }
+      }
+      
+      const executive = await PlacementExecutiveService.create(bodyData, photographFile);
       ApiResponseUtility.createdSuccess(res, executive, 'Placement Executive created successfully');
     }, 'Create placement executive');
   }

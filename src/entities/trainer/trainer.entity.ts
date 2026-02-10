@@ -146,13 +146,14 @@ export class Trainer extends BaseEntity {
   time_slots: string[];
 
   @Column({ 
-    type: 'boolean',
+    type: 'varchar', 
+    length: 10, 
     nullable: false,
     name: 'suprise_visit',
-    default: false,
-    comment: 'Whether trainer can do surprise visits'
+    default: 'no',
+    comment: 'Whether trainer can do surprise visits (yes/no)'
   })
-  suprise_visit: boolean;
+  suprise_visit: string;
 
   @Column({ 
     type: 'int',

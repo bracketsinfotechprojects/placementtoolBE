@@ -147,7 +147,7 @@ const create = async (params: ICreateTrainer, photographFile?: Express.Multer.Fi
     trainer.cities_covered = params.cities_covered || [];
     trainer.available_days = params.available_days || [];
     trainer.time_slots = params.time_slots || [];
-    trainer.suprise_visit = params.suprise_visit || false;
+    trainer.suprise_visit = params.suprise_visit || 'no';
     trainer.wwchildcheck = params.wwchildcheck;
     trainer.wwcExpiryDate = params.wwcExpiryDate ? new Date(params.wwcExpiryDate) : null;
     trainer.policeCheckNumber = params.policeCheckNumber;
@@ -197,8 +197,10 @@ const create = async (params: ICreateTrainer, photographFile?: Express.Multer.Fi
     return await TrainerRepository.findById(savedTrainer.trainer_id);
 
   } catch (error) {
-    // Rollback transaction
-    await queryRunner.rollbackTransaction();
+    // Only rollback if transaction was started and not committed
+    if (queryRunner.isTransactionActive) {
+      await queryRunner.rollbackTransaction();
+    }
     console.error('❌ Transaction failed, rolling back all changes:', error);
 
     // Cleanup uploaded file if it was moved
@@ -307,15 +309,17 @@ export interface ICreateTrainer {
   cities_covered?: string[];
   available_days?: string[];
   time_slots?: string[];
-  suprise_visit?: boolean;
+  suprise_visit?: string;
   wwchildcheck?: number;
   wwcExpiryDate?: string | Date;
   policeCheckNumber?: string;
   policeCheckExpiryDate?: string | Date;
-  login: {
+  login?: {
     userID: string;
     password: string;
   };
+  login_userID?: string;
+  login_password?: string;
 }
 
 export interface IUpdateTrainer {
@@ -335,7 +339,7 @@ export interface IUpdateTrainer {
   cities_covered?: string[];
   available_days?: string[];
   time_slots?: string[];
-  suprise_visit?: boolean;
+  suprise_visit?: string;
   wwchildcheck?: number;
   wwcExpiryDate?: string | Date;
   policeCheckNumber?: string;

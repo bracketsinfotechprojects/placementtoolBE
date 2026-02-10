@@ -29,6 +29,7 @@ const router = express.Router();
  *             required:
  *               - full_name
  *               - mobile_number
+ *               - email
  *               - joining_date
  *               - employment_type
  *               - login
@@ -69,9 +70,11 @@ const router = express.Router();
  *                 properties:
  *                   userID:
  *                     type: string
+ *                     description: User ID for login
  *                     example: "john.smith"
  *                   password:
  *                     type: string
+ *                     description: Password for login
  *                     example: "SecurePass123"
  *     responses:
  *       201:

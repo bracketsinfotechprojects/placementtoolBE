@@ -1,5 +1,6 @@
 import express from 'express';
 import FacilitySupervisorController from '../../controllers/facility-supervisor/facility-supervisor.controller';
+import { upload } from '../../configs/multer.config';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
  * @swagger
  * /api/facility-supervisors:
  *   post:
- *     summary: Create new facility supervisor
+ *     summary: Create new facility supervisor with optional documents
  *     tags:
  *       - Facility Supervisors
  *     security:
@@ -22,12 +23,17 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
  *               - full_name
  *               - designation
+ *               - mobile_number
+ *               - facility_id
+ *               - login_userID
+ *               - login_password
+ *             properties:
  *               - mobile_number
  *               - facility_id
  *               - login
@@ -47,7 +53,8 @@ const router = express.Router();
  *                 example: "dhuriatu@gmail.com"
  *               photograph:
  *                 type: string
- *                 example: "/uploads/photos/atul-dhuri.jpg"
+ *                 format: binary
+ *                 description: Photograph file (JPEG, PNG, GIF, WebP)
  *               facility_id:
  *                 type: integer
  *                 example: 1
@@ -70,13 +77,16 @@ const router = express.Router();
  *                 example: 10
  *               id_proof_document:
  *                 type: string
- *                 example: "/uploads/documents/id-proof.pdf"
+ *                 format: binary
+ *                 description: ID proof document file
  *               police_check_document:
  *                 type: string
- *                 example: "/uploads/documents/police-check.pdf"
+ *                 format: binary
+ *                 description: Police check document file
  *               authorization_letter_document:
  *                 type: string
- *                 example: "/uploads/documents/auth-letter.pdf"
+ *                 format: binary
+ *                 description: Authorization letter document file
  *               portal_access_enabled:
  *                 type: boolean
  *                 example: true
@@ -88,9 +98,11 @@ const router = express.Router();
  *                 properties:
  *                   userID:
  *                     type: string
+ *                     description: User ID for login
  *                     example: "atul.dhuri"
  *                   password:
  *                     type: string
+ *                     description: Password for login
  *                     example: "SecurePass123"
  *     responses:
  *       201:
@@ -100,7 +112,12 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.post('/', FacilitySupervisorController.create);
+router.post('/', upload.fields([
+  { name: 'photograph', maxCount: 1 },
+  { name: 'id_proof_document', maxCount: 1 },
+  { name: 'police_check_document', maxCount: 1 },
+  { name: 'authorization_letter_document', maxCount: 1 }
+]), FacilitySupervisorController.create);
 
 /**
  * @swagger

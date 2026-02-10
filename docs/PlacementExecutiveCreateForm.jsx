@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 
-function PlacementExecutiveCreateForm() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
-  // Form state
+const PlacementExecutiveCreateForm = () => {
   const [formData, setFormData] = useState({
     full_name: '',
     mobile_number: '',
@@ -13,159 +9,132 @@ function PlacementExecutiveCreateForm() {
     joining_date: '',
     employment_type: [],
     facility_types_handled: [],
-    login_userID: '',
-    login_password: '',
     photograph: null,
+    login: {
+      userID: '',
+      password: ''
+    }
   });
 
-  // Employment type options
-  const employmentTypeOptions = ['Full-time', 'Part-time', 'Casual', 'Contract', 'Temporary', 'Permanent'];
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  // Facility type options
-  const facilityTypeOptions = ['Aged Care', 'Disability', 'Home Care', 'Child Care', 'Mental Health', 'Community Services'];
-
-  // Handle text input changes
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    if (type === 'checkbox') {
-      if (name === 'employment_type' || name === 'facility_types_handled') {
-        handleCheckboxChange(name, value, checked);
-      }
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value } = e.target;
+    
+    // Handle nested login object
+    if (name.startsWith('login_')) {
+      const loginField = name.replace('login_', '');
+      setFormData(prev => ({
+        ...prev,
+        login: {
+          ...prev.login,
+          [loginField]: value
+        }
+      }));
+      return;
     }
+
+    // Handle array fields
+    if (['employment_type', 'facility_types_handled'].includes(name)) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value.split(',').map(item => item.trim())
+      }));
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  // Handle checkbox changes for arrays
-  const handleCheckboxChange = (name, value, checked) => {
-    setFormData(prev => {
-      const currentArray = prev[name] || [];
-      if (checked) {
-        return { ...prev, [name]: [...currentArray, value] };
-      } else {
-        return { ...prev, [name]: currentArray.filter(item => item !== value) };
-      }
-    });
-  };
-
-  // Handle file input change
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setFormData(prev => ({ ...prev, photograph: file }));
+    setFormData(prev => ({
+      ...prev,
+      photograph: e.target.files[0]
+    }));
   };
 
-  // Handle employment type checkbox
-  const handleEmploymentTypeChange = (type) => {
-    setFormData(prev => {
-      const current = prev.employment_type || [];
-      if (current.includes(type)) {
-        return { ...prev, employment_type: current.filter(t => t !== type) };
-      } else {
-        return { ...prev, employment_type: [...current, type] };
-      }
-    });
-  };
-
-  // Handle facility type checkbox
-  const handleFacilityTypeChange = (type) => {
-    setFormData(prev => {
-      const current = prev.facility_types_handled || [];
-      if (current.includes(type)) {
-        return { ...prev, facility_types_handled: current.filter(t => t !== type) };
-      } else {
-        return { ...prev, facility_types_handled: [...current, type] };
-      }
-    });
-  };
-
-  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setMessage({ type: '', text: '' });
 
     try {
-      // Create FormData
-      const data = new FormData();
-
-      // Required fields
-      data.append('full_name', formData.full_name);
-      data.append('mobile_number', formData.mobile_number);
-      data.append('joining_date', formData.joining_date);
-      data.append('login[userID]', formData.login_userID);
-      data.append('login[password]', formData.login_password);
-
-      // Optional fields
-      if (formData.email) {
-        data.append('email', formData.email);
-      }
-
-      // Array fields
-      formData.employment_type.forEach(type => {
-        data.append('employment_type[]', type);
-      });
-      formData.facility_types_handled.forEach(type => {
-        data.append('facility_types_handled[]', type);
+      const token = localStorage.getItem('authToken');
+      
+      // Create FormData for multipart/form-data
+      const submitData = new FormData();
+      
+      // Flatten login object for FormData
+      submitData.append('login', JSON.stringify(formData.login));
+      
+      // Append all other fields
+      Object.keys(formData).forEach(key => {
+        if (key !== 'login' && key !== 'photograph' && Array.isArray(formData[key])) {
+          formData[key].forEach(item => {
+            submitData.append(`${key}[]`, item);
+          });
+        } else if (key !== 'login' && key !== 'photograph') {
+          submitData.append(key, formData[key]);
+        }
       });
 
-      // File
       if (formData.photograph) {
-        data.append('photograph', formData.photograph);
+        submitData.append('photograph', formData.photograph);
       }
 
-      // Get auth token
-      const token = localStorage.getItem('authToken') || '';
-
-      // Send request
-      const response = await fetch('/api/placement-executives', {
-        method: 'POST',
+      const response = await axios.post('/api/placement-executives', submitData, {
         headers: {
           'Authorization': `Bearer ${token}`,
-        },
-        body: data,
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        setSuccess(result);
-        console.log('Placement Executive created:', result.data);
-        // Reset form on success
-        setFormData({
-          full_name: '',
-          mobile_number: '',
-          email: '',
-          joining_date: '',
-          employment_type: [],
-          facility_types_handled: [],
-          login_userID: '',
-          login_password: '',
-          photograph: null,
-        });
-        // Clear file input
-        document.getElementById('photograph').value = '';
-      } else {
-        setError(result.message || 'Failed to create placement executive');
-      }
-    } catch (err) {
-      setError('Network error occurred');
-      console.error('Error:', err);
+      setMessage({ type: 'success', text: 'Placement Executive created successfully!' });
+      console.log('Response:', response.data);
+      
+      // Reset form
+      setFormData({
+        full_name: '',
+        mobile_number: '',
+        email: '',
+        joining_date: '',
+        employment_type: [],
+        facility_types_handled: [],
+        photograph: null,
+        login: {
+          userID: '',
+          password: ''
+        }
+      });
+      
+    } catch (error) {
+      setMessage({ 
+        type: 'error', 
+        text: error.response?.data?.error?.message || 'Failed to create placement executive' 
+      });
+      console.error('Error:', error.response?.data || error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="pe-form-container">
-      <h2>Create Placement Executive</h2>
-
-      {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success.message}</div>}
+    <div className="placement-executive-form-container">
+      <h2>Create New Placement Executive</h2>
+      
+      {message.text && (
+        <div className={`message ${message.type}`}>
+          {message.text}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
-        {/* Required Fields */}
+        <h3>Personal Information</h3>
+        
         <div className="form-group">
           <label>Full Name *</label>
           <input
@@ -173,7 +142,6 @@ function PlacementExecutiveCreateForm() {
             name="full_name"
             value={formData.full_name}
             onChange={handleChange}
-            placeholder="Enter full name"
             required
           />
         </div>
@@ -181,23 +149,22 @@ function PlacementExecutiveCreateForm() {
         <div className="form-group">
           <label>Mobile Number *</label>
           <input
-            type="tel"
+            type="text"
             name="mobile_number"
             value={formData.mobile_number}
             onChange={handleChange}
-            placeholder="0412345678"
             required
           />
         </div>
 
         <div className="form-group">
-          <label>Email</label>
+          <label>Email *</label>
           <input
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="email@example.com"
+            required
           />
         </div>
 
@@ -212,202 +179,147 @@ function PlacementExecutiveCreateForm() {
           />
         </div>
 
-        {/* Employment Type */}
-        <div className="form-group">
-          <label>Employment Type *</label>
-          <div className="checkbox-group">
-            {employmentTypeOptions.map(type => (
-              <label key={type} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.employment_type.includes(type)}
-                  onChange={() => handleEmploymentTypeChange(type)}
-                />
-                {type}
-              </label>
-            ))}
-          </div>
-        </div>
+        <h3>Employment Details</h3>
 
-        {/* Facility Types Handled */}
         <div className="form-group">
-          <label>Facility Types Handled</label>
-          <div className="checkbox-group">
-            {facilityTypeOptions.map(type => (
-              <label key={type} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.facility_types_handled.includes(type)}
-                  onChange={() => handleFacilityTypeChange(type)}
-                />
-                {type}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Login Credentials */}
-        <div className="form-group">
-          <label>User ID *</label>
+          <label>Employment Type (comma-separated)</label>
           <input
             type="text"
-            name="login_userID"
-            value={formData.login_userID}
+            name="employment_type"
+            value={formData.employment_type.join(', ')}
             onChange={handleChange}
-            placeholder="Enter login ID"
-            required
+            placeholder="full-time, part-time, contract"
           />
         </div>
 
         <div className="form-group">
-          <label>Password *</label>
+          <label>Facility Types Handled (comma-separated)</label>
           <input
-            type="password"
-            name="login_password"
-            value={formData.login_password}
+            type="text"
+            name="facility_types_handled"
+            value={formData.facility_types_handled.join(', ')}
             onChange={handleChange}
-            placeholder="Enter password"
-            required
+            placeholder="Aged Care, Disability, Home Care"
           />
         </div>
 
-        {/* Photograph */}
+        <h3>Photograph</h3>
+
         <div className="form-group">
           <label>Photograph</label>
           <input
-            id="photograph"
             type="file"
             name="photograph"
-            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
             onChange={handleFileChange}
+            accept="image/jpeg,image/png,image/gif,image/webp"
           />
-          <small>Allowed: JPEG, PNG, GIF, WebP (max 5MB)</small>
         </div>
 
-        {/* Submit Button */}
-        <div className="form-actions">
-          <button type="submit" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Placement Executive'}
-          </button>
+        <h3>Login Credentials</h3>
+
+        <div className="form-group">
+          <label>Login UserID *</label>
+          <input
+            type="text"
+            name="login_userID"
+            value={formData.login.userID}
+            onChange={handleChange}
+            required
+          />
         </div>
+
+        <div className="form-group">
+          <label>Login Password *</label>
+          <input
+            type="password"
+            name="login_password"
+            value={formData.login.password}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <button type="submit" disabled={loading}>
+          {loading ? 'Creating...' : 'Create Placement Executive'}
+        </button>
       </form>
 
-      <style>{`
-        .pe-form-container {
-          max-width: 500px;
+      <style jsx>{`
+        .placement-executive-form-container {
+          max-width: 600px;
           margin: 0 auto;
           padding: 20px;
         }
-
-        .pe-form-container h2 {
-          text-align: center;
+        
+        .placement-executive-form-container h2 {
           margin-bottom: 20px;
-          color: #333;
         }
-
-        .pe-form-container .form-group {
+        
+        .placement-executive-form-container h3 {
+          margin-top: 30px;
+          margin-bottom: 15px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #ddd;
+        }
+        
+        .form-group {
           margin-bottom: 15px;
         }
-
-        .pe-form-container label {
+        
+        .form-group label {
           display: block;
           margin-bottom: 5px;
           font-weight: 500;
-          color: #333;
         }
-
-        .pe-form-container input[type="text"],
-        .pe-form-container input[type="email"],
-        .pe-form-container input[type="tel"],
-        .pe-form-container input[type="date"],
-        .pe-form-container input[type="password"],
-        .pe-form-container input[type="file"] {
+        
+        .form-group input {
           width: 100%;
           padding: 10px;
           border: 1px solid #ddd;
           border-radius: 4px;
           font-size: 14px;
-          box-sizing: border-box;
         }
-
-        .pe-form-container .checkbox-group {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .pe-form-container .checkbox-label {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-weight: normal;
-          margin-bottom: 0;
-          padding: 8px 12px;
-          background-color: #f5f5f5;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: background-color 0.2s;
-        }
-
-        .pe-form-container .checkbox-label:hover {
-          background-color: #e0e0e0;
-        }
-
-        .pe-form-container .checkbox-label input[type="checkbox"] {
-          width: auto;
-          margin: 0;
-        }
-
-        .pe-form-container .form-actions {
-          text-align: center;
-          margin-top: 20px;
-        }
-
-        .pe-form-container button[type="submit"] {
-          background-color: #28a745;
-          color: white;
-          padding: 12px 40px;
-          border: none;
-          border-radius: 4px;
-          font-size: 16px;
-          cursor: pointer;
-          transition: background-color 0.2s;
-        }
-
-        .pe-form-container button[type="submit"]:hover {
-          background-color: #218838;
-        }
-
-        .pe-form-container button[type="submit"]:disabled {
-          background-color: #ccc;
-          cursor: not-allowed;
-        }
-
-        .pe-form-container .error-message {
-          background-color: #f8d7da;
-          color: #721c24;
+        
+        .message {
           padding: 10px;
-          border-radius: 4px;
           margin-bottom: 20px;
+          border-radius: 4px;
         }
-
-        .pe-form-container .success-message {
+        
+        .message.success {
           background-color: #d4edda;
           color: #155724;
-          padding: 10px;
-          border-radius: 4px;
-          margin-bottom: 20px;
+          border: 1px solid #c3e6cb;
         }
-
-        .pe-form-container small {
-          display: block;
-          margin-top: 5px;
-          color: #666;
-          font-size: 12px;
+        
+        .message.error {
+          background-color: #f8d7da;
+          color: #721c24;
+          border: 1px solid #f5c6cb;
+        }
+        
+        button {
+          padding: 12px 24px;
+          background-color: #28a745;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 16px;
+          margin-top: 20px;
+        }
+        
+        button:hover {
+          background-color: #218838;
+        }
+        
+        button:disabled {
+          background-color: #ccc;
+          cursor: not-allowed;
         }
       `}</style>
     </div>
   );
-}
+};
 
 export default PlacementExecutiveCreateForm;

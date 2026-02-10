@@ -84,6 +84,9 @@ const create = async (params: ICreatePlacementExecutive, photographFile?: Expres
   if (!params.mobile_number) {
     throw new Error('mobile_number is required');
   }
+  if (!params.email) {
+    throw new Error('email is required');
+  }
   if (!params.joining_date) {
     throw new Error('joining_date is required');
   }
@@ -179,8 +182,10 @@ const create = async (params: ICreatePlacementExecutive, photographFile?: Expres
     return await PlacementExecutiveRepository.findById(savedExecutive.executive_id);
 
   } catch (error) {
-    // Rollback transaction
-    await queryRunner.rollbackTransaction();
+    // Only rollback if transaction was started and not committed
+    if (queryRunner.isTransactionActive) {
+      await queryRunner.rollbackTransaction();
+    }
     console.error('❌ Transaction failed, rolling back all changes:', error);
 
     // Cleanup uploaded file if it was moved
@@ -262,7 +267,7 @@ const permanentlyDelete = async (id: number) => {
 export interface ICreatePlacementExecutive {
   full_name: string;
   mobile_number: string;
-  email?: string;
+  email: string;
   joining_date: string | Date;
   employment_type: string[];
   facility_types_handled?: string[];

@@ -7,7 +7,41 @@ import { IFacilitySupervisorQueryParams } from '../../repositories/facility-supe
 export default class FacilitySupervisorController extends BaseController {
   static async create(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const supervisor = await FacilitySupervisorService.create(req.body);
+      // Extract file paths from multer upload
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Parse login object from JSON string if received as multipart/form-data
+      let bodyData = req.body;
+      if (bodyData.login && typeof bodyData.login === 'string') {
+        try {
+          bodyData.login = JSON.parse(bodyData.login);
+        } catch (error) {
+          throw new Error('Invalid login JSON format');
+        }
+      }
+      
+      // Parse array fields from JSON strings if received as multipart/form-data
+      if (bodyData.facility_types && typeof bodyData.facility_types === 'string') {
+        try {
+          bodyData.facility_types = JSON.parse(bodyData.facility_types);
+        } catch (error) {
+          bodyData.facility_types = bodyData.facility_types.split(',').map((s: string) => s.trim());
+        }
+      }
+      
+      // Convert boolean string fields to actual booleans ('yes'/'no' or 'true'/'false')
+      if (bodyData.portal_access_enabled === 'yes' || bodyData.portal_access_enabled === 'true') bodyData.portal_access_enabled = true;
+      if (bodyData.portal_access_enabled === 'no' || bodyData.portal_access_enabled === 'false') bodyData.portal_access_enabled = false;
+      
+      const supervisorData = {
+        ...bodyData,
+        photograph: files?.photograph?.[0]?.path,
+        id_proof_document: files?.id_proof_document?.[0]?.path,
+        police_check_document: files?.police_check_document?.[0]?.path,
+        authorization_letter_document: files?.authorization_letter_document?.[0]?.path
+      };
+      
+      const supervisor = await FacilitySupervisorService.create(supervisorData);
       ApiResponseUtility.createdSuccess(res, supervisor, 'Facility Supervisor created successfully');
     }, 'Create facility supervisor');
   }
