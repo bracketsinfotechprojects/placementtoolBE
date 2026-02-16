@@ -10,6 +10,7 @@ import { getRepository } from 'typeorm';
 import { Student } from '../../entities/student/student.entity';
 import { Facility } from '../../entities/facility/facility.entity';
 import { Trainer } from '../../entities/trainer/trainer.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
 
 export default class FileService {
   
@@ -42,6 +43,13 @@ export default class FileService {
           where: { trainer_id: entityId, isDeleted: false } 
         });
         exists = !!trainer;
+        break;
+      
+      case EntityType.FACILITY_SUPERVISOR:
+        const facilitySupervisor = await getRepository(FacilitySupervisor).findOne({ 
+          where: { supervisor_id: entityId, isDeleted: false } 
+        });
+        exists = !!facilitySupervisor;
         break;
       
       case EntityType.PLACEMENT_EXECUTIVE:

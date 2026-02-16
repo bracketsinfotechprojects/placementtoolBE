@@ -1,4 +1,7 @@
-import { getRepository, getConnection } from 'typeorm';
+import { getRepository, getConnection, EntityManager } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Express } from 'express';
 import { Facility } from '../../entities/facility/facility.entity';
 import { FacilityAttribute } from '../../entities/facility/facility-attribute.entity';
 import { FacilityOrganizationStructure } from '../../entities/facility/facility-organization-structure.entity';
@@ -7,13 +10,68 @@ import { FacilityAgreement } from '../../entities/facility/facility-agreement.en
 import { FacilityDocumentRequired } from '../../entities/facility/facility-document-required.entity';
 import { FacilityRule } from '../../entities/facility/facility-rule.entity';
 import { User } from '../../entities/user/user.entity';
+import { File, EntityType, DocumentType } from '../../entities/file/file.entity';
 import FacilityRepository, { IFacilityQueryParams } from '../../repositories/facility.repository';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import RoleService from '../role/role.service';
 import { StringError } from '../../errors/string.error';
 
-const create = async (params: ICreateFacility) => {
+/**
+ * Upload a document file and create file record within transaction
+ */
+const uploadDocument = async (
+  file: Express.Multer.File,
+  agreementId: number,
+  docType: DocumentType,
+  manager: EntityManager
+): Promise<string> => {
+  // Generate folder path
+  const folderPath = path.join('uploads', 'facility-agreements', agreementId.toString());
+
+  // Ensure directory exists
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true, mode: 0o755 });
+  }
+
+  // Generate secure filename
+  const ext = path.extname(file.originalname).toLowerCase();
+  const timestamp = Date.now();
+  const filename = `${docType}_${timestamp}${ext}`;
+  const fullPath = path.join(folderPath, filename);
+
+  // Move file from temp location
+  fs.renameSync(file.path, fullPath);
+  fs.chmodSync(fullPath, 0o644);
+
+  // Create file record within the transaction
+  const fileRecord = new File();
+  fileRecord.entity_type = EntityType.AGREEMENT;
+  fileRecord.entity_id = agreementId;
+  fileRecord.doc_type = docType;
+  fileRecord.file_path = fullPath.replace(/\\/g, '/');
+  fileRecord.file_name = file.originalname;
+  fileRecord.mime_type = file.mimetype;
+  fileRecord.file_size = file.size;
+  fileRecord.version = 1;
+  fileRecord.expiry_date = null;
+
+  await manager.save(fileRecord);
+
+  console.log(`✅ Document uploaded: ${fullPath}`);
+
+  return fullPath.replace(/\\/g, '/');
+};
+
+/**
+ * Agreement files interface
+ */
+interface IAgreementFiles {
+  mou_document?: Express.Multer.File;
+  insurance_doc?: Express.Multer.File;
+}
+
+const create = async (params: ICreateFacility, agreementFiles?: Map<number, IAgreementFiles>) => {
   if (!params.organization_name) {
     throw new Error('organization_name is required');
   }
@@ -146,7 +204,11 @@ const create = async (params: ICreateFacility) => {
 
     // Create agreements
     if (params.agreements && params.agreements.length > 0) {
-      const agreements = params.agreements.map(agr => {
+      console.log(`📋 Creating ${params.agreements.length} agreements`);
+      console.log(`📁 Agreement files map size: ${agreementFiles?.size || 0}`);
+      
+      for (let i = 0; i < params.agreements.length; i++) {
+        const agr = params.agreements[i];
         const agreement = new FacilityAgreement();
         agreement.facility_id = facilityId;
         agreement.sent_students = agr.sent_students;
@@ -166,9 +228,49 @@ const create = async (params: ICreateFacility) => {
         agreement.payment_notes = agr.payment_notes;
         agreement.mou_document = agr.mou_document;
         agreement.insurance_doc = agr.insurance_doc;
-        return agreement;
-      });
-      await queryRunner.manager.save(agreements);
+        
+        const savedAgreement = await queryRunner.manager.save(agreement);
+        console.log(`✅ Agreement ${i} saved with ID: ${savedAgreement.agreement_id}`);
+        
+        // Upload files if provided for this agreement index
+        if (agreementFiles && agreementFiles.has(i)) {
+          const files = agreementFiles.get(i)!;
+          console.log(`📁 Processing files for agreement ${i}:`, { 
+            hasMou: !!files.mou_document, 
+            hasInsurance: !!files.insurance_doc 
+          });
+          
+          if (files.mou_document) {
+            console.log(`📁 Uploading MOU document for agreement ${i}:`, files.mou_document.originalname);
+            const mouPath = await uploadDocument(
+              files.mou_document,
+              savedAgreement.agreement_id,
+              DocumentType.MOU_DOCUMENT,
+              queryRunner.manager
+            );
+            await queryRunner.manager.update(FacilityAgreement, { agreement_id: savedAgreement.agreement_id }, {
+              mou_document: mouPath
+            });
+            console.log(`✅ MOU document path saved: ${mouPath}`);
+          }
+          
+          if (files.insurance_doc) {
+            console.log(`📁 Uploading insurance document for agreement ${i}:`, files.insurance_doc.originalname);
+            const insurancePath = await uploadDocument(
+              files.insurance_doc,
+              savedAgreement.agreement_id,
+              DocumentType.INSURANCE_DOCUMENT,
+              queryRunner.manager
+            );
+            await queryRunner.manager.update(FacilityAgreement, { agreement_id: savedAgreement.agreement_id }, {
+              insurance_doc: insurancePath
+            });
+            console.log(`✅ Insurance document path saved: ${insurancePath}`);
+          }
+        } else {
+          console.log(`📁 No files for agreement index ${i}`);
+        }
+      }
     }
 
     // Create documents required

@@ -14,7 +14,8 @@ export enum EntityType {
   VISA = 'visa',
   JOB = 'job',
   AGREEMENT = 'agreement',
-  TRAINER = 'trainer'
+  TRAINER = 'trainer',
+  FACILITY_SUPERVISOR = 'facility_supervisor'
 }
 
 export enum DocumentType {
@@ -35,6 +36,8 @@ export enum DocumentType {
   INSURANCE_DOCS = 'INSURANCE_DOCS',
   RESUME = 'RESUME',
   PHOTOGRAPH = 'PHOTOGRAPH',
+  ID_PROOF = 'ID_PROOF',
+  AUTHORIZATION_LETTER = 'AUTHORIZATION_LETTER',
   OTHER = 'OTHER'
 }
 

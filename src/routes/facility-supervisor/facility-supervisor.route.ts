@@ -16,6 +16,17 @@ const router = express.Router();
  * /api/facility-supervisors:
  *   post:
  *     summary: Create new facility supervisor with optional documents
+ *     description: |
+ *       Create a new facility supervisor with optional file uploads.
+ *       Files are stored in the files table with proper entity association.
+ *       
+ *       **File Uploads:**
+ *       - photograph: Profile photo (JPEG, PNG, GIF, WebP)
+ *       - id_proof_document: ID proof document (PDF, Image, Word)
+ *       - police_check_document: Police verification document (PDF, Image, Word)
+ *       - authorization_letter_document: Authorization letter (PDF, Image, Word)
+ *       
+ *       All files are saved to the files table with entity_type = 'facility_supervisor'
  *     tags:
  *       - Facility Supervisors
  *     security:
@@ -29,11 +40,6 @@ const router = express.Router();
  *             required:
  *               - full_name
  *               - designation
- *               - mobile_number
- *               - facility_id
- *               - login_userID
- *               - login_password
- *             properties:
  *               - mobile_number
  *               - facility_id
  *               - login
@@ -78,15 +84,15 @@ const router = express.Router();
  *               id_proof_document:
  *                 type: string
  *                 format: binary
- *                 description: ID proof document file
+ *                 description: ID proof document file (PDF, Image, Word)
  *               police_check_document:
  *                 type: string
  *                 format: binary
- *                 description: Police check document file
+ *                 description: Police check document file (PDF, Image, Word)
  *               authorization_letter_document:
  *                 type: string
  *                 format: binary
- *                 description: Authorization letter document file
+ *                 description: Authorization letter document file (PDF, Image, Word)
  *               portal_access_enabled:
  *                 type: boolean
  *                 example: true
@@ -107,6 +113,55 @@ const router = express.Router();
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facility Supervisor created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     supervisor_id:
+ *                       type: integer
+ *                       example: 1
+ *                     full_name:
+ *                       type: string
+ *                       example: "Atul Dhuri"
+ *                     photograph:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/PHOTOGRAPH_1234567890.jpg"
+ *                     id_proof_document:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/ID_PROOF_1234567890.pdf"
+ *                     police_check_document:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/POLICE_CHECK_1234567890.pdf"
+ *                     authorization_letter_document:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/AUTHORIZATION_LETTER_1234567890.pdf"
+ *                     uploaded_files:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           entity_type:
+ *                             type: string
+ *                           entity_id:
+ *                             type: integer
+ *                           doc_type:
+ *                             type: string
+ *                           file_path:
+ *                             type: string
+ *                           file_name:
+ *                             type: string
  *       400:
  *         description: Bad Request
  *       401:
