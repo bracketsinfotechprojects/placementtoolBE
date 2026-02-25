@@ -1,5 +1,6 @@
 import express from 'express';
 import FacilitySupervisorController from '../../controllers/facility-supervisor/facility-supervisor.controller';
+import { upload } from '../../configs/multer.config';
 
 const router = express.Router();
 
@@ -14,7 +15,18 @@ const router = express.Router();
  * @swagger
  * /api/facility-supervisors:
  *   post:
- *     summary: Create new facility supervisor
+ *     summary: Create new facility supervisor with optional documents
+ *     description: |
+ *       Create a new facility supervisor with optional file uploads.
+ *       Files are stored in the files table with proper entity association.
+ *       
+ *       **File Uploads:**
+ *       - photograph: Profile photo (JPEG, PNG, GIF, WebP)
+ *       - id_proof_document: ID proof document (PDF, Image, Word)
+ *       - police_check_document: Police verification document (PDF, Image, Word)
+ *       - authorization_letter_document: Authorization letter (PDF, Image, Word)
+ *       
+ *       All files are saved to the files table with entity_type = 'facility_supervisor'
  *     tags:
  *       - Facility Supervisors
  *     security:
@@ -22,7 +34,7 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -47,7 +59,8 @@ const router = express.Router();
  *                 example: "dhuriatu@gmail.com"
  *               photograph:
  *                 type: string
- *                 example: "/uploads/photos/atul-dhuri.jpg"
+ *                 format: binary
+ *                 description: Photograph file (JPEG, PNG, GIF, WebP)
  *               facility_id:
  *                 type: integer
  *                 example: 1
@@ -70,13 +83,16 @@ const router = express.Router();
  *                 example: 10
  *               id_proof_document:
  *                 type: string
- *                 example: "/uploads/documents/id-proof.pdf"
+ *                 format: binary
+ *                 description: ID proof document file (PDF, Image, Word)
  *               police_check_document:
  *                 type: string
- *                 example: "/uploads/documents/police-check.pdf"
+ *                 format: binary
+ *                 description: Police check document file (PDF, Image, Word)
  *               authorization_letter_document:
  *                 type: string
- *                 example: "/uploads/documents/auth-letter.pdf"
+ *                 format: binary
+ *                 description: Authorization letter document file (PDF, Image, Word)
  *               portal_access_enabled:
  *                 type: boolean
  *                 example: true
@@ -88,19 +104,75 @@ const router = express.Router();
  *                 properties:
  *                   userID:
  *                     type: string
+ *                     description: User ID for login
  *                     example: "atul.dhuri"
  *                   password:
  *                     type: string
+ *                     description: Password for login
  *                     example: "SecurePass123"
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facility Supervisor created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     supervisor_id:
+ *                       type: integer
+ *                       example: 1
+ *                     full_name:
+ *                       type: string
+ *                       example: "Atul Dhuri"
+ *                     photograph:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/PHOTOGRAPH_1234567890.jpg"
+ *                     id_proof_document:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/ID_PROOF_1234567890.pdf"
+ *                     police_check_document:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/POLICE_CHECK_1234567890.pdf"
+ *                     authorization_letter_document:
+ *                       type: string
+ *                       example: "uploads/facility_supervisors/1/AUTHORIZATION_LETTER_1234567890.pdf"
+ *                     uploaded_files:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           entity_type:
+ *                             type: string
+ *                           entity_id:
+ *                             type: integer
+ *                           doc_type:
+ *                             type: string
+ *                           file_path:
+ *                             type: string
+ *                           file_name:
+ *                             type: string
  *       400:
  *         description: Bad Request
  *       401:
  *         description: Unauthorized
  */
-router.post('/', FacilitySupervisorController.create);
+router.post('/', upload.fields([
+  { name: 'photograph', maxCount: 1 },
+  { name: 'id_proof_document', maxCount: 1 },
+  { name: 'police_check_document', maxCount: 1 },
+  { name: 'authorization_letter_document', maxCount: 1 }
+]), FacilitySupervisorController.create);
 
 /**
  * @swagger

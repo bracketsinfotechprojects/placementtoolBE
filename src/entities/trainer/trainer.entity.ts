@@ -81,22 +81,20 @@ export class Trainer extends BaseEntity {
   email: string;
 
   @Column({ 
-    type: 'varchar', 
-    length: 100, 
+    type: 'json',
     nullable: true,
     name: 'trainer_type',
-    comment: 'Type of trainer (e.g., Full-time, Part-time, Contract)'
+    comment: 'Array of trainer types (e.g., Full-time, Part-time, Contract)'
   })
-  trainer_type: string;
+  trainer_type: string[];
 
   @Column({ 
-    type: 'varchar', 
-    length: 255, 
+    type: 'json',
     nullable: true,
     name: 'course_auth',
-    comment: 'Course authorization/qualifications'
+    comment: 'Array of course authorizations/qualifications'
   })
-  course_auth: string;
+  course_auth: string[];
 
   @Column({ 
     type: 'varchar', 
@@ -148,13 +146,47 @@ export class Trainer extends BaseEntity {
   time_slots: string[];
 
   @Column({ 
-    type: 'boolean',
+    type: 'varchar', 
+    length: 10, 
     nullable: false,
     name: 'suprise_visit',
-    default: false,
-    comment: 'Whether trainer can do surprise visits'
+    default: 'no',
+    comment: 'Whether trainer can do surprise visits (yes/no)'
   })
-  suprise_visit: boolean;
+  suprise_visit: string;
+
+  @Column({ 
+    type: 'int',
+    nullable: true,
+    name: 'wwchildcheck',
+    comment: 'Working With Children Check status (0=Pending, 1=Approved, 2=Expired)'
+  })
+  wwchildcheck: number;
+
+  @Column({ 
+    type: 'date',
+    nullable: true,
+    name: 'wwc_expiry_date',
+    comment: 'Working With Children Check expiry date'
+  })
+  wwcExpiryDate: Date;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 100, 
+    nullable: true,
+    name: 'police_check_number',
+    comment: 'Police check reference number'
+  })
+  policeCheckNumber: string;
+
+  @Column({ 
+    type: 'date',
+    nullable: true,
+    name: 'police_check_expiry_date',
+    comment: 'Police check expiry date'
+  })
+  policeCheckExpiryDate: Date;
 
   @Column({ 
     type: 'varchar', 

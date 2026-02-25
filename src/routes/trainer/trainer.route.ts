@@ -1,5 +1,6 @@
 import express from 'express';
 import TrainerController from '../../controllers/trainer/trainer.controller';
+import { upload } from '../../configs/multer.config';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
  * @swagger
  * /api/trainers:
  *   post:
- *     summary: Create new trainer
+ *     summary: Create new trainer with optional photograph
  *     tags:
  *       - Trainers
  *     security:
@@ -22,7 +23,7 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -58,11 +59,15 @@ const router = express.Router();
  *                 format: email
  *                 example: "john.doe@example.com"
  *               trainer_type:
- *                 type: string
- *                 example: "Full-time"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Full-time", "Part-time"]
  *               course_auth:
- *                 type: string
- *                 example: "CHC33021 - Certificate III in Individual Support"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["CHC33021 - Certificate III in Individual Support", "CHC43021 - Certificate IV in Ageing Support"]
  *               acc_numbers:
  *                 type: string
  *                 example: "ACC123456"
@@ -92,9 +97,25 @@ const router = express.Router();
  *               suprise_visit:
  *                 type: boolean
  *                 example: true
+ *               wwchildcheck:
+ *                 type: integer
+ *                 example: 1
+ *                 description: "0=Pending, 1=Approved, 2=Expired"
+ *               wwcExpiryDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-12-31"
+ *               policeCheckNumber:
+ *                 type: string
+ *                 example: "POL-2024-12345"
+ *               policeCheckExpiryDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-06-30"
  *               photograph:
  *                 type: string
- *                 example: "/uploads/photos/john-doe.jpg"
+ *                 format: binary
+ *                 description: Photograph file (JPEG, PNG, GIF, WebP)
  *               login:
  *                 type: object
  *                 required:
@@ -103,19 +124,44 @@ const router = express.Router();
  *                 properties:
  *                   userID:
  *                     type: string
+ *                     description: User ID for login
  *                     example: "john.doe"
  *                   password:
  *                     type: string
+ *                     description: Password for login
  *                     example: "SecurePass123"
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Trainer created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     trainer_id:
+ *                       type: integer
+ *                       example: 1
+ *                     full_name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     photograph:
+ *                       type: string
+ *                       example: "/uploads/trainers/1/PHOTOGRAPH_xxx.jpg"
  *       400:
  *         description: Bad Request
  *       401:
  *         description: Unauthorized
  */
-router.post('/', TrainerController.create);
+router.post('/', upload.single('photograph'), TrainerController.create);
 
 /**
  * @swagger
@@ -131,7 +177,7 @@ router.post('/', TrainerController.create);
  *         name: keyword
  *         schema:
  *           type: string
- *         description: Search in name, email, or mobile number
+ *         description: Search in name or email
  *       - in: query
  *         name: trainer_type
  *         schema:
@@ -141,7 +187,7 @@ router.post('/', TrainerController.create);
  *         name: sort_by
  *         schema:
  *           type: string
- *           enum: [trainer_id, first_name, last_name, email, createdAt]
+ *           enum: [trainer_id, first_name, email, createdAt]
  *           default: createdAt
  *       - in: query
  *         name: sort_order
@@ -162,8 +208,6 @@ router.post('/', TrainerController.create);
  *     responses:
  *       200:
  *         description: Success
- *       401:
- *         description: Unauthorized
  */
 router.get('/', TrainerController.list);
 
@@ -187,8 +231,6 @@ router.get('/', TrainerController.list);
  *         description: Success
  *       404:
  *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
 router.get('/:id', TrainerController.getById);
 
@@ -220,50 +262,18 @@ router.get('/:id', TrainerController.getById);
  *                 type: string
  *               gender:
  *                 type: string
- *               date_of_birth:
- *                 type: string
- *                 format: date
  *               mobile_number:
- *                 type: string
- *               alternate_contact:
  *                 type: string
  *               email:
  *                 type: string
+ *                 format: email
  *               trainer_type:
- *                 type: string
- *               course_auth:
- *                 type: string
- *               acc_numbers:
- *                 type: string
- *               yoe:
- *                 type: integer
- *               state_covered:
  *                 type: array
  *                 items:
  *                   type: string
- *               cities_covered:
- *                 type: array
- *                 items:
- *                   type: string
- *               available_days:
- *                 type: array
- *                 items:
- *                   type: string
- *               time_slots:
- *                 type: array
- *                 items:
- *                   type: string
- *               suprise_visit:
- *                 type: boolean
- *               photograph:
- *                 type: string
  *     responses:
  *       200:
  *         description: Updated
- *       404:
- *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
 router.put('/:id', TrainerController.update);
 
@@ -285,10 +295,6 @@ router.put('/:id', TrainerController.update);
  *     responses:
  *       200:
  *         description: Deleted
- *       404:
- *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
 router.delete('/:id', TrainerController.delete);
 
@@ -310,10 +316,6 @@ router.delete('/:id', TrainerController.delete);
  *     responses:
  *       200:
  *         description: Permanently Deleted
- *       404:
- *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
 router.delete('/:id/permanent', TrainerController.permanentlyDelete);
 

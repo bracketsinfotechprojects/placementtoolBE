@@ -1,5 +1,6 @@
 import express from 'express';
 import PlacementExecutiveController from '../../controllers/placement-executive/placement-executive.controller';
+import { upload } from '../../configs/multer.config';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
  * @swagger
  * /api/placement-executives:
  *   post:
- *     summary: Create new placement executive
+ *     summary: Create new placement executive with optional photograph
  *     tags:
  *       - Placement Executives
  *     security:
@@ -22,12 +23,13 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
  *               - full_name
  *               - mobile_number
+ *               - email
  *               - joining_date
  *               - employment_type
  *               - login
@@ -44,15 +46,17 @@ const router = express.Router();
  *                 example: "john.smith@example.com"
  *               photograph:
  *                 type: string
- *                 example: "/uploads/photos/john-smith.jpg"
+ *                 format: binary
+ *                 description: Photograph file (JPEG, PNG, GIF, WebP)
  *               joining_date:
  *                 type: string
  *                 format: date
  *                 example: "2024-01-15"
  *               employment_type:
- *                 type: string
- *                 enum: [full-time, part-time, contract]
- *                 example: "full-time"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["full-time", "part-time"]
  *               facility_types_handled:
  *                 type: array
  *                 items:
@@ -66,9 +70,11 @@ const router = express.Router();
  *                 properties:
  *                   userID:
  *                     type: string
+ *                     description: User ID for login
  *                     example: "john.smith"
  *                   password:
  *                     type: string
+ *                     description: Password for login
  *                     example: "SecurePass123"
  *     responses:
  *       201:
@@ -93,33 +99,15 @@ const router = express.Router();
  *                     full_name:
  *                       type: string
  *                       example: "John Smith"
- *                     mobile_number:
+ *                     photograph:
  *                       type: string
- *                       example: "0412345678"
- *                     email:
- *                       type: string
- *                       example: "john.smith@example.com"
- *                     joining_date:
- *                       type: string
- *                       format: date
- *                       example: "2024-01-15"
- *                     employment_type:
- *                       type: string
- *                       example: "full-time"
- *                     facility_types_handled:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["Aged Care", "Disability"]
- *                     user_id:
- *                       type: integer
- *                       example: 10
+ *                       example: "/uploads/placement_executives/1/PHOTOGRAPH_xxx.jpg"
  *       400:
  *         description: Bad Request
  *       401:
  *         description: Unauthorized
  */
-router.post('/', PlacementExecutiveController.create);
+router.post('/', upload.single('photograph'), PlacementExecutiveController.create);
 
 /**
  * @swagger
@@ -140,7 +128,6 @@ router.post('/', PlacementExecutiveController.create);
  *         name: employment_type
  *         schema:
  *           type: string
- *           enum: [full-time, part-time, contract]
  *         description: Filter by employment type
  *       - in: query
  *         name: sort_by
@@ -255,17 +242,15 @@ router.get('/:id', PlacementExecutiveController.getById);
  *                 type: string
  *                 format: email
  *                 example: "john.smith.updated@example.com"
- *               photograph:
- *                 type: string
- *                 example: "/uploads/photos/john-smith-new.jpg"
  *               joining_date:
  *                 type: string
  *                 format: date
  *                 example: "2024-02-01"
  *               employment_type:
- *                 type: string
- *                 enum: [full-time, part-time, contract]
- *                 example: "part-time"
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["part-time", "contract"]
  *               facility_types_handled:
  *                 type: array
  *                 items:

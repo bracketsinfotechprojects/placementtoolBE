@@ -7,7 +7,51 @@ import { IFacilityQueryParams } from '../../repositories/facility.repository';
 export default class FacilityController extends BaseController {
   static async create(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const facility = await FacilityService.create(req.body);
+      // Get uploaded files if any - when using upload.any(), req.files is an array
+      const filesArray = req.files as Express.Multer.File[] | undefined;
+      
+      // Parse body data - handle JSON strings for nested objects
+      let bodyData = { ...req.body };
+      
+      // Parse JSON string fields
+      const jsonFields = ['attributes', 'organization_structures', 'branches', 'agreements', 'documents_required', 'rules', 'states_covered', 'categories', 'login'];
+      for (const field of jsonFields) {
+        if (bodyData[field] && typeof bodyData[field] === 'string') {
+          try {
+            bodyData[field] = JSON.parse(bodyData[field]);
+          } catch (error) {
+            // Keep original value if not valid JSON
+          }
+        }
+      }
+      
+      // Prepare agreement files mapping
+      const agreementFiles: Map<number, { mou_document?: Express.Multer.File; insurance_doc?: Express.Multer.File }> = new Map();
+      
+      if (filesArray && Array.isArray(filesArray)) {
+        // Process files (format: mou_document_0, mou_document_1, etc.)
+        for (const file of filesArray) {
+          if (file.fieldname.startsWith('mou_document_')) {
+            const index = parseInt(file.fieldname.replace('mou_document_', ''), 10);
+            if (!agreementFiles.has(index)) {
+              agreementFiles.set(index, {});
+            }
+            agreementFiles.get(index)!.mou_document = file;
+          }
+          if (file.fieldname.startsWith('insurance_doc_')) {
+            const index = parseInt(file.fieldname.replace('insurance_doc_', ''), 10);
+            if (!agreementFiles.has(index)) {
+              agreementFiles.set(index, {});
+            }
+            agreementFiles.get(index)!.insurance_doc = file;
+          }
+        }
+      }
+      
+      console.log('📁 Files received:', filesArray?.map(f => f.fieldname) || []);
+      console.log('📁 Agreement files map:', Array.from(agreementFiles.entries()));
+      
+      const facility = await FacilityService.create(bodyData, agreementFiles);
       ApiResponseUtility.createdSuccess(res, facility, 'Facility created successfully');
     }, 'Create facility');
   }

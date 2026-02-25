@@ -63,13 +63,12 @@ export class PlacementExecutive extends BaseEntity {
   joining_date: Date;
 
   @Column({ 
-    type: 'enum',
-    enum: ['full-time', 'part-time', 'contract'],
-    nullable: false,
+    type: 'json',
+    nullable: true,
     name: 'employment_type',
-    comment: 'Type of employment'
+    comment: 'Array of employment types (full-time, part-time, contract)'
   })
-  employment_type: 'full-time' | 'part-time' | 'contract';
+  employment_type: string[];
 
   @Column({ 
     type: 'json',
