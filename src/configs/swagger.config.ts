@@ -307,6 +307,179 @@ const options = {
             updatedAt: { type: 'string', format: 'date-time' },
             isDeleted: { type: 'boolean' }
           }
+        },
+        CourseSlots: {
+          type: 'object',
+          properties: {
+            course_id: { type: 'integer' },
+            course_name: { type: 'string', example: 'Manual Handling Training' },
+            course_category: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Manual Handling', 'First Aid'] },
+              example: ['Manual Handling']
+            },
+            course_type: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Accredited', 'Non-Accredited', 'Refresher'] },
+              example: ['Accredited']
+            },
+            course_scope: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Aged Care', 'Disability', 'Healthcare Students'] },
+              example: ['Aged Care', 'Disability']
+            },
+            course_date: { type: 'string', format: 'date', example: '2026-03-15' },
+            day_of_week: { type: 'string', example: 'Monday' },
+            reporting_time: { type: 'string', example: '09:00:00' },
+            expected_end_time: { type: 'string', example: '13:00:00' },
+            total_duration: { type: 'string', example: '4 hours' },
+            mode: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Onsite', 'Online', 'Hybrid'] },
+              example: ['Onsite']
+            },
+            training_location: { type: 'string', example: 'ABC Training Center' },
+            address: { type: 'string', example: '123 Training Street, Sydney NSW 2000' },
+            city: { type: 'string', example: 'Sydney' },
+            google_maps_link: { type: 'string', example: 'https://maps.google.com/?q=123+Training+Street+Sydney' },
+            total_seats: { type: 'integer', example: 20 },
+            seats_remaining: { type: 'integer', example: 15 },
+            seat_status: { type: 'string', enum: ['Available', 'Filling Fast', 'Full'], example: 'Available' },
+            last_booking_date: { type: 'string', format: 'date', example: '2026-03-10' },
+            certificate_issued: { type: 'boolean', example: false },
+            certificate_type: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Digital', 'Physical'] },
+              example: ['Digital']
+            },
+            certificate_validity: { type: 'string', example: '12 months' },
+            issuing_authority: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Institute', 'Registered Body'] },
+              example: ['Institute']
+            },
+            certificate_issue_timeline: { type: 'string', enum: ['Same Day', 'Within 48 Hours'], example: 'Same Day' },
+            target_audience: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['External', 'Internal'] },
+              example: ['External', 'Internal']
+            },
+            documents_required: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['ID Proof', 'Payment Receipt'] },
+              example: ['ID Proof', 'Payment Receipt']
+            },
+            pre_course_requirement: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Online Module', 'None'] },
+              example: ['Online Module']
+            },
+            dress_code: { type: 'string', example: 'Comfortable clothing, closed-toe shoes' },
+            items_to_bring: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Notebook & Pen', 'Water Bottle'] },
+              example: ['Notebook & Pen', 'Water Bottle']
+            },
+            mobile_phone_policy: { type: 'string', enum: ['Silent', 'Restricted'], example: 'Silent' },
+            trainer_id: { type: 'integer', example: 1 },
+            created_by: { type: 'string', example: 'admin' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        CourseSlotsInput: {
+          type: 'object',
+          required: ['course_name', 'course_category', 'course_date'],
+          properties: {
+            course_name: { type: 'string', example: 'Manual Handling Training' },
+            course_category: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Manual Handling', 'First Aid'] },
+              example: ['Manual Handling']
+            },
+            course_type: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Accredited', 'Non-Accredited', 'Refresher'] }
+            },
+            course_scope: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Aged Care', 'Disability', 'Healthcare Students'] }
+            },
+            course_date: { type: 'string', format: 'date', example: '2026-03-15' },
+            day_of_week: { type: 'string', example: 'Monday' },
+            reporting_time: { type: 'string', example: '09:00:00' },
+            expected_end_time: { type: 'string', example: '13:00:00' },
+            total_duration: { type: 'string', example: '4 hours' },
+            mode: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Onsite', 'Online', 'Hybrid'] }
+            },
+            training_location: { type: 'string', example: 'ABC Training Center' },
+            address: { type: 'string', example: '123 Training Street, Sydney NSW 2000' },
+            city: { type: 'string', example: 'Sydney' },
+            google_maps_link: { type: 'string', example: 'https://maps.google.com/?q=123+Training+Street+Sydney' },
+            total_seats: { type: 'integer', example: 20 },
+            seats_remaining: { type: 'integer', example: 15 },
+            seat_status: { type: 'string', enum: ['Available', 'Filling Fast', 'Full'] },
+            last_booking_date: { type: 'string', format: 'date' },
+            certificate_issued: { type: 'boolean', example: false },
+            certificate_type: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Digital', 'Physical'] }
+            },
+            certificate_validity: { type: 'string', example: '12 months' },
+            issuing_authority: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Institute', 'Registered Body'] }
+            },
+            certificate_issue_timeline: { type: 'string', enum: ['Same Day', 'Within 48 Hours'] },
+            target_audience: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['External', 'Internal'] }
+            },
+            documents_required: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['ID Proof', 'Payment Receipt'] }
+            },
+            pre_course_requirement: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Online Module', 'None'] }
+            },
+            dress_code: { type: 'string', example: 'Comfortable clothing, closed-toe shoes' },
+            items_to_bring: { 
+              type: 'array', 
+              items: { type: 'string', enum: ['Notebook & Pen', 'Water Bottle'] }
+            },
+            mobile_phone_policy: { type: 'string', enum: ['Silent', 'Restricted'] },
+            trainer_id: { type: 'integer', example: 1 },
+            created_by: { type: 'string', example: 'admin' }
+          }
+        },
+        CourseAssignment: {
+          type: 'object',
+          properties: {
+            assignment_id: { type: 'integer' },
+            course_id: { type: 'integer', example: 1 },
+            trainer_id: { type: 'integer', example: 1 },
+            student_id: { type: 'integer', example: 1 },
+            enrollment_date: { type: 'string', format: 'date', example: '2026-03-15' },
+            status: { type: 'string', enum: ['Active', 'Completed', 'Dropped'], example: 'Active' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            isDeleted: { type: 'boolean' }
+          }
+        },
+        CourseAssignmentInput: {
+          type: 'object',
+          required: ['course_id', 'trainer_id', 'student_id'],
+          properties: {
+            course_id: { type: 'integer', example: 1 },
+            trainer_id: { type: 'integer', example: 1 },
+            student_id: { type: 'integer', example: 1 },
+            enrollment_date: { type: 'string', format: 'date', example: '2026-03-15' },
+            status: { type: 'string', enum: ['Active', 'Completed', 'Dropped'], example: 'Active' }
+          }
         }
       }
     },

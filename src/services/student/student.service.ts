@@ -275,6 +275,111 @@ const create = async (params: ICreateStudent) => {
   });
 };
 
+// Create External Student (no user account created)
+// Only includes: students, contact_details, visa_details, addresses tables
+const createExternalStudent = async (params: ICreateExternalStudent) => {
+  return await TransactionUtility.executeInTransaction(async (queryRunner) => {
+    console.log('🚀 Starting EXTERNAL student creation with transaction...');
+    console.log('ℹ️ NOTE: No user account will be created for external students');
+
+    // Step 1: Create student record
+    const student = new Student();
+    student.first_name = params.first_name;
+    student.last_name = params.last_name;
+    student.dob = params.dob;
+    student.gender = params.gender;
+    student.nationality = params.nationality;
+    student.student_type = params.student_type || 'external';
+    student.status = params.status || 'active';
+
+    const studentData = await queryRunner.manager.save(Student, student);
+    console.log('✅ External Student record created with ID:', studentData.student_id);
+
+    // Step 2: Create contact details if provided
+    if (params.contact_details) {
+      try {
+        console.log('📞 Creating contact details...');
+        const contactDetails = new ContactDetails();
+        contactDetails.student = studentData;
+        contactDetails.primary_mobile = params.contact_details.primary_mobile;
+        contactDetails.email = params.contact_details.email;
+        contactDetails.alternate_contact = params.contact_details.alternate_contact;
+        contactDetails.emergency_contact = params.contact_details.emergency_contact;
+        contactDetails.emergency_contact_name = params.contact_details.emergency_contact_name;
+        contactDetails.relationship = params.contact_details.relationship;
+        contactDetails.contact_type = params.contact_details.contact_type || 'mobile';
+        contactDetails.is_primary = params.contact_details.is_primary !== undefined ? params.contact_details.is_primary : true;
+        contactDetails.verified_at = params.contact_details.verified_at;
+
+        await queryRunner.manager.save(ContactDetails, contactDetails);
+        console.log('✅ Contact details created');
+      } catch (error) {
+        console.error('❌ Failed to create contact details:', error.message);
+        throw new Error(`Failed to create contact details: ${error.message}`);
+      }
+    }
+
+    // Step 3: Create visa details if provided
+    if (params.visa_details) {
+      try {
+        console.log('🛂 Creating visa details...');
+        const visaDetails = new VisaDetails();
+        visaDetails.student = studentData;
+        visaDetails.visa_type = params.visa_details.visa_type;
+        visaDetails.visa_number = params.visa_details.visa_number;
+        visaDetails.start_date = params.visa_details.start_date;
+        visaDetails.expiry_date = params.visa_details.expiry_date;
+        visaDetails.status = params.visa_details.status || 'active';
+        visaDetails.issuing_country = params.visa_details.issuing_country;
+        visaDetails.document_path = params.visa_details.document_path;
+        visaDetails.work_limitation = params.visa_details.work_limitation;
+
+        await queryRunner.manager.save(VisaDetails, visaDetails);
+        console.log('✅ Visa details created');
+      } catch (error) {
+        console.error('❌ Failed to create visa details:', error.message);
+        throw new Error(`Failed to create visa details: ${error.message}`);
+      }
+    }
+
+    // Step 4: Create addresses if provided
+    if (params.addresses && params.addresses.length > 0) {
+      try {
+        console.log('🏠 Creating addresses...');
+        for (const addressData of params.addresses) {
+          const address = new Address();
+          address.student = studentData;
+          address.line1 = addressData.line1;
+          address.line2 = addressData.line2;
+          address.suburb = addressData.suburb;
+          address.city = addressData.city;
+          address.state = addressData.state;
+          address.country = addressData.country;
+          address.postal_code = addressData.postal_code;
+          address.address_type = addressData.address_type || 'current';
+          address.is_primary = addressData.is_primary || false;
+
+          await queryRunner.manager.save(Address, address);
+        }
+        console.log(`✅ ${params.addresses.length} address(es) created`);
+      } catch (error) {
+        console.error('❌ Failed to create addresses:', error.message);
+        throw new Error(`Failed to create addresses: ${error.message}`);
+      }
+    }
+
+    // NO USER ACCOUNT CREATED - This is the key difference for external students!
+    console.log('🚫 Skipping user account creation (external student)');
+    
+    console.log('🎉 External Student creation transaction committed successfully!');
+    console.log('📊 Summary: External Student created with contact, visa, and addresses only');
+    console.log(`✅ STUDENT ID: ${studentData.student_id}`);
+    console.log(`✅ DATABASE: ${process.env.DB_NAME || 'testcrm'}`);
+    console.log(`✅ Check with: SELECT * FROM students WHERE student_id = ${studentData.student_id};`);
+    return ApiUtility.sanitizeStudent(studentData);
+  });
+};
+
 // Student creation interface
 export interface ICreateStudent {
   first_name: string;
@@ -301,6 +406,25 @@ export interface ICreateStudent {
 
   // NOTE: facility_records, address_change_requests, and job_status_updates
   // are now managed via separate APIs after student creation
+}
+
+// External Student creation interface (no user account, limited tables)
+export interface ICreateExternalStudent {
+  first_name: string;
+  last_name: string;
+  dob: Date;
+  gender?: string;
+  nationality?: string;
+  student_type?: string;  // Defaults to 'external'
+  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+
+  // Only these 3 related entities for external students
+  contact_details?: ICreateContactDetails;
+  visa_details?: ICreateVisaDetails;
+  addresses?: ICreateAddress[];
+
+  // NOTE: NO email/password - no user account created for external students
+  // NOTE: NO eligibility_status, student_lifestyle, placement_preferences for external students
 }
 
 // Student update interface
@@ -1854,6 +1978,7 @@ export interface IUpdateSelfPlacement {
 
 export default {
   create,
+  createExternalStudent,
   getById,
   detail,
   update,
