@@ -17,6 +17,9 @@ module.exports = {
     'src/entities/facility-supervisor/*.entity.ts',
     'src/entities/placement-executive/*.entity.ts',
     'src/entities/file/*.entity.ts',
+    'src/entities/trainer/*.entity.ts',
+    'src/entities/course-slots/*.entity.ts',
+    'src/entities/course-assignment/*.entity.ts',
     'src/entities/base/*.entity.ts'
   ] : [
     'dist/entities/student/*.entity.js',
@@ -25,6 +28,9 @@ module.exports = {
     'dist/entities/facility-supervisor/*.entity.js',
     'dist/entities/placement-executive/*.entity.js',
     'dist/entities/file/*.entity.js',
+    'dist/entities/trainer/*.entity.js',
+    'dist/entities/course-slots/*.entity.js',
+    'dist/entities/course-assignment/*.entity.js',
     'dist/entities/base/*.entity.js'
   ],
   logging: process.env.NODE_ENV !== 'production' ? 'all' : 'error',

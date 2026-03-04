@@ -80,6 +80,14 @@ export class EligibilityStatus {
   })
   manual_override: boolean;
 
+  @Column({
+    type: 'boolean',
+    default: false,
+    name: 'manual_handling',
+    comment: 'Whether manual handling is required'
+  })
+  manual_handling: boolean;
+
   @Column({ 
     type: 'varchar', 
     length: 100, 

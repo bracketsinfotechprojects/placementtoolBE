@@ -38,15 +38,19 @@ const router = Router();
  *                 description: File to upload (max 10MB)
  *               entity_type:
  *                 type: string
- *                 enum: [student, facility, placement, visa, job, agreement]
+ *                 enum: [student, facility, placement, visa, job, agreement, trainer]
  *                 description: Type of entity
  *               entity_id:
  *                 type: integer
  *                 description: ID of the entity
  *               doc_type:
  *                 type: string
- *                 enum: [AADHAAR, PASSPORT, VISA_DOCUMENT, OFFER_LETTER, REGISTRATION_PROOF, SUPPORTING_DOCUMENT, MOU_DOCUMENT, INSURANCE_DOCUMENT, PLACEMENT_DOCUMENT, JOB_OFFER, OTHER]
+ *                 enum: [AADHAAR, PASSPORT, VISA_DOCUMENT, OFFER_LETTER, REGISTRATION_PROOF, SUPPORTING_DOCUMENT, MOU_DOCUMENT, INSURANCE_DOCUMENT, PLACEMENT_DOCUMENT, JOB_OFFER, WORK_CHILD_CHECK, POLICE_CHECK, ACCRED_CERT, FIRSTAID_CERT, INSURANCE_DOCS, RESUME, OTHER]
  *                 description: Type of document
+ *               expiry_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional expiry date for the document (YYYY-MM-DD)
  *     responses:
  *       201:
  *         description: File uploaded successfully
@@ -85,7 +89,7 @@ router.post('/upload', jwtAuth, upload.single('file'), FileController.upload);
  *                 description: Files to upload (max 10 files, 10MB each)
  *               entity_type:
  *                 type: string
- *                 enum: [student, facility, placement, visa, job, agreement]
+ *                 enum: [student, facility, placement, visa, job, agreement, trainer]
  *                 description: Type of entity
  *               entity_id:
  *                 type: integer
@@ -94,6 +98,10 @@ router.post('/upload', jwtAuth, upload.single('file'), FileController.upload);
  *                 type: string
  *                 description: JSON array or comma-separated document types (must match number of files)
  *                 example: '["VISA_DOCUMENT","PASSPORT","AADHAAR"]'
+ *               expiry_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional expiry date for the documents (YYYY-MM-DD)
  *     responses:
  *       201:
  *         description: Files uploaded successfully

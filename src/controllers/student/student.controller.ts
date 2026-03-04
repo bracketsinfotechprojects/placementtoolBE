@@ -12,6 +12,7 @@ import ApiResponseUtility from '../../utilities/api-response.utility';
 // Interfaces
 import {
   ICreateStudent,
+  ICreateExternalStudent,
   IUpdateStudent,
   IStudentQueryParams
 } from '../../services/student/student.service';
@@ -56,6 +57,35 @@ export default class StudentController extends BaseController {
       console.log('🎉 Student created successfully with all related data!');
       ApiResponseUtility.createdSuccess(res, student, 'Student created successfully');
     }, 'Student creation failed');
+  }
+
+  // Create a new external student (no user account created)
+  static async createExternal(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentData: ICreateExternalStudent = {
+        first_name: req.body.first_name,
+        last_name: req.body.last_name,
+        dob: req.body.dob,
+        gender: req.body.gender,
+        nationality: req.body.nationality,
+        student_type: req.body.student_type || 'external',
+        status: req.body.status || 'active',
+
+        // Only these 3 related entities for external students
+        contact_details: req.body.contact_details,
+        visa_details: req.body.visa_details,
+        addresses: req.body.addresses
+
+        // NOTE: NO email/password - no user account created
+        // NOTE: NO eligibility_status, student_lifestyle, placement_preferences
+      };
+
+      // Create external student with limited related entities in a single transaction
+      const student = await StudentService.createExternalStudent(studentData);
+
+      console.log('🎉 External Student created successfully!');
+      ApiResponseUtility.createdSuccess(res, student, 'External student created successfully');
+    }, 'External student creation failed');
   }
 
   // Get student by ID

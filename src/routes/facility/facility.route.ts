@@ -6,6 +6,7 @@ import FacilityAgreementController from '../../controllers/facility/facility-agr
 import FacilityOrganizationController from '../../controllers/facility/facility-organization.controller';
 import FacilityDocumentController from '../../controllers/facility/facility-document.controller';
 import FacilityRuleController from '../../controllers/facility/facility-rule.controller';
+import { uploadMultiple } from '../../configs/multer.config';
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ const router = express.Router();
  * @swagger
  * /api/facilities:
  *   post:
- *     summary: Create facility
+ *     summary: Create facility with optional agreement document uploads
  *     tags:
  *       - Facilities
  *     security:
@@ -40,7 +41,7 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -65,29 +66,42 @@ const router = express.Router();
  *                 type: string
  *                 format: email
  *                 example: "admin@sunshinecare.com.au"
- *                 description: "Email address for facility login (optional, use either this OR login object)"
  *               password:
  *                 type: string
  *                 example: "SecurePass123"
- *                 description: "Password for facility login (optional, use either this OR login object)"
- *               login:
- *                 type: object
- *                 description: "Alternative way to provide login credentials (use either this OR email/password)"
- *                 properties:
- *                   email:
- *                     type: string
- *                     format: email
- *                     example: "admin@sunshinecare.com.au"
- *                   password:
- *                     type: string
- *                     example: "SecurePass123"
+ *               states_covered:
+ *                 type: string
+ *                 example: '["NSW", "VIC"]'
+ *               categories:
+ *                 type: string
+ *                 example: '["Aged Care"]'
+ *               agreements:
+ *                 type: string
+ *                 example: '[{"has_mou": true, "signed_on": "2024-01-01", "expiry_date": "2025-12-31"}]'
+ *                 description: JSON string array of agreements
+ *               mou_document_0:
+ *                 type: string
+ *                 format: binary
+ *                 description: MOU document for first agreement (index 0)
+ *               insurance_doc_0:
+ *                 type: string
+ *                 format: binary
+ *                 description: Insurance document for first agreement (index 0)
+ *               mou_document_1:
+ *                 type: string
+ *                 format: binary
+ *                 description: MOU document for second agreement (index 1)
+ *               insurance_doc_1:
+ *                 type: string
+ *                 format: binary
+ *                 description: Insurance document for second agreement (index 1)
  *     responses:
  *       201:
  *         description: Created
  *       401:
  *         description: Unauthorized
  */
-router.post('/', FacilityController.create);
+router.post('/', uploadMultiple.any(), FacilityController.create);
 
 /**
  * @swagger
@@ -873,7 +887,7 @@ router.delete('/branches/:id', FacilityBranchController.delete);
  * @swagger
  * /api/facilities/{facilityId}/agreements:
  *   post:
- *     summary: Create agreement
+ *     summary: Create agreement with optional document uploads
  *     tags:
  *       - Facility Agreements
  *     security:
@@ -884,11 +898,101 @@ router.delete('/branches/:id', FacilityBranchController.delete);
  *         required: true
  *         schema:
  *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sent_students:
+ *                 type: boolean
+ *                 example: true
+ *               with_mou:
+ *                 type: boolean
+ *                 example: true
+ *               no_mou_but_taken:
+ *                 type: boolean
+ *                 example: false
+ *               mou_exists_no_spot:
+ *                 type: boolean
+ *                 example: false
+ *               total_students:
+ *                 type: integer
+ *                 example: 10
+ *               last_placement:
+ *                 type: string
+ *                 format: date
+ *                 example: "2024-01-15"
+ *               has_mou:
+ *                 type: boolean
+ *                 example: true
+ *               signed_on:
+ *                 type: string
+ *                 format: date
+ *                 example: "2024-01-01"
+ *               expiry_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-12-31"
+ *               company_name:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Company A", "Company B"]
+ *               payment_required:
+ *                 type: boolean
+ *                 example: false
+ *               amount_per_spot:
+ *                 type: number
+ *                 example: 0
+ *               payment_notes:
+ *                 type: string
+ *                 example: "No payment required"
+ *               mou_document:
+ *                 type: string
+ *                 format: binary
+ *                 description: MOU document file (PDF, Images, Word, Excel)
+ *               insurance_doc:
+ *                 type: string
+ *                 format: binary
+ *                 description: Insurance document file (PDF, Images, Word, Excel)
  *     responses:
  *       201:
  *         description: Created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Agreement created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     agreement_id:
+ *                       type: integer
+ *                       example: 1
+ *                     facility_id:
+ *                       type: integer
+ *                       example: 1
+ *                     mou_document:
+ *                       type: string
+ *                       example: "uploads/facility-agreements/1/MOU_DOCUMENT_xxx.pdf"
+ *                     insurance_doc:
+ *                       type: string
+ *                       example: "uploads/facility-agreements/1/INSURANCE_DOCUMENT_xxx.pdf"
+ *       401:
+ *         description: Unauthorized
  */
-router.post('/:facilityId/agreements', FacilityAgreementController.create);
+router.post('/:facilityId/agreements', uploadMultiple.fields([
+  { name: 'mou_document', maxCount: 1 },
+  { name: 'insurance_doc', maxCount: 1 }
+]), FacilityAgreementController.create);
 
 /**
  * @swagger
@@ -936,7 +1040,7 @@ router.get('/agreements/:id', FacilityAgreementController.getById);
  * @swagger
  * /api/facilities/agreements/{id}:
  *   put:
- *     summary: Update agreement
+ *     summary: Update agreement with optional document uploads
  *     tags:
  *       - Facility Agreements
  *     security:
@@ -947,11 +1051,62 @@ router.get('/agreements/:id', FacilityAgreementController.getById);
  *         required: true
  *         schema:
  *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sent_students:
+ *                 type: boolean
+ *               with_mou:
+ *                 type: boolean
+ *               no_mou_but_taken:
+ *                 type: boolean
+ *               mou_exists_no_spot:
+ *                 type: boolean
+ *               total_students:
+ *                 type: integer
+ *               last_placement:
+ *                 type: string
+ *                 format: date
+ *               has_mou:
+ *                 type: boolean
+ *               signed_on:
+ *                 type: string
+ *                 format: date
+ *               expiry_date:
+ *                 type: string
+ *                 format: date
+ *               company_name:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               payment_required:
+ *                 type: boolean
+ *               amount_per_spot:
+ *                 type: number
+ *               payment_notes:
+ *                 type: string
+ *               mou_document:
+ *                 type: string
+ *                 format: binary
+ *                 description: MOU document file (PDF, Images, Word, Excel)
+ *               insurance_doc:
+ *                 type: string
+ *                 format: binary
+ *                 description: Insurance document file (PDF, Images, Word, Excel)
  *     responses:
  *       200:
  *         description: Updated
+ *       401:
+ *         description: Unauthorized
  */
-router.put('/agreements/:id', FacilityAgreementController.update);
+router.put('/agreements/:id', uploadMultiple.fields([
+  { name: 'mou_document', maxCount: 1 },
+  { name: 'insurance_doc', maxCount: 1 }
+]), FacilityAgreementController.update);
 
 /**
  * @swagger

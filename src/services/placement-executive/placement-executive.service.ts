@@ -1,18 +1,91 @@
-import { getRepository, getConnection } from 'typeorm';
+import { getRepository, getConnection, EntityManager } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
+import sanitize from 'sanitize-filename';
+import { Express } from 'express';
 import { PlacementExecutive } from '../../entities/placement-executive/placement-executive.entity';
 import { User } from '../../entities/user/user.entity';
+import { File, EntityType, DocumentType } from '../../entities/file/file.entity';
 import PlacementExecutiveRepository, { IPlacementExecutiveQueryParams } from '../../repositories/placement-executive.repository';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import RoleService from '../role/role.service';
 import { StringError } from '../../errors/string.error';
 
-const create = async (params: ICreatePlacementExecutive) => {
+/**
+ * Upload photograph and create file record within transaction
+ */
+const uploadPhotograph = async (
+  file: Express.Multer.File,
+  executiveId: number,
+  manager: EntityManager
+): Promise<string> => {
+  // Validate file type for images
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error('Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed for photographs.');
+  }
+
+  // Generate folder path
+  const folderPath = path.join('uploads', 'placement_executives', executiveId.toString());
+
+  // Ensure directory exists
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true, mode: 0o755 });
+  }
+
+  // Generate secure filename
+  const ext = path.extname(file.originalname).toLowerCase();
+  const timestamp = Date.now();
+  const filename = `PHOTOGRAPH_${timestamp}${ext}`;
+  const fullPath = path.join(folderPath, filename);
+
+  // Move file from temp location
+  fs.renameSync(file.path, fullPath);
+  fs.chmodSync(fullPath, 0o644);
+
+  // Create file record within the transaction
+  const fileRecord = new File();
+  fileRecord.entity_type = EntityType.PLACEMENT_EXECUTIVE;
+  fileRecord.entity_id = executiveId;
+  fileRecord.doc_type = DocumentType.PHOTOGRAPH;
+  fileRecord.file_path = fullPath.replace(/\\/g, '/');
+  fileRecord.file_name = file.originalname;
+  fileRecord.mime_type = file.mimetype;
+  fileRecord.file_size = file.size;
+  fileRecord.version = 1;
+  fileRecord.expiry_date = null;
+
+  await manager.save(fileRecord);
+
+  console.log(`✅ Photograph uploaded: ${fullPath}`);
+
+  return fullPath.replace(/\\/g, '/');
+};
+
+/**
+ * Cleanup photograph on rollback
+ */
+const cleanupPhotograph = (photographPath: string) => {
+  try {
+    if (photographPath && fs.existsSync(photographPath)) {
+      fs.unlinkSync(photographPath);
+      console.log(`🗑️ Cleaned up photograph file: ${photographPath}`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to cleanup photograph file:', error);
+  }
+};
+
+const create = async (params: ICreatePlacementExecutive, photographFile?: Express.Multer.File) => {
   if (!params.full_name) {
     throw new Error('full_name is required');
   }
   if (!params.mobile_number) {
     throw new Error('mobile_number is required');
+  }
+  if (!params.email) {
+    throw new Error('email is required');
   }
   if (!params.joining_date) {
     throw new Error('joining_date is required');
@@ -32,6 +105,8 @@ const create = async (params: ICreatePlacementExecutive) => {
 
   await queryRunner.connect();
   await queryRunner.startTransaction();
+
+  let photographPath: string | null = null;
 
   try {
     // Check if email already exists (if provided)
@@ -59,7 +134,7 @@ const create = async (params: ICreatePlacementExecutive) => {
     executive.full_name = params.full_name;
     executive.mobile_number = params.mobile_number;
     executive.email = params.email;
-    executive.photograph = params.photograph;
+    executive.photograph = null; // Will be updated after file upload
     executive.joining_date = new Date(params.joining_date);
     executive.employment_type = params.employment_type;
     executive.facility_types_handled = params.facility_types_handled || [];
@@ -86,6 +161,20 @@ const create = async (params: ICreatePlacementExecutive) => {
       user_id: savedUser.id
     });
 
+    // Upload photograph if provided (within transaction)
+    if (photographFile) {
+      photographPath = await uploadPhotograph(
+        photographFile,
+        savedExecutive.executive_id,
+        queryRunner.manager
+      );
+
+      // Update placement executive with photograph path
+      await queryRunner.manager.update(PlacementExecutive, { executive_id: savedExecutive.executive_id }, {
+        photograph: photographPath
+      });
+    }
+
     await queryRunner.commitTransaction();
 
     console.log(`✅ Created placement executive with user account (userID=${savedUser.id}, executiveID=${savedExecutive.executive_id})`);
@@ -93,8 +182,17 @@ const create = async (params: ICreatePlacementExecutive) => {
     return await PlacementExecutiveRepository.findById(savedExecutive.executive_id);
 
   } catch (error) {
-    await queryRunner.rollbackTransaction();
+    // Only rollback if transaction was started and not committed
+    if (queryRunner.isTransactionActive) {
+      await queryRunner.rollbackTransaction();
+    }
     console.error('❌ Transaction failed, rolling back all changes:', error);
+
+    // Cleanup uploaded file if it was moved
+    if (photographPath) {
+      cleanupPhotograph(photographPath);
+    }
+
     throw error;
   } finally {
     await queryRunner.release();
@@ -169,10 +267,9 @@ const permanentlyDelete = async (id: number) => {
 export interface ICreatePlacementExecutive {
   full_name: string;
   mobile_number: string;
-  email?: string;
-  photograph?: string;
+  email: string;
   joining_date: string | Date;
-  employment_type: 'full-time' | 'part-time' | 'contract';
+  employment_type: string[];
   facility_types_handled?: string[];
   login: {
     userID: string;
@@ -187,7 +284,7 @@ export interface IUpdatePlacementExecutive {
   email?: string;
   photograph?: string;
   joining_date?: string | Date;
-  employment_type?: 'full-time' | 'part-time' | 'contract';
+  employment_type?: string[];
   facility_types_handled?: string[];
 }
 

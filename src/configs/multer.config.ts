@@ -68,7 +68,7 @@ export const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB max file size
-    files: 1 // Only one file at a time
+    files: 10 // Allow multiple files for fields like photograph, id_proof, etc.
   }
 });
 

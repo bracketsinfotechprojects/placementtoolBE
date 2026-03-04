@@ -10,9 +10,12 @@ export enum EntityType {
   STUDENT = 'student',
   FACILITY = 'facility',
   PLACEMENT = 'placement',
+  PLACEMENT_EXECUTIVE = 'placement_executive',
   VISA = 'visa',
   JOB = 'job',
-  AGREEMENT = 'agreement'
+  AGREEMENT = 'agreement',
+  TRAINER = 'trainer',
+  FACILITY_SUPERVISOR = 'facility_supervisor'
 }
 
 export enum DocumentType {
@@ -26,6 +29,15 @@ export enum DocumentType {
   INSURANCE_DOCUMENT = 'INSURANCE_DOCUMENT',
   PLACEMENT_DOCUMENT = 'PLACEMENT_DOCUMENT',
   JOB_OFFER = 'JOB_OFFER',
+  WORK_CHILD_CHECK = 'WORK_CHILD_CHECK',
+  POLICE_CHECK = 'POLICE_CHECK',
+  ACCRED_CERT = 'ACCRED_CERT',
+  FIRSTAID_CERT = 'FIRSTAID_CERT',
+  INSURANCE_DOCS = 'INSURANCE_DOCS',
+  RESUME = 'RESUME',
+  PHOTOGRAPH = 'PHOTOGRAPH',
+  ID_PROOF = 'ID_PROOF',
+  AUTHORIZATION_LETTER = 'AUTHORIZATION_LETTER',
   OTHER = 'OTHER'
 }
 
@@ -125,6 +137,14 @@ export class File {
     comment: 'Timestamp when file was uploaded'
   })
   uploaded_at: Date;
+
+  @Column({
+    type: 'date',
+    nullable: true,
+    name: 'expiry_date',
+    comment: 'Optional expiry date for the document'
+  })
+  expiry_date: Date | null;
 
   // Helper methods
   getFileExtension(): string {

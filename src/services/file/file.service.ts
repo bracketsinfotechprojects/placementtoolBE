@@ -9,6 +9,8 @@ import { StringError } from '../../errors/string.error';
 import { getRepository } from 'typeorm';
 import { Student } from '../../entities/student/student.entity';
 import { Facility } from '../../entities/facility/facility.entity';
+import { Trainer } from '../../entities/trainer/trainer.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
 
 export default class FileService {
   
@@ -34,6 +36,25 @@ export default class FileService {
           where: { facility_id: entityId, isDeleted: false } 
         });
         exists = !!facility;
+        break;
+      
+      case EntityType.TRAINER:
+        const trainer = await getRepository(Trainer).findOne({ 
+          where: { trainer_id: entityId, isDeleted: false } 
+        });
+        exists = !!trainer;
+        break;
+      
+      case EntityType.FACILITY_SUPERVISOR:
+        const facilitySupervisor = await getRepository(FacilitySupervisor).findOne({ 
+          where: { supervisor_id: entityId, isDeleted: false } 
+        });
+        exists = !!facilitySupervisor;
+        break;
+      
+      case EntityType.PLACEMENT_EXECUTIVE:
+        // For now, skip validation (entity is created in the same transaction)
+        exists = true;
         break;
       
       // Add other entity types as needed
@@ -154,7 +175,7 @@ export default class FileService {
    * Upload file
    */
   static async uploadFile(params: IUploadFileParams): Promise<File> {
-    const { file, entity_type, entity_id, doc_type } = params;
+    const { file, entity_type, entity_id, doc_type, expiry_date } = params;
 
     // 1. Validate entity exists
     await this.validateEntityExists(entity_type, entity_id);
@@ -203,6 +224,9 @@ export default class FileService {
     // 10. Calculate version number
     const version = existingFile ? existingFile.version + 1 : 1;
 
+    // Convert expiry_date string to Date if provided
+    const expiryDate = expiry_date ? new Date(expiry_date) : null;
+
     // 11. Save file metadata to database
     const fileRecord = await FileRepository.create({
       entity_type,
@@ -212,7 +236,8 @@ export default class FileService {
       file_name: file.originalname,
       mime_type: file.mimetype,
       file_size: file.size,
-      version
+      version,
+      expiry_date: expiryDate
     });
 
     console.log(`✅ File record created in database: ID ${fileRecord.id}`);
@@ -393,7 +418,12 @@ export default class FileService {
    * Upload multiple files
    */
   static async uploadMultipleFiles(params: IUploadMultipleFilesParams): Promise<File[]> {
-    const { files, entity_type, entity_id, doc_types } = params;
+    const { files, entity_type, entity_id, doc_types, expiry_dates } = params;
+    
+    console.log('📤 uploadMultipleFiles called with:', { 
+      fileCount: files.length, 
+      expiry_dates 
+    });
 
     // Validate entity exists once
     await this.validateEntityExists(entity_type, entity_id);
@@ -405,6 +435,22 @@ export default class FileService {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const doc_type = doc_types[i];
+      // Get the corresponding expiry_date for this file, or use null if not provided
+      const expiryDateStr = expiry_dates?.[i];
+      let expiryDate: Date | null = null;
+      
+      console.log(`📝 Processing file ${i + 1}: expiryDateStr = "${expiryDateStr}"`);
+      
+      if (expiryDateStr && expiryDateStr.trim()) {
+        // Try to parse the date
+        const parsedDate = new Date(expiryDateStr);
+        console.log(`📝 Parsed date: ${parsedDate}, isValid: ${!isNaN(parsedDate.getTime())}`);
+        if (!isNaN(parsedDate.getTime())) {
+          expiryDate = parsedDate;
+        } else {
+          console.warn(`⚠️ Invalid expiry_date format: "${expiryDateStr}", skipping for this file`);
+        }
+      }
 
       try {
         // Validate file type
@@ -444,6 +490,8 @@ export default class FileService {
         // Calculate version number
         const version = existingFile ? existingFile.version + 1 : 1;
 
+        console.log(`💾 Saving file with expiry_date:`, expiryDate);
+
         // Save file metadata to database
         const fileRecord = await FileRepository.create({
           entity_type,
@@ -453,11 +501,11 @@ export default class FileService {
           file_name: file.originalname,
           mime_type: file.mimetype,
           file_size: file.size,
-          version
+          version,
+          expiry_date: expiryDate
         });
 
-        uploadedFiles.push(fileRecord);
-        console.log(`✅ File record created: ID ${fileRecord.id}`);
+        console.log(`✅ File record created: ID ${fileRecord.id}, expiry_date: ${fileRecord.expiry_date}`);
 
       } catch (error: any) {
         // Clean up file if it exists
@@ -507,6 +555,7 @@ export interface IUploadFileParams {
   entity_type: EntityType;
   entity_id: number;
   doc_type: DocumentType;
+  expiry_date?: string;
 }
 
 export interface IListFilesParams {
@@ -528,4 +577,5 @@ export interface IUploadMultipleFilesParams {
   entity_type: EntityType;
   entity_id: number;
   doc_types: DocumentType[];
+  expiry_dates?: string[]; // Array of expiry dates for each file
 }

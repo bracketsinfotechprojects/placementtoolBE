@@ -98,7 +98,7 @@ export class FacilityAgreement extends BaseEntity {
   expiry_date: Date;
 
   @Column({ 
-    type: 'json', 
+    type: 'json',
     nullable: true,
     name: 'company_name',
     comment: 'Array of company names'

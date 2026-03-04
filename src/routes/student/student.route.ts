@@ -318,6 +318,172 @@ router.post('/', StudentController.create);
 
 /**
  * @swagger
+ * /api/students/external:
+ *   post:
+ *     summary: Create new external student
+ *     description: |
+ *       Create a new external student with basic profile including contact details, visa, and addresses only.
+ *       NO user account is created for external students - they cannot log into the system.
+ *       
+ *       This API is for students who are tracked in the system but don't need user accounts.
+ *       All data is created in a single transaction.
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - first_name
+ *               - last_name
+ *               - dob
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *                 example: "External"
+ *               last_name:
+ *                 type: string
+ *                 example: "Student"
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *                 example: "2000-03-15"
+ *               gender:
+ *                 type: string
+ *                 example: "male"
+ *               nationality:
+ *                 type: string
+ *                 example: "Indian"
+ *               student_type:
+ *                 type: string
+ *                 enum: [external]
+ *                 default: "external"
+ *                 example: "external"
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *                 default: "active"
+ *                 example: "active"
+ *               contact_details:
+ *                 type: object
+ *                 properties:
+ *                   primary_mobile:
+ *                     type: string
+ *                     example: "+91-9876543210"
+ *                   email:
+ *                     type: string
+ *                     example: "external@example.com"
+ *                   emergency_contact:
+ *                     type: string
+ *                     example: "+91-9876543211"
+ *                   contact_type:
+ *                     type: string
+ *                     enum: [mobile, landline, whatsapp]
+ *                     example: "mobile"
+ *                   is_primary:
+ *                     type: boolean
+ *                     example: true
+ *                   verified_at:
+ *                     type: string
+ *                     format: date-time
+ *               visa_details:
+ *                 type: object
+ *                 properties:
+ *                   visa_type:
+ *                     type: string
+ *                     example: "Work Permit"
+ *                   visa_number:
+ *                     type: string
+ *                     example: "WP123456789"
+ *                   start_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2025-09-01"
+ *                   expiry_date:
+ *                     type: string
+ *                     format: date
+ *                     example: "2027-09-01"
+ *                   status:
+ *                     type: string
+ *                     enum: [active, expired, revoked, pending]
+ *                     example: "active"
+ *                   issuing_country:
+ *                     type: string
+ *                     example: "Canada"
+ *                   document_path:
+ *                     type: string
+ *                     example: "/documents/work_permit.pdf"
+ *               addresses:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     line1:
+ *                       type: string
+ *                       example: "22 Tech Valley"
+ *                     city:
+ *                       type: string
+ *                       example: "Bangalore"
+ *                     state:
+ *                       type: string
+ *                       example: "Karnataka"
+ *                     country:
+ *                       type: string
+ *                       example: "India"
+ *                     postal_code:
+ *                       type: string
+ *                       example: "560001"
+ *                     address_type:
+ *                       type: string
+ *                       enum: [current, permanent, temporary, mailing]
+ *                       example: "current"
+ *                     is_primary:
+ *                       type: boolean
+ *                       example: true
+ *     responses:
+ *       201:
+ *         description: External student created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "External student created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     student_id:
+ *                       type: integer
+ *                       example: 124
+ *                     first_name:
+ *                       type: string
+ *                       example: "External"
+ *                     last_name:
+ *                       type: string
+ *                       example: "Student"
+ *                     student_type:
+ *                       type: string
+ *                       example: "external"
+ *       400:
+ *         description: Validation error or missing required fields
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error - transaction rolled back, no data saved
+ */
+router.post('/external', StudentController.createExternal);
+
+/**
+ * @swagger
  * /api/students:
  *   get:
  *     summary: List students
@@ -426,6 +592,16 @@ router.get('/', StudentController.list);
  *           - Multiple (comma): ?course_completed=Frontend,Backend
  *         example: "Frontend,Backend"
  *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Filter by student work progress status. Supports multiple values.
+ *           Examples:
+ *           - Single: ?status=active
+ *           - Multiple (comma): ?status=active,graduated,completed
+ *         example: "active,graduated"
+ *       - in: query
  *         name: checklist_approval
  *         schema:
  *           type: string
@@ -492,7 +668,9 @@ router.get('/', StudentController.list);
  *                         example: "Sydney"
  *                       status:
  *                         type: string
+ *                         enum: [active, graduated, completed, internship_completed, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, withdrawn]
  *                         example: "active"
+ *                         description: Student work progress status
  *                       checklist_approval:
  *                         type: boolean
  *                         example: true

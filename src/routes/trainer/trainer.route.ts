@@ -1,5 +1,5 @@
 import express from 'express';
-import PlacementExecutiveController from '../../controllers/placement-executive/placement-executive.controller';
+import TrainerController from '../../controllers/trainer/trainer.controller';
 import { upload } from '../../configs/multer.config';
 
 const router = express.Router();
@@ -7,17 +7,17 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   - name: Placement Executives
- *     description: Placement Executive management endpoints
+ *   - name: Trainers
+ *     description: Trainer management endpoints
  */
 
 /**
  * @swagger
- * /api/placement-executives:
+ * /api/trainers:
  *   post:
- *     summary: Create new placement executive with optional photograph
+ *     summary: Create new trainer with optional photograph
  *     tags:
- *       - Placement Executives
+ *       - Trainers
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -27,41 +27,95 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - full_name
+ *               - first_name
+ *               - last_name
+ *               - gender
+ *               - date_of_birth
  *               - mobile_number
  *               - email
- *               - joining_date
- *               - employment_type
  *               - login
  *             properties:
- *               full_name:
+ *               first_name:
  *                 type: string
- *                 example: "John Smith"
+ *                 example: "John"
+ *               last_name:
+ *                 type: string
+ *                 example: "Doe"
+ *               gender:
+ *                 type: string
+ *                 example: "Male"
+ *               date_of_birth:
+ *                 type: string
+ *                 format: date
+ *                 example: "1990-01-15"
  *               mobile_number:
  *                 type: string
- *                 example: "0412345678"
+ *                 example: "0912345678"
+ *               alternate_contact:
+ *                 type: string
+ *                 example: "0912345679"
  *               email:
  *                 type: string
  *                 format: email
- *                 example: "john.smith@example.com"
+ *                 example: "john.doe@example.com"
+ *               trainer_type:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Full-time", "Part-time"]
+ *               course_auth:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["CHC33021 - Certificate III in Individual Support", "CHC43021 - Certificate IV in Ageing Support"]
+ *               acc_numbers:
+ *                 type: string
+ *                 example: "ACC123456"
+ *               yoe:
+ *                 type: integer
+ *                 example: 5
+ *               state_covered:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["NSW", "VIC"]
+ *               cities_covered:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Sydney", "Melbourne"]
+ *               available_days:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Monday", "Tuesday", "Wednesday"]
+ *               time_slots:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["09:00-12:00", "14:00-17:00"]
+ *               suprise_visit:
+ *                 type: boolean
+ *                 example: true
+ *               wwchildcheck:
+ *                 type: integer
+ *                 example: 1
+ *                 description: "0=Pending, 1=Approved, 2=Expired"
+ *               wwcExpiryDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-12-31"
+ *               policeCheckNumber:
+ *                 type: string
+ *                 example: "POL-2024-12345"
+ *               policeCheckExpiryDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2025-06-30"
  *               photograph:
  *                 type: string
  *                 format: binary
  *                 description: Photograph file (JPEG, PNG, GIF, WebP)
- *               joining_date:
- *                 type: string
- *                 format: date
- *                 example: "2024-01-15"
- *               employment_type:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["full-time", "part-time"]
- *               facility_types_handled:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["Aged Care", "Disability"]
  *               login:
  *                 type: object
  *                 required:
@@ -71,7 +125,7 @@ const router = express.Router();
  *                   userID:
  *                     type: string
  *                     description: User ID for login
- *                     example: "john.smith"
+ *                     example: "john.doe"
  *                   password:
  *                     type: string
  *                     description: Password for login
@@ -89,33 +143,33 @@ const router = express.Router();
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Placement Executive created successfully"
+ *                   example: "Trainer created successfully"
  *                 data:
  *                   type: object
  *                   properties:
- *                     executive_id:
+ *                     trainer_id:
  *                       type: integer
  *                       example: 1
  *                     full_name:
  *                       type: string
- *                       example: "John Smith"
+ *                       example: "John Doe"
  *                     photograph:
  *                       type: string
- *                       example: "/uploads/placement_executives/1/PHOTOGRAPH_xxx.jpg"
+ *                       example: "/uploads/trainers/1/PHOTOGRAPH_xxx.jpg"
  *       400:
  *         description: Bad Request
  *       401:
  *         description: Unauthorized
  */
-router.post('/', upload.single('photograph'), PlacementExecutiveController.create);
+router.post('/', upload.single('photograph'), TrainerController.create);
 
 /**
  * @swagger
- * /api/placement-executives:
+ * /api/trainers:
  *   get:
- *     summary: List placement executives
+ *     summary: List trainers
  *     tags:
- *       - Placement Executives
+ *       - Trainers
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -123,17 +177,17 @@ router.post('/', upload.single('photograph'), PlacementExecutiveController.creat
  *         name: keyword
  *         schema:
  *           type: string
- *         description: Search in name, email, or mobile number
+ *         description: Search in name or email
  *       - in: query
- *         name: employment_type
+ *         name: trainer_type
  *         schema:
  *           type: string
- *         description: Filter by employment type
+ *         description: Filter by trainer type
  *       - in: query
  *         name: sort_by
  *         schema:
  *           type: string
- *           enum: [executive_id, full_name, joining_date, employment_type, createdAt]
+ *           enum: [trainer_id, first_name, email, createdAt]
  *           default: createdAt
  *       - in: query
  *         name: sort_order
@@ -154,44 +208,16 @@ router.post('/', upload.single('photograph'), PlacementExecutiveController.creat
  *     responses:
  *       200:
  *         description: Success
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Placement Executives retrieved successfully"
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                 pagination:
- *                   type: object
- *                   properties:
- *                     total:
- *                       type: integer
- *                     page:
- *                       type: integer
- *                     limit:
- *                       type: integer
- *                     totalPages:
- *                       type: integer
- *       401:
- *         description: Unauthorized
  */
-router.get('/', PlacementExecutiveController.list);
+router.get('/', TrainerController.list);
 
 /**
  * @swagger
- * /api/placement-executives/{id}:
+ * /api/trainers/{id}:
  *   get:
- *     summary: Get placement executive by ID
+ *     summary: Get trainer by ID
  *     tags:
- *       - Placement Executives
+ *       - Trainers
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -205,18 +231,16 @@ router.get('/', PlacementExecutiveController.list);
  *         description: Success
  *       404:
  *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
-router.get('/:id', PlacementExecutiveController.getById);
+router.get('/:id', TrainerController.getById);
 
 /**
  * @swagger
- * /api/placement-executives/{id}:
+ * /api/trainers/{id}:
  *   put:
- *     summary: Update placement executive
+ *     summary: Update trainer
  *     tags:
- *       - Placement Executives
+ *       - Trainers
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -232,47 +256,34 @@ router.get('/:id', PlacementExecutiveController.getById);
  *           schema:
  *             type: object
  *             properties:
- *               full_name:
+ *               first_name:
  *                 type: string
- *                 example: "John Smith Updated"
+ *               last_name:
+ *                 type: string
+ *               gender:
+ *                 type: string
  *               mobile_number:
  *                 type: string
- *                 example: "0412345679"
  *               email:
  *                 type: string
  *                 format: email
- *                 example: "john.smith.updated@example.com"
- *               joining_date:
- *                 type: string
- *                 format: date
- *                 example: "2024-02-01"
- *               employment_type:
+ *               trainer_type:
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["part-time", "contract"]
- *               facility_types_handled:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["Aged Care", "Home Care"]
  *     responses:
  *       200:
  *         description: Updated
- *       404:
- *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
-router.put('/:id', PlacementExecutiveController.update);
+router.put('/:id', TrainerController.update);
 
 /**
  * @swagger
- * /api/placement-executives/{id}:
+ * /api/trainers/{id}:
  *   delete:
- *     summary: Soft delete placement executive
+ *     summary: Soft delete trainer
  *     tags:
- *       - Placement Executives
+ *       - Trainers
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -284,20 +295,16 @@ router.put('/:id', PlacementExecutiveController.update);
  *     responses:
  *       200:
  *         description: Deleted
- *       404:
- *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
-router.delete('/:id', PlacementExecutiveController.delete);
+router.delete('/:id', TrainerController.delete);
 
 /**
  * @swagger
- * /api/placement-executives/{id}/permanent:
+ * /api/trainers/{id}/permanent:
  *   delete:
- *     summary: Permanently delete placement executive
+ *     summary: Permanently delete trainer
  *     tags:
- *       - Placement Executives
+ *       - Trainers
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -309,11 +316,7 @@ router.delete('/:id', PlacementExecutiveController.delete);
  *     responses:
  *       200:
  *         description: Permanently Deleted
- *       404:
- *         description: Not Found
- *       401:
- *         description: Unauthorized
  */
-router.delete('/:id/permanent', PlacementExecutiveController.permanentlyDelete);
+router.delete('/:id/permanent', TrainerController.permanentlyDelete);
 
 export default router;
