@@ -1,0 +1,40 @@
+{
+  "course_name": "Manual Handling Training",
+  "course_category": ["Manual Handling"],
+  "course_type": ["Accredited"],
+  "course_scope": ["Aged Care", "Disability"],
+  
+  "course_date": "2026-03-15",
+  "day_of_week": "Monday",
+  "reporting_time": "09:00:00",
+  "expected_end_time": "13:00:00",
+  "total_duration": "4 hours",
+  "mode": ["Onsite"],
+  
+  "training_location": "ABC Training Center",
+  "address": "123 Training Street, Sydney NSW 2000",
+  "city": "Sydney",
+  "google_maps_link": "https://maps.google.com/?q=123+Training+Street+Sydney",
+  
+  "total_seats": 20,
+  "seats_remaining": 15,
+  "seat_status": "Available",
+  "last_booking_date": "2026-03-10",
+  
+  "certificate_issued": false,
+  "certificate_type": ["Digital"],
+  "certificate_validity": "12 months",
+  "issuing_authority": ["Institute"],
+  "certificate_issue_timeline": "Same Day",
+  
+  "target_audience": ["External", "Internal"],
+  "documents_required": ["ID Proof", "Payment Receipt"],
+  "pre_course_requirement": ["Online Module"],
+  
+  "dress_code": "Comfortable clothing, closed-toe shoes",
+  "items_to_bring": ["Notebook & Pen", "Water Bottle"],
+  "mobile_phone_policy": "Silent",
+  
+  "trainer_id": 1,
+  "created_by": "admin"
+}
