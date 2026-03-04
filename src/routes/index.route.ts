@@ -14,6 +14,8 @@ import placementExecutiveRouter from './placement-executive/placement-executive.
 import trainerRouter from './trainer/trainer.route';
 import courseSlotsRouter from './course-slots/course-slots.route';
 import courseAssignmentRouter from './course-assignment/course-assignment.route';
+import placementSlotRouter from './placement-slot/placement-slot.route';
+import placementAssignmentRouter from './placement-assignment/placement-assignment.route';
 import cleanupRouter from './admin/cleanup.route';
 import activationRouter from './common/activation.route';
 import fileRouter from './file/file.route';
@@ -34,6 +36,8 @@ router.use('/placement-executives', jwtAuth, placementExecutiveRouter); // Authe
 router.use('/trainers', jwtAuth, trainerRouter); // Authenticated users
 router.use('/course-slots', jwtAuth, courseSlotsRouter); // Authenticated users
 router.use('/course-assignments', jwtAuth, courseAssignmentRouter); // Authenticated users
+router.use('/placement-slots', jwtAuth, placementSlotRouter); // Authenticated users
+router.use('/placement-assignments', jwtAuth, placementAssignmentRouter); // Authenticated users
 router.use('/files', jwtAuth, fileRouter); // File upload and management
 router.use('/admin/cleanup', jwtAuth, adminOnly, cleanupRouter); // Admin only
 
