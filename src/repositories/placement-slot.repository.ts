@@ -178,8 +178,31 @@ export default class PlacementSlotRepository {
     sortBy: string = 'placementslot_id',
     sortOrder: string = 'DESC'
   ): SelectQueryBuilder<PlacementSlot> {
+    // Whitelist of valid sort columns to prevent SQL errors
+    const validSortColumns = [
+      'placementslot_id',
+      'facility_id',
+      'placementslot_type',
+      'course_applicable',
+      'total_slots_offered',
+      'placement_start_date',
+      'placement_end_date',
+      'total_hours_required',
+      'urgent_requirement',
+      'priority_category',
+      'shift_type',
+      'working_days',
+      'gender_preference',
+      'placement_fee_status',
+      'work_hour_limit',
+      'created_by',
+      'created_at'
+    ];
+
+    // Default to placementslot_id if invalid column provided
+    const validSortBy = validSortColumns.includes(sortBy) ? sortBy : 'placementslot_id';
     const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-    return query.orderBy(`placementSlot.${sortBy}`, order);
+    return query.orderBy(`placementSlot.${validSortBy}`, order);
   }
 
   static applyPagination(

@@ -59,7 +59,7 @@ router.post('/', PlacementAssignmentController.create);
  * @swagger
  * /api/placement-assignments:
  *   get:
- *     summary: List placement assignments with filters and pagination
+ *     summary: List placement assignments with full details and pagination
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -120,7 +120,7 @@ router.post('/', PlacementAssignmentController.create);
  *         description: Page number
  *     responses:
  *       200:
- *         description: Success
+ *         description: List of placement assignments with related placement slot and student details
  *         content:
  *           application/json:
  *             schema:
@@ -133,7 +133,16 @@ router.post('/', PlacementAssignmentController.create);
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/PlacementAssignment'
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/PlacementAssignment'
+ *                       - type: object
+ *                         properties:
+ *                           placementSlot:
+ *                             type: object
+ *                             description: Full placement slot details
+ *                           student:
+ *                             type: object
+ *                             description: Full student details
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -194,7 +203,7 @@ router.get('/slot/:slotId', PlacementAssignmentController.getBySlotId);
  * @swagger
  * /api/placement-assignments/student/{studentId}:
  *   get:
- *     summary: Get all assignments for a specific student
+ *     summary: Get all assignments for a specific student with full details
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -208,7 +217,7 @@ router.get('/slot/:slotId', PlacementAssignmentController.getBySlotId);
  *         description: Student ID
  *     responses:
  *       200:
- *         description: Success
+ *         description: List of placement assignments with related placement slot details
  *         content:
  *           application/json:
  *             schema:
@@ -219,7 +228,16 @@ router.get('/slot/:slotId', PlacementAssignmentController.getBySlotId);
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/PlacementAssignment'
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/PlacementAssignment'
+ *                       - type: object
+ *                         properties:
+ *                           placementSlot:
+ *                             type: object
+ *                             description: Full placement slot details
+ *                           student:
+ *                             type: object
+ *                             description: Full student details
  *       401:
  *         description: Unauthorized
  *       404:
