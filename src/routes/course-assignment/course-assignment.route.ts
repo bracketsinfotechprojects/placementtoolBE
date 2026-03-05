@@ -85,7 +85,7 @@ router.post(
  * @swagger
  * /api/course-assignments:
  *   get:
- *     summary: Get all course assignments
+ *     summary: Get all course assignments with full details
  *     tags:
  *       - CourseAssignments
  *     security:
@@ -114,7 +114,7 @@ router.post(
  *         description: Filter by status
  *     responses:
  *       200:
- *         description: List of course assignments
+ *         description: List of course assignments with related course, trainer and student details
  *         content:
  *           application/json:
  *             schema:
@@ -129,7 +129,19 @@ router.post(
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/CourseAssignment'
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/CourseAssignment'
+ *                       - type: object
+ *                         properties:
+ *                           course:
+ *                             type: object
+ *                             description: Full course details
+ *                           trainer:
+ *                             type: object
+ *                             description: Full trainer details
+ *                           student:
+ *                             type: object
+ *                             description: Full student details
  *       401:
  *         description: Unauthorized
  *       500:
@@ -143,6 +155,9 @@ router.get(
       const { course_id, trainer_id, student_id, status } = req.query;
       
       const queryBuilder = courseAssignmentRepository.createQueryBuilder('assignment')
+        .leftJoinAndSelect('assignment.course', 'course')
+        .leftJoinAndSelect('assignment.trainer', 'trainer')
+        .leftJoinAndSelect('assignment.student', 'student')
         .where('assignment.isDeleted = :isDeleted', { isDeleted: false });
       
       if (course_id) {

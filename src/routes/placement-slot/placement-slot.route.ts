@@ -162,7 +162,7 @@ router.post('/', PlacementSlotController.create);
  *         name: sort_by
  *         schema:
  *           type: string
- *           default: slot_id
+ *           default: placementslot_id
  *         description: Field to sort by
  *       - in: query
  *         name: sort_order
