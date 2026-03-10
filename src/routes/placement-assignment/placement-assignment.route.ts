@@ -1,5 +1,9 @@
 import express from 'express';
 import PlacementAssignmentController from '../../controllers/placement-assignment/placement-assignment.controller';
+import { getRepository } from 'typeorm';
+import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
+import PlacementAssignmentService from '../../services/assignment/placement-assignment.service';
+import AssignmentService from '../../services/assignment/assignment.service';
 
 const router = express.Router();
 
@@ -339,5 +343,281 @@ router.put('/:id', PlacementAssignmentController.update);
  *         description: Not found
  */
 router.delete('/:id', PlacementAssignmentController.delete);
+
+/**
+ * @swagger
+ * /api/placement-assignments/placement-slots/{placementSlotId}/students:
+ *   get:
+ *     summary: Get all students assigned to a specific placement slot
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: placementSlotId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Placement Slot ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
+ *         description: Filter by assignment status, defaults to Assigned
+ *     responses:
+ *       200:
+ *         description: Placement slot details with assigned students
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 placementslot_id:
+ *                   type: integer
+ *                   example: 1
+ *                 total_students:
+ *                   type: integer
+ *                   example: 5
+ *                 placement_slot:
+ *                   type: object
+ *                   properties:
+ *                     placementslot_id:
+ *                       type: integer
+ *                     facility_id:
+ *                       type: string
+ *                     placementslot_type:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     placement_start_date:
+ *                       type: string
+ *                       format: date
+ *                     placement_end_date:
+ *                       type: string
+ *                       format: date
+ *                     total_slots_offered:
+ *                       type: integer
+ *                     shift_type:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     shift_timings:
+ *                       type: string
+ *                 students:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       assignment_id:
+ *                         type: integer
+ *                       start_date:
+ *                         type: string
+ *                         format: date
+ *                         nullable: true
+ *                       end_date:
+ *                         type: string
+ *                         format: date
+ *                         nullable: true
+ *                       status:
+ *                         type: string
+ *                         enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
+ *                       notes:
+ *                         type: string
+ *                         nullable: true
+ *                       student:
+ *                         type: object
+ *                         properties:
+ *                           student_id:
+ *                             type: integer
+ *                           first_name:
+ *                             type: string
+ *                           last_name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                             nullable: true
+ *                           phone:
+ *                             type: string
+ *                             nullable: true
+ *                           status:
+ *                             type: string
+ *       404:
+ *         description: Placement slot not found or no students assigned
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/placement-slots/:placementSlotId/students',
+  async (req: any, res: any) => {
+    try {
+      const { placementSlotId } = req.params;
+      const { status } = req.query;
+      
+      const result = await PlacementAssignmentService.getStudentsForPlacementSlot(
+        parseInt(placementSlotId), 
+        { status }
+      );
+      
+      if (!result) {
+        return res.status(404).json(
+          AssignmentService.createErrorResponse('No students found for this placement slot')
+        );
+      }
+      
+      return res.status(200).json(result);
+      
+    } catch (error: any) {
+      console.error('Error fetching placement slot students:', error);
+      return res.status(500).json(
+        AssignmentService.createErrorResponse(
+          error.message || 'Failed to fetch placement slot students'
+        )
+      );
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/placement-assignments/facilities/{facilityId}/placement-slots:
+ *   get:
+ *     summary: Get all placement slots for a facility with their assigned students
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: facilityId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Facility ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
+ *         description: Filter by assignment status, defaults to Assigned
+ *     responses:
+ *       200:
+ *         description: List of placement slots with their assigned students
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 facility_id:
+ *                   type: string
+ *                   example: "1"
+ *                 total_students:
+ *                   type: integer
+ *                   example: 15
+ *                 placement_slots_count:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       placement_slot:
+ *                         type: object
+ *                         properties:
+ *                           placementslot_id:
+ *                             type: integer
+ *                           facility_id:
+ *                             type: string
+ *                           placementslot_type:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           placement_start_date:
+ *                             type: string
+ *                             format: date
+ *                           placement_end_date:
+ *                             type: string
+ *                             format: date
+ *                           total_slots_offered:
+ *                             type: integer
+ *                       students:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             assignment_id:
+ *                               type: integer
+ *                             start_date:
+ *                               type: string
+ *                               format: date
+ *                               nullable: true
+ *                             end_date:
+ *                               type: string
+ *                               format: date
+ *                               nullable: true
+ *                             status:
+ *                               type: string
+ *                             student:
+ *                               type: object
+ *                               properties:
+ *                                 student_id:
+ *                                   type: integer
+ *                                 first_name:
+ *                                   type: string
+ *                                 last_name:
+ *                                   type: string
+ *                                 email:
+ *                                   type: string
+ *                                   nullable: true
+ *                                 phone:
+ *                                   type: string
+ *                                   nullable: true
+ *       404:
+ *         description: No placement slots found for this facility
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/facilities/:facilityId/placement-slots',
+  async (req: any, res: any) => {
+    try {
+      const { facilityId } = req.params;
+      const { status } = req.query;
+      
+      const result = await PlacementAssignmentService.getPlacementSlotsForFacility(
+        facilityId, 
+        { status }
+      );
+      
+      if (!result) {
+        return res.status(404).json(
+          AssignmentService.createErrorResponse('No placement slots found for this facility')
+        );
+      }
+      
+      return res.status(200).json(result);
+      
+    } catch (error: any) {
+      console.error('Error fetching facility placement slots:', error);
+      return res.status(500).json(
+        AssignmentService.createErrorResponse(
+          error.message || 'Failed to fetch facility placement slots'
+        )
+      );
+    }
+  }
+);
 
 export default router;
