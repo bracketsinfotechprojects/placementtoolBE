@@ -1,6 +1,8 @@
 import express from 'express';
 import { getRepository } from 'typeorm';
 import { CourseAssignment } from '../../entities/course-assignment/course-assignment.entity';
+import CourseAssignmentService from '../../services/assignment/course-assignment.service';
+import AssignmentService from '../../services/assignment/assignment.service';
 
 const router = express.Router();
 
@@ -409,6 +411,305 @@ router.delete(
           message: error.message || 'Failed to delete course assignment'
         }
       });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/course-assignments/trainer/{trainerId}/students:
+ *   get:
+ *     summary: Get all students assigned to courses (optionally filtered by trainer)
+ *     tags:
+ *       - CourseAssignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: trainerId
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Trainer ID (optional - use 'all' to get students from all trainers)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: ['Active', 'Completed', 'Dropped']
+ *         description: Filter by assignment status, defaults to Active
+ *       - in: query
+ *         name: course_id
+ *         schema:
+ *           type: integer
+ *         description: Filter by specific course ID
+ *     responses:
+ *       200:
+ *         description: List of courses with their enrolled students
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 trainer_id:
+ *                   type: integer
+ *                   nullable: true
+ *                   example: 1
+ *                 total_students:
+ *                   type: integer
+ *                   example: 15
+ *                 courses_count:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       course:
+ *                         type: object
+ *                         properties:
+ *                           course_id:
+ *                             type: integer
+ *                           course_name:
+ *                             type: string
+ *                           course_category:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           course_date:
+ *                             type: string
+ *                             format: date
+ *                           training_location:
+ *                             type: string
+ *                           address:
+ *                             type: string
+ *                           city:
+ *                             type: string
+ *                       students:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             assignment_id:
+ *                               type: integer
+ *                             enrollment_date:
+ *                               type: string
+ *                               format: date
+ *                             status:
+ *                               type: string
+ *                               enum: ['Active', 'Completed', 'Dropped']
+ *                             student:
+ *                               type: object
+ *                               properties:
+ *                                 student_id:
+ *                                   type: integer
+ *                                 first_name:
+ *                                   type: string
+ *                                 last_name:
+ *                                   type: string
+ *                                 email:
+ *                                   type: string
+ *                                   nullable: true
+ *                                 phone:
+ *                                   type: string
+ *                                   nullable: true
+ *                                 status:
+ *                                   type: string
+ *       404:
+ *         description: No students found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "No students found"
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/trainer/:trainerId/students',
+  async (req: any, res: any) => {
+    try {
+      const { trainerId } = req.params;
+      const { status, course_id } = req.query;
+      
+      const result = await CourseAssignmentService.getStudentsForTrainer(
+        trainerId, 
+        { status, course_id }
+      );
+      
+      if (!result) {
+        const message = trainerId && trainerId !== 'all' 
+          ? 'No students found for this trainer' 
+          : 'No students found';
+        return res.status(404).json(
+          AssignmentService.createErrorResponse(message)
+        );
+      }
+      
+      return res.status(200).json(result);
+      
+    } catch (error: any) {
+      console.error('Error fetching course students:', error);
+      return res.status(500).json(
+        AssignmentService.createErrorResponse(
+          error.message || 'Failed to fetch course students'
+        )
+      );
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/course-assignments/courses/{courseId}/students:
+ *   get:
+ *     summary: Get all students enrolled in a specific course
+ *     tags:
+ *       - CourseAssignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Course ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: ['Active', 'Completed', 'Dropped']
+ *         description: Filter by assignment status, defaults to Active
+ *     responses:
+ *       200:
+ *         description: Course details with enrolled students
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 course_id:
+ *                   type: integer
+ *                   example: 1
+ *                 total_students:
+ *                   type: integer
+ *                   example: 15
+ *                 course:
+ *                   type: object
+ *                   properties:
+ *                     course_id:
+ *                       type: integer
+ *                     course_name:
+ *                       type: string
+ *                     course_category:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     course_date:
+ *                       type: string
+ *                       format: date
+ *                     training_location:
+ *                       type: string
+ *                     address:
+ *                       type: string
+ *                     city:
+ *                       type: string
+ *                 students:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       assignment_id:
+ *                         type: integer
+ *                       enrollment_date:
+ *                         type: string
+ *                         format: date
+ *                       status:
+ *                         type: string
+ *                         enum: ['Active', 'Completed', 'Dropped']
+ *                       student:
+ *                         type: object
+ *                         properties:
+ *                           student_id:
+ *                             type: integer
+ *                           first_name:
+ *                             type: string
+ *                           last_name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                             nullable: true
+ *                           phone:
+ *                             type: string
+ *                             nullable: true
+ *                           status:
+ *                             type: string
+ *       404:
+ *         description: Course not found or no students enrolled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "No students found for this course"
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/courses/:courseId/students',
+  async (req: any, res: any) => {
+    try {
+      const { courseId } = req.params;
+      const { status } = req.query;
+      
+      const result = await CourseAssignmentService.getStudentsForCourse(
+        parseInt(courseId), 
+        { status }
+      );
+      
+      if (!result) {
+        return res.status(404).json(
+          AssignmentService.createErrorResponse('No students found for this course')
+        );
+      }
+      
+      return res.status(200).json(result);
+      
+    } catch (error: any) {
+      console.error('Error fetching course students:', error);
+      return res.status(500).json(
+        AssignmentService.createErrorResponse(
+          error.message || 'Failed to fetch course students'
+        )
+      );
     }
   }
 );
