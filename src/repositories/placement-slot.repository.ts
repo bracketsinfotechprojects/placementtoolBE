@@ -179,6 +179,17 @@ export default class PlacementSlotRepository {
     sortOrder: string = 'DESC'
   ): SelectQueryBuilder<PlacementSlot> {
     const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Validate that the sortBy column exists in the entity
+    const validColumns = ['placementslot_id', 'facility_id', 'created_by', 'created_at', 
+      'placement_start_date', 'placement_end_date', 'total_slots_offered', 'urgent_requirement',
+      'placement_fee_status', 'work_hour_limit', 'is_deleted'];
+
+    if (!validColumns.includes(sortBy)) {
+      // Default to placementslot_id if invalid column provided
+      return query.orderBy('placementSlot.placementslot_id', order);
+    }
+
     return query.orderBy(`placementSlot.${sortBy}`, order);
   }
 
