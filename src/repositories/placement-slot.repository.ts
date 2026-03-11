@@ -181,9 +181,18 @@ export default class PlacementSlotRepository {
     const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     // Validate that the sortBy column exists in the entity
-    const validColumns = ['placementslot_id', 'facility_id', 'created_by', 'created_at', 
-      'placement_start_date', 'placement_end_date', 'total_slots_offered', 'urgent_requirement',
-      'placement_fee_status', 'work_hour_limit', 'is_deleted'];
+    const validColumns = [
+      'placementslot_id', 'facility_id', 'created_by', 'created_at', 'is_deleted',
+      'placementslot_type', 'course_applicable', 'total_slots_offered',
+      'placement_start_date', 'placement_end_date', 'total_hours_required',
+      'expected_duration', 'shift_type', 'shift_timings', 'working_days',
+      'mandatory_courses', 'documents_required', 'allowed_visa_types',
+      'work_hour_limit', 'work_hour_limit_details', 'gender_preference',
+      'dress_code', 'attendance_rules', 'leave_policy', 'behaviour_expectations',
+      'placement_fee', 'placement_fee_status', 'invoice_required',
+      'special_commercial_terms', 'urgent_requirement', 'priority_category',
+      'restrictions', 'not_comfortable_with'
+    ];
 
     if (!validColumns.includes(sortBy)) {
       // Default to placementslot_id if invalid column provided
