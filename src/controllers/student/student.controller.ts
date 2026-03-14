@@ -38,6 +38,13 @@ export default class StudentController extends BaseController {
         status: req.body.status || 'active',
         email: email,
         password: password,
+        
+        // Pass login object with status (if provided)
+        login: req.body.login ? {
+          email: req.body.login.email,
+          password: req.body.login.password,
+          status: req.body.login.status
+        } : undefined,
 
         // Pass all related entities
         contact_details: req.body.contact_details,
