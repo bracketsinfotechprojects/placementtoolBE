@@ -41,6 +41,66 @@ export default class TrainerController extends BaseController {
     }, 'Create trainer');
   }
 
+  static async bulkUpload(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      if (!req.file) {
+        throw new Error('Excel file is required');
+      }
+
+      // Validate file type
+      const allowedMimeTypes = [
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+      
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        throw new Error('Only Excel files (.xls, .xlsx) are allowed');
+      }
+
+      console.log(`📁 Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
+      console.log(`📂 File path: ${req.file.path}`);
+      console.log(`📋 MIME type: ${req.file.mimetype}`);
+
+      try {
+        const result = await TrainerService.bulkUpload(req.file.path);
+        
+        console.log(`✅ Bulk upload result:`, {
+          success: result.success,
+          totalRows: result.totalRows,
+          successCount: result.successCount,
+          failureCount: result.failureCount,
+          errorCount: result.errors.length
+        });
+
+        if (result.success) {
+          ApiResponseUtility.success(res, result, 'Bulk upload completed successfully');
+        } else {
+          // For failures, still return 200 with the result data but log the errors
+          console.error('❌ Bulk upload failed with errors:', result.errors);
+          res.status(200).json({
+            success: false,
+            message: 'Bulk upload failed - see errors for details',
+            data: result
+          });
+        }
+      } catch (error) {
+        console.error('❌ Bulk upload exception:', error.message);
+        console.error('❌ Full error:', error);
+        throw error;
+      }
+    }, 'Bulk upload trainers');
+  }
+
+  static async downloadTemplate(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const templateBuffer = TrainerService.generateTemplate();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=trainer_upload_template.xlsx');
+      res.send(templateBuffer);
+    }, 'Download trainer template');
+  }
+
   static async getById(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
