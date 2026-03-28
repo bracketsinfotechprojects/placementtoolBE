@@ -354,6 +354,27 @@ export default class FileService {
   }
 
   /**
+   * Deactivate all files for a specific entity and document type
+   * Used when uploading a new file to replace old ones
+   */
+  static async deactivateEntityFiles(
+    entityType: EntityType,
+    entityId: number,
+    docType: DocumentType
+  ): Promise<void> {
+    const files = await FileRepository.findByEntityAndDocType(entityType, entityId, docType);
+    
+    if (files && files.length > 0) {
+      for (const file of files) {
+        if (file.is_active) {
+          await FileRepository.softDelete(file.id);
+          console.log(`🗑️ Deactivated old file: ${file.file_path} (${docType})`);
+        }
+      }
+    }
+  }
+
+  /**
    * Delete file permanently (removes from disk and database)
    */
   static async permanentlyDeleteFile(id: number): Promise<void> {
