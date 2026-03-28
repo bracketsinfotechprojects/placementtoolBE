@@ -55,6 +55,25 @@ export default class FileRepository {
   }
 
   /**
+   * Find files by entity and document type (case-insensitive)
+   */
+  static async findByEntityAndDocTypeCaseInsensitive(
+    entityType: EntityType,
+    entityId: number,
+    docType: string
+  ): Promise<File[]> {
+    return await getRepository(File)
+      .createQueryBuilder('file')
+      .where('file.entity_type = :entityType', { entityType })
+      .andWhere('file.entity_id = :entityId', { entityId })
+      .andWhere('UPPER(file.doc_type) = UPPER(:docType)', { docType })
+      .andWhere('file.is_active = :is_active', { is_active: true })
+      .orderBy('file.version', 'DESC')
+      .addOrderBy('file.uploaded_at', 'DESC')
+      .getMany();
+  }
+
+  /**
    * Get latest version of a specific document
    */
   static async getLatestVersion(

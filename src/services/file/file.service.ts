@@ -329,6 +329,17 @@ export default class FileService {
   }
 
   /**
+   * Get files by entity and document type (case-insensitive)
+   */
+  static async getFilesByEntityAndDocTypeCaseInsensitive(
+    entityType: EntityType,
+    entityId: number,
+    docType: string
+  ): Promise<File[]> {
+    return await FileRepository.findByEntityAndDocTypeCaseInsensitive(entityType, entityId, docType);
+  }
+
+  /**
    * Delete file (soft delete)
    */
   static async deleteFile(id: number): Promise<void> {

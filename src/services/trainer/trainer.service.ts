@@ -10,6 +10,7 @@ import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import ExcelUtility, { IExcelValidationError, IExcelProcessResult } from '../../utilities/excel.utility';
 import RoleService from '../role/role.service';
+import FileService from '../file/file.service';
 import { StringError } from '../../errors/string.error';
 
 /**
@@ -238,10 +239,25 @@ const getById = async (id: number) => {
   if (!trainer) {
     throw new StringError('Trainer does not exist');
   }
-  return trainer;
+
+  // Get photograph file from files table (case-insensitive search for doc_type)
+  const photographFiles = await FileService.getFilesByEntityAndDocTypeCaseInsensitive(
+    EntityType.TRAINER,
+    id,
+    'PHOTOGRAPH'
+  );
+
+  // Add photograph URL to trainer object if exists
+  const trainerWithPhoto = {
+    ...trainer,
+    photograph_url: photographFiles.length > 0 ? photographFiles[0].file_path : null,
+    photograph_filename: photographFiles.length > 0 ? photographFiles[0].file_name : null
+  };
+
+  return trainerWithPhoto;
 };
 
-const update = async (params: IUpdateTrainer) => {
+const update = async (params: IUpdateTrainer, photographFile?: Express.Multer.File) => {
   const trainer = await TrainerRepository.findById(params.id);
   if (!trainer) {
     throw new StringError('Trainer does not exist');
@@ -255,6 +271,7 @@ const update = async (params: IUpdateTrainer) => {
     }
   }
 
+  // Prepare update data
   const updateData: Partial<Trainer> = {
     updatedAt: new Date()
   };
@@ -274,6 +291,7 @@ const update = async (params: IUpdateTrainer) => {
   if (params.cities_covered !== undefined) updateData.cities_covered = params.cities_covered;
   if (params.available_days !== undefined) updateData.available_days = params.available_days;
   if (params.time_slots !== undefined) updateData.time_slots = params.time_slots;
+  
   // Convert suprise_visit for update operations
   const convertSupriseVisitForUpdate = (value: any): number => {
     if (value === undefined || value === null || value === '') return 0;
@@ -297,10 +315,68 @@ const update = async (params: IUpdateTrainer) => {
   if (params.wwcExpiryDate !== undefined) updateData.wwcExpiryDate = new Date(params.wwcExpiryDate);
   if (params.policeCheckNumber !== undefined) updateData.policeCheckNumber = params.policeCheckNumber;
   if (params.policeCheckExpiryDate !== undefined) updateData.policeCheckExpiryDate = new Date(params.policeCheckExpiryDate);
-  if (params.photograph !== undefined) updateData.photograph = params.photograph;
 
-  await getRepository(Trainer).update({ trainer_id: params.id }, updateData);
-  return await getById(params.id);
+  // If no photograph file, do simple update without transaction
+  if (!photographFile) {
+    await getRepository(Trainer).update({ trainer_id: params.id }, updateData);
+    console.log('✅ Trainer updated successfully (no file upload)');
+    return await getById(params.id);
+  }
+
+  // If photograph file is provided, use transaction
+  const queryRunner = getConnection().createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  let photographPath: string | null = null;
+
+  try {
+    // Update trainer data
+    await queryRunner.manager.update(Trainer, { trainer_id: params.id }, updateData);
+
+    // Deactivate old photograph files
+    await queryRunner.manager.update(
+      File,
+      { 
+        entity_type: EntityType.TRAINER, 
+        entity_id: params.id, 
+        is_active: true 
+      },
+      { is_active: false }
+    );
+
+    // Upload new photograph
+    photographPath = await uploadPhotograph(
+      photographFile,
+      params.id,
+      queryRunner.manager
+    );
+
+    // Update trainer with new photograph path
+    await queryRunner.manager.update(Trainer, { trainer_id: params.id }, {
+      photograph: photographPath
+    });
+
+    // Commit transaction
+    await queryRunner.commitTransaction();
+    console.log('✅ Trainer updated successfully with photograph upload');
+
+    return await getById(params.id);
+
+  } catch (error) {
+    // Rollback transaction on error
+    await queryRunner.rollbackTransaction();
+    console.error('❌ Error in trainer update, rolling back...', error.message);
+
+    // Cleanup uploaded file if it was moved
+    if (photographPath) {
+      cleanupPhotograph(photographPath);
+    }
+
+    throw error;
+  } finally {
+    await queryRunner.release();
+  }
 };
 
 const list = async (params: ITrainerQueryParams) => {

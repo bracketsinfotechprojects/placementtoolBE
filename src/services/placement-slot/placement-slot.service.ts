@@ -30,6 +30,7 @@ const create = async (params: ICreatePlacementSlot, createdByUserId: number) => 
     placementSlot.placementslot_type = params.placementslot_type || [];
     placementSlot.course_applicable = params.course_applicable || [];
     placementSlot.total_slots_offered = params.total_slots_offered;
+    placementSlot.remaining_seats = params.total_slots_offered; // Initialize remaining seats
     placementSlot.placement_start_date = params.placement_start_date ? new Date(params.placement_start_date) : null;
     placementSlot.placement_end_date = params.placement_end_date ? new Date(params.placement_end_date) : null;
     placementSlot.total_hours_required = params.total_hours_required;
@@ -109,52 +110,78 @@ const list = async (params: IPlacementSlotQueryParams) => {
 };
 
 const update = async (params: IUpdatePlacementSlot) => {
-  const slot = await PlacementSlotRepository.findById(params.id);
-  if (!slot) {
-    throw new StringError('Placement slot does not exist');
-  }
+  const connection = getConnection();
+  const queryRunner = connection.createQueryRunner();
 
-  const updateData: Partial<PlacementSlot> = {
-    facility_id: params.facility_id,
-    placementslot_type: params.placementslot_type,
-    course_applicable: params.course_applicable,
-    total_slots_offered: params.total_slots_offered,
-    placement_start_date: params.placement_start_date ? new Date(params.placement_start_date) : null,
-    placement_end_date: params.placement_end_date ? new Date(params.placement_end_date) : null,
-    total_hours_required: params.total_hours_required,
-    expected_duration: params.expected_duration,
-    shift_type: params.shift_type,
-    shift_timings: params.shift_timings,
-    working_days: params.working_days,
-    mandatory_courses: params.mandatory_courses,
-    documents_required: params.documents_required,
-    allowed_visa_types: params.allowed_visa_types,
-    work_hour_limit: params.work_hour_limit,
-    work_hour_limit_details: params.work_hour_limit_details,
-    gender_preference: params.gender_preference,
-    dress_code: params.dress_code,
-    attendance_rules: params.attendance_rules,
-    leave_policy: params.leave_policy,
-    behaviour_expectations: params.behaviour_expectations,
-    placement_fee: params.placement_fee,
-    placement_fee_status: params.placement_fee_status,
-    invoice_required: params.invoice_required,
-    special_commercial_terms: params.special_commercial_terms,
-    urgent_requirement: params.urgent_requirement,
-    priority_category: params.priority_category,
-    restrictions: params.restrictions,
-    not_comfortable_with: params.not_comfortable_with
-  };
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-  // Remove undefined fields
-  Object.keys(updateData).forEach(key => {
-    if (updateData[key as keyof Partial<PlacementSlot>] === undefined) {
-      delete (updateData as any)[key];
+  try {
+    const slot = await queryRunner.manager.findOne(PlacementSlot, {
+      where: { placementslot_id: params.id, is_deleted: false }
+    });
+
+    if (!slot) {
+      throw new StringError('Placement slot does not exist');
     }
-  });
 
-  await getRepository(PlacementSlot).update({ placementslot_id: params.id }, updateData);
-  return await detail(params.id);
+    const updateData: Partial<PlacementSlot> = {
+      facility_id: params.facility_id,
+      placementslot_type: params.placementslot_type,
+      course_applicable: params.course_applicable,
+      total_slots_offered: params.total_slots_offered,
+      placement_start_date: params.placement_start_date ? new Date(params.placement_start_date) : null,
+      placement_end_date: params.placement_end_date ? new Date(params.placement_end_date) : null,
+      total_hours_required: params.total_hours_required,
+      expected_duration: params.expected_duration,
+      shift_type: params.shift_type,
+      shift_timings: params.shift_timings,
+      working_days: params.working_days,
+      mandatory_courses: params.mandatory_courses,
+      documents_required: params.documents_required,
+      allowed_visa_types: params.allowed_visa_types,
+      work_hour_limit: params.work_hour_limit,
+      work_hour_limit_details: params.work_hour_limit_details,
+      gender_preference: params.gender_preference,
+      dress_code: params.dress_code,
+      attendance_rules: params.attendance_rules,
+      leave_policy: params.leave_policy,
+      behaviour_expectations: params.behaviour_expectations,
+      placement_fee: params.placement_fee,
+      placement_fee_status: params.placement_fee_status,
+      invoice_required: params.invoice_required,
+      special_commercial_terms: params.special_commercial_terms,
+      urgent_requirement: params.urgent_requirement,
+      priority_category: params.priority_category,
+      restrictions: params.restrictions,
+      not_comfortable_with: params.not_comfortable_with
+    };
+
+    // Handle remaining_seats when total_slots_offered changes
+    if (params.total_slots_offered !== undefined && params.total_slots_offered !== slot.total_slots_offered) {
+      const bookedSeats = (slot.total_slots_offered || 0) - (slot.remaining_seats || 0);
+      updateData.remaining_seats = Math.max(0, params.total_slots_offered - bookedSeats);
+    }
+
+    // Remove undefined fields
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key as keyof Partial<PlacementSlot>] === undefined) {
+        delete (updateData as any)[key];
+      }
+    });
+
+    await queryRunner.manager.update(PlacementSlot, { placementslot_id: params.id }, updateData);
+
+    await queryRunner.commitTransaction();
+
+    return await detail(params.id);
+
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    throw error;
+  } finally {
+    await queryRunner.release();
+  }
 };
 
 const remove = async (id: number) => {
