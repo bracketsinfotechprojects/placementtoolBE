@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import BaseController from '../base.controller';
 import FacilityAgreementService from '../../services/facility/facility-agreement.service';
 import ApiResponseUtility from '../../utilities/api-response.utility';
+import FileService from '../../services/file/file.service';
+import { EntityType, DocumentType } from '../../entities/file/file.entity';
 
 export default class FacilityAgreementController extends BaseController {
   static async create(req: Request, res: Response) {
@@ -74,14 +76,52 @@ export default class FacilityAgreementController extends BaseController {
         }
       }
       
-      // Prepare files object
-      const agreementFiles = files ? {
-        mou_document: files.mou_document?.[0],
-        insurance_doc: files.insurance_doc?.[0]
-      } : undefined;
+      // Helper function to check if value is provided and not empty
+      const hasValue = (value: any) => {
+        return value !== undefined && value !== null && value !== '';
+      };
       
-      const agreement = await FacilityAgreementService.update({ id, ...bodyData }, agreementFiles);
-      ApiResponseUtility.success(res, agreement, 'Agreement updated successfully');
+      // Build update data object - only include fields with actual values
+      const updateData: any = { id };
+      
+      if (hasValue(bodyData.sent_students)) updateData.sent_students = bodyData.sent_students;
+      if (hasValue(bodyData.with_mou)) updateData.with_mou = bodyData.with_mou;
+      if (hasValue(bodyData.no_mou_but_taken)) updateData.no_mou_but_taken = bodyData.no_mou_but_taken;
+      if (hasValue(bodyData.mou_exists_no_spot)) updateData.mou_exists_no_spot = bodyData.mou_exists_no_spot;
+      if (hasValue(bodyData.total_students)) updateData.total_students = bodyData.total_students;
+      if (hasValue(bodyData.last_placement)) updateData.last_placement = bodyData.last_placement;
+      if (hasValue(bodyData.has_mou)) updateData.has_mou = bodyData.has_mou;
+      if (hasValue(bodyData.signed_on)) updateData.signed_on = bodyData.signed_on;
+      if (hasValue(bodyData.expiry_date)) updateData.expiry_date = bodyData.expiry_date;
+      if (bodyData.company_name !== undefined && bodyData.company_name !== null && bodyData.company_name !== '') {
+        updateData.company_name = bodyData.company_name;
+      }
+      if (hasValue(bodyData.payment_required)) updateData.payment_required = bodyData.payment_required;
+      if (hasValue(bodyData.amount_per_spot)) updateData.amount_per_spot = bodyData.amount_per_spot;
+      if (hasValue(bodyData.payment_notes)) updateData.payment_notes = bodyData.payment_notes;
+      
+      try {
+        // Deactivate old files if new ones are being uploaded
+        if (files?.mou_document?.[0]) {
+          await FileService.deactivateEntityFiles(EntityType.AGREEMENT, id, DocumentType.MOU_DOCUMENT);
+        }
+        if (files?.insurance_doc?.[0]) {
+          await FileService.deactivateEntityFiles(EntityType.AGREEMENT, id, DocumentType.INSURANCE_DOCUMENT);
+        }
+        
+        // Prepare files object
+        const agreementFiles = files ? {
+          mou_document: files.mou_document?.[0],
+          insurance_doc: files.insurance_doc?.[0]
+        } : undefined;
+        
+        const agreement = await FacilityAgreementService.update(updateData, agreementFiles);
+        ApiResponseUtility.success(res, agreement, 'Agreement updated successfully');
+        
+      } catch (error: any) {
+        console.error('❌ Error in agreement update:', error.message);
+        throw error;
+      }
     });
   }
 

@@ -497,7 +497,12 @@ router.get('/:id', FacilityController.getById);
  * @swagger
  * /api/facilities/{id}:
  *   put:
- *     summary: Update facility
+ *     summary: Update facility with optional agreement document uploads
+ *     description: |
+ *       Update facility information with support for uploading agreement documents.
+ *       If agreement documents are provided, they will update the first agreement record.
+ *       Only upload new documents if provided in the request.
+ *       If new documents are uploaded, old documents will be deactivated.
  *     tags:
  *       - Facilities
  *     security:
@@ -511,7 +516,7 @@ router.get('/:id', FacilityController.getById);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -530,13 +535,24 @@ router.get('/:id', FacilityController.getById);
  *               source_of_data:
  *                 type: string
  *                 example: "Updated Source"
+ *               mou_document:
+ *                 type: string
+ *                 format: binary
+ *                 description: New MOU document file (optional)
+ *               insurance_doc:
+ *                 type: string
+ *                 format: binary
+ *                 description: New insurance document file (optional)
  *     responses:
  *       200:
  *         description: Updated
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id', FacilityController.update);
+router.put('/:id', uploadMultiple.fields([
+  { name: 'mou_document', maxCount: 1 },
+  { name: 'insurance_doc', maxCount: 1 }
+]), FacilityController.update);
 
 /**
  * @swagger
