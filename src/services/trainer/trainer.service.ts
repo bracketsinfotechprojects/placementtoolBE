@@ -1,4 +1,4 @@
-import { getRepository, getConnection, EntityManager } from 'typeorm';
+import { getRepository, getConnection, EntityManager, In } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
@@ -8,6 +8,7 @@ import { File, EntityType, DocumentType } from '../../entities/file/file.entity'
 import TrainerRepository, { ITrainerQueryParams } from '../../repositories/trainer.repository';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
+import ExcelUtility, { IExcelValidationError, IExcelProcessResult } from '../../utilities/excel.utility';
 import RoleService from '../role/role.service';
 import { StringError } from '../../errors/string.error';
 
@@ -147,7 +148,25 @@ const create = async (params: ICreateTrainer, photographFile?: Express.Multer.Fi
     trainer.cities_covered = params.cities_covered || [];
     trainer.available_days = params.available_days || [];
     trainer.time_slots = params.time_slots || [];
-    trainer.suprise_visit = params.suprise_visit || 'no';
+    // Convert suprise_visit to integer format
+    const convertSupriseVisitValue = (value: any): number => {
+      if (value === undefined || value === null || value === '') return 0;
+      
+      const normalized = value.toString().trim().toLowerCase();
+      
+      // If user provides yes/no, convert to 1/0
+      if (normalized === 'yes' || normalized === 'true') return 1;
+      if (normalized === 'no' || normalized === 'false') return 0;
+      
+      // If user provides 1/0, keep as is (convert to number)
+      if (normalized === '1') return 1;
+      if (normalized === '0') return 0;
+      
+      // Default to 0 for any other value
+      return 0;
+    };
+
+    trainer.suprise_visit = convertSupriseVisitValue(params.suprise_visit);
     trainer.wwchildcheck = params.wwchildcheck;
     trainer.wwcExpiryDate = params.wwcExpiryDate ? new Date(params.wwcExpiryDate) : null;
     trainer.policeCheckNumber = params.policeCheckNumber;
@@ -255,7 +274,25 @@ const update = async (params: IUpdateTrainer) => {
   if (params.cities_covered !== undefined) updateData.cities_covered = params.cities_covered;
   if (params.available_days !== undefined) updateData.available_days = params.available_days;
   if (params.time_slots !== undefined) updateData.time_slots = params.time_slots;
-  if (params.suprise_visit !== undefined) updateData.suprise_visit = params.suprise_visit;
+  // Convert suprise_visit for update operations
+  const convertSupriseVisitForUpdate = (value: any): number => {
+    if (value === undefined || value === null || value === '') return 0;
+    
+    const normalized = value.toString().trim().toLowerCase();
+    
+    // If user provides yes/no, convert to 1/0
+    if (normalized === 'yes' || normalized === 'true') return 1;
+    if (normalized === 'no' || normalized === 'false') return 0;
+    
+    // If user provides 1/0, keep as is (convert to number)
+    if (normalized === '1') return 1;
+    if (normalized === '0') return 0;
+    
+    // Default to 0 for any other value
+    return 0;
+  };
+
+  if (params.suprise_visit !== undefined) updateData.suprise_visit = convertSupriseVisitForUpdate(params.suprise_visit);
   if (params.wwchildcheck !== undefined) updateData.wwchildcheck = params.wwchildcheck;
   if (params.wwcExpiryDate !== undefined) updateData.wwcExpiryDate = new Date(params.wwcExpiryDate);
   if (params.policeCheckNumber !== undefined) updateData.policeCheckNumber = params.policeCheckNumber;
@@ -309,7 +346,7 @@ export interface ICreateTrainer {
   cities_covered?: string[];
   available_days?: string[];
   time_slots?: string[];
-  suprise_visit?: string;
+  suprise_visit?: number; // Changed from string to number to match database
   wwchildcheck?: number;
   wwcExpiryDate?: string | Date;
   policeCheckNumber?: string;
@@ -320,6 +357,49 @@ export interface ICreateTrainer {
   };
   login_userID?: string;
   login_password?: string;
+}
+
+interface IBulkTrainerRow {
+  first_name: string;
+  last_name: string;
+  gender: string;
+  date_of_birth: string;
+  mobile_number: string;
+  alternate_contact?: string;
+  email: string;
+  trainer_type?: string;
+  course_auth?: string;
+  acc_numbers?: string;
+  yoe?: string;
+  state_covered?: string;
+  cities_covered?: string;
+  available_days?: string;
+  time_slots?: string;
+  suprise_visit?: string;
+  wwchildcheck?: string;
+  wwc_expiry_date?: string;
+  police_check_number?: string;
+  police_check_expiry_date?: string;
+  login_user_id: string;
+  login_password: string;
+}
+
+interface IBulkUploadResult {
+  success: boolean;
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  errors: Array<{
+    row: number;
+    email?: string;
+    errors: string[];
+  }>;
+  createdTrainers: Array<{
+    trainer_id: number;
+    email: string;
+    full_name: string;
+  }>;
+  transactionRolledBack?: boolean; // Indicates if transaction was rolled back due to failures
 }
 
 export interface IUpdateTrainer {
@@ -339,7 +419,7 @@ export interface IUpdateTrainer {
   cities_covered?: string[];
   available_days?: string[];
   time_slots?: string[];
-  suprise_visit?: string;
+  suprise_visit?: number; // Changed from string to number
   wwchildcheck?: number;
   wwcExpiryDate?: string | Date;
   policeCheckNumber?: string;
@@ -347,11 +427,420 @@ export interface IUpdateTrainer {
   photograph?: string;
 }
 
+const validateTrainerRow = (row: IBulkTrainerRow, rowIndex: number): string[] => {
+  const errors: string[] = [];
+
+  // Check if row has any meaningful data at all
+  const hasAnyData = Object.values(row).some(value => 
+    value && value.toString().trim() !== ''
+  );
+  
+  if (!hasAnyData) {
+    errors.push('Row appears to be empty or contains no meaningful data');
+    return errors; // Return early for completely empty rows
+  }
+
+  // Required field validations
+  if (!row.first_name?.trim()) errors.push('first_name is required');
+  if (!row.last_name?.trim()) errors.push('last_name is required');
+  if (!row.gender?.trim()) errors.push('gender is required');
+  if (!row.date_of_birth?.trim()) errors.push('date_of_birth is required');
+  if (!row.mobile_number?.trim()) errors.push('mobile_number is required');
+  if (!row.email?.trim()) errors.push('email is required');
+  if (!row.login_user_id?.trim()) errors.push('login_user_id is required');
+  if (!row.login_password?.trim()) errors.push('login_password is required');
+
+  // Email format validation
+  if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())) {
+    errors.push('Invalid email format');
+  }
+
+  // Date format validation
+  if (row.date_of_birth && isNaN(Date.parse(row.date_of_birth))) {
+    errors.push('Invalid date_of_birth format (use YYYY-MM-DD)');
+  }
+
+  // Gender validation
+  if (row.gender && !['Male', 'Female', 'Other'].includes(row.gender.trim())) {
+    errors.push('gender must be Male, Female, or Other');
+  }
+
+  // Mobile number validation (basic)
+  if (row.mobile_number && !/^\d{10,15}$/.test(row.mobile_number.replace(/\s+/g, ''))) {
+    errors.push('mobile_number must be 10-15 digits');
+  }
+
+  // WWC validation
+  if (row.wwchildcheck && !['0', '1', '2'].includes(row.wwchildcheck.trim())) {
+    errors.push('wwchildcheck must be 0 (Pending), 1 (Approved), or 2 (Expired)');
+  }
+
+  // YOE validation
+  if (row.yoe && (isNaN(Number(row.yoe)) || Number(row.yoe) < 0)) {
+    errors.push('yoe (Years of Experience) must be a positive number');
+  }
+
+  // Surprise visit validation - accept yes/no or 1/0 formats
+  if (row.suprise_visit && !['yes', 'no', 'true', 'false', '1', '0'].includes(row.suprise_visit.trim().toLowerCase())) {
+    errors.push('suprise_visit must be "yes"/"no" or "1"/"0" (will be converted to 1=yes, 0=no)');
+  }
+
+  // Date validations for optional date fields
+  if (row.wwc_expiry_date && row.wwc_expiry_date.trim() && isNaN(Date.parse(row.wwc_expiry_date))) {
+    errors.push('Invalid wwc_expiry_date format (use YYYY-MM-DD)');
+  }
+
+  if (row.police_check_expiry_date && row.police_check_expiry_date.trim() && isNaN(Date.parse(row.police_check_expiry_date))) {
+    errors.push('Invalid police_check_expiry_date format (use YYYY-MM-DD)');
+  }
+
+  return errors;
+};
+
+const convertRowToTrainer = (row: IBulkTrainerRow): ICreateTrainer => {
+  // Helper function to parse comma-separated values
+  const parseArray = (value?: string): string[] => {
+    if (!value?.trim()) return [];
+    return value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+  };
+
+  // Helper function to convert suprise_visit to proper integer format for database
+  const convertSupriseVisit = (value?: string): number => {
+    if (!value?.trim()) return 0; // Default to 0 (no)
+    const normalized = value.trim().toLowerCase();
+    
+    // If user provides yes/no, convert to 1/0
+    if (normalized === 'yes' || normalized === 'true') return 1;
+    if (normalized === 'no' || normalized === 'false') return 0;
+    
+    // If user provides 1/0, keep as is (convert to number)
+    if (normalized === '1') return 1;
+    if (normalized === '0') return 0;
+    
+    // Default to 0 for any other value
+    return 0;
+  };
+
+  return {
+    first_name: row.first_name.trim(),
+    last_name: row.last_name.trim(),
+    gender: row.gender.trim(),
+    date_of_birth: row.date_of_birth.trim(),
+    mobile_number: row.mobile_number.trim(),
+    alternate_contact: row.alternate_contact?.trim() || undefined,
+    email: row.email.trim().toLowerCase(),
+    trainer_type: parseArray(row.trainer_type),
+    course_auth: parseArray(row.course_auth),
+    acc_numbers: row.acc_numbers?.trim() || undefined,
+    yoe: row.yoe ? Number(row.yoe) : undefined,
+    state_covered: parseArray(row.state_covered),
+    cities_covered: parseArray(row.cities_covered),
+    available_days: parseArray(row.available_days),
+    time_slots: parseArray(row.time_slots),
+    suprise_visit: convertSupriseVisit(row.suprise_visit),
+    wwchildcheck: row.wwchildcheck ? Number(row.wwchildcheck) : undefined,
+    wwcExpiryDate: row.wwc_expiry_date?.trim() || undefined,
+    policeCheckNumber: row.police_check_number?.trim() || undefined,
+    policeCheckExpiryDate: row.police_check_expiry_date?.trim() || undefined,
+    login: {
+      userID: row.login_user_id.trim(),
+      password: row.login_password.trim()
+    }
+  };
+};
+
+const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
+  const result: IBulkUploadResult = {
+    success: false,
+    totalRows: 0,
+    successCount: 0,
+    failureCount: 0,
+    errors: [],
+    createdTrainers: []
+  };
+
+  // Single transaction for all operations
+  const connection = getConnection();
+  const queryRunner = connection.createQueryRunner();
+
+  try {
+    // Parse Excel file
+    const excelData = ExcelUtility.parseExcelFile<IBulkTrainerRow>(filePath);
+    result.totalRows = excelData.length;
+
+    console.log(`📋 Processing ${excelData.length} trainer records from Excel file`);
+
+    if (excelData.length === 0) {
+      throw new Error('Excel file contains no data rows with actual content');
+    }
+
+    // Capacity check
+    if (excelData.length > 2000) {
+      throw new Error(`File contains ${excelData.length} rows. Maximum allowed is 2000 records per upload. Please split into smaller files.`);
+    }
+
+    // Required columns for validation
+    const requiredFields = [
+      'first_name', 'last_name', 'gender', 'date_of_birth', 
+      'mobile_number', 'email', 'login_user_id', 'login_password'
+    ];
+
+    // Validate Excel structure
+    const structureErrors = ExcelUtility.validateExcelStructure(excelData, requiredFields);
+    if (structureErrors.length > 0) {
+      result.errors.push({
+        row: 0,
+        errors: structureErrors.map(err => err.message)
+      });
+      return result;
+    }
+
+    // PHASE 1: Validate ALL records first (before any database operations)
+    console.log('🔍 Phase 1: Validating all records...');
+    
+    const validationErrors: Array<{ row: number; email?: string; errors: string[] }> = [];
+    const validatedData: Array<{ rowIndex: number; data: ICreateTrainer }> = [];
+
+    for (let i = 0; i < excelData.length; i++) {
+      const rowIndex = i + 2; // Excel row number (accounting for header)
+      const row = excelData[i];
+
+      // Validate row data
+      const rowErrors = validateTrainerRow(row, rowIndex);
+      if (rowErrors.length > 0) {
+        validationErrors.push({
+          row: rowIndex,
+          email: row.email,
+          errors: rowErrors
+        });
+        continue;
+      }
+
+      // Convert row to trainer object
+      const trainerData = convertRowToTrainer(row);
+      validatedData.push({
+        rowIndex,
+        data: trainerData
+      });
+    }
+
+    // If ANY validation errors, fail the entire operation
+    if (validationErrors.length > 0) {
+      result.errors = validationErrors;
+      result.failureCount = validationErrors.length;
+      result.successCount = 0;
+      throw new Error(`Validation failed for ${validationErrors.length} records. All records must be valid for bulk upload to proceed.`);
+    }
+
+    // PHASE 2: Check for duplicates in database
+    console.log('🔍 Phase 2: Checking for duplicate emails and login IDs...');
+    
+    const allEmails = validatedData.map(item => item.data.email.toLowerCase());
+    const allLoginIds = validatedData.map(item => item.data.login.userID);
+
+    // Check for duplicates within the file itself
+    const emailDuplicates = allEmails.filter((email, index) => allEmails.indexOf(email) !== index);
+    const loginIdDuplicates = allLoginIds.filter((loginId, index) => allLoginIds.indexOf(loginId) !== index);
+
+    if (emailDuplicates.length > 0) {
+      throw new Error(`Duplicate emails found within the file: ${[...new Set(emailDuplicates)].join(', ')}`);
+    }
+
+    if (loginIdDuplicates.length > 0) {
+      throw new Error(`Duplicate login IDs found within the file: ${[...new Set(loginIdDuplicates)].join(', ')}`);
+    }
+
+    // Check for existing records in database
+    const [existingTrainers, existingUsers] = await Promise.all([
+      getRepository(Trainer).find({ where: { email: In(allEmails) } }),
+      getRepository(User).find({ where: { loginID: In(allLoginIds) } })
+    ]);
+
+    if (existingTrainers.length > 0) {
+      const existingEmails = existingTrainers.map(t => t.email).join(', ');
+      throw new Error(`The following emails already exist in the system: ${existingEmails}`);
+    }
+
+    if (existingUsers.length > 0) {
+      const existingLoginIds = existingUsers.map(u => u.loginID).join(', ');
+      throw new Error(`The following login IDs already exist in the system: ${existingLoginIds}`);
+    }
+
+    // PHASE 3: Pre-hash all passwords
+    console.log('🔐 Phase 3: Hashing passwords...');
+    
+    const passwordHashPromises = validatedData.map(async (item, index) => {
+      return {
+        index,
+        hashedPassword: await PasswordUtility.hashPassword(item.data.login.password)
+      };
+    });
+
+    const hashedPasswords = await Promise.all(passwordHashPromises);
+    const passwordMap = new Map(hashedPasswords.map(p => [p.index, p.hashedPassword]));
+
+    // PHASE 4: Get trainer role ID
+    const trainerRoleId = await RoleService.getRoleIdByName('Trainer');
+
+    // PHASE 5: Start single transaction for ALL database operations
+    console.log('💾 Phase 5: Starting database transaction for all records...');
+    
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    const createdTrainers: Array<{ trainer_id: number; email: string; full_name: string }> = [];
+
+    try {
+      // Process all records within the single transaction
+      for (let i = 0; i < validatedData.length; i++) {
+        const { data: trainerData } = validatedData[i];
+        
+        console.log(`📝 Creating trainer ${i + 1}/${validatedData.length}: ${trainerData.email}`);
+
+        // Create trainer
+        const trainer = new Trainer();
+        trainer.first_name = trainerData.first_name;
+        trainer.last_name = trainerData.last_name;
+        trainer.gender = trainerData.gender;
+        trainer.date_of_birth = new Date(trainerData.date_of_birth);
+        trainer.mobile_number = trainerData.mobile_number;
+        trainer.alternate_contact = trainerData.alternate_contact;
+        trainer.email = trainerData.email;
+        trainer.trainer_type = trainerData.trainer_type;
+        trainer.course_auth = trainerData.course_auth;
+        trainer.acc_numbers = trainerData.acc_numbers;
+        trainer.yoe = trainerData.yoe;
+        trainer.state_covered = trainerData.state_covered || [];
+        trainer.cities_covered = trainerData.cities_covered || [];
+        trainer.available_days = trainerData.available_days || [];
+        trainer.time_slots = trainerData.time_slots || [];
+        trainer.suprise_visit = trainerData.suprise_visit || 0;
+        trainer.wwchildcheck = trainerData.wwchildcheck;
+        trainer.wwcExpiryDate = trainerData.wwcExpiryDate ? new Date(trainerData.wwcExpiryDate) : null;
+        trainer.policeCheckNumber = trainerData.policeCheckNumber;
+        trainer.policeCheckExpiryDate = trainerData.policeCheckExpiryDate ? new Date(trainerData.policeCheckExpiryDate) : null;
+        trainer.photograph = null;
+        trainer.user_id = null;
+
+        const savedTrainer = await queryRunner.manager.save(trainer);
+
+        // Create user account with pre-hashed password
+        const user = new User();
+        user.loginID = trainerData.login.userID;
+        user.password = passwordMap.get(i); // Use pre-hashed password
+        user.roleID = trainerRoleId;
+        user.studentID = null;
+        user.facilityID = null;
+        user.supervisorID = null;
+        user.placementExecutiveID = null;
+        user.trainerID = savedTrainer.trainer_id;
+        user.status = 'active';
+
+        const savedUser = await queryRunner.manager.save(user);
+
+        // Update trainer with user_id
+        await queryRunner.manager.update(Trainer, { trainer_id: savedTrainer.trainer_id }, {
+          user_id: savedUser.id
+        });
+
+        createdTrainers.push({
+          trainer_id: savedTrainer.trainer_id,
+          email: savedTrainer.email,
+          full_name: `${savedTrainer.first_name} ${savedTrainer.last_name}`
+        });
+      }
+
+      // If we reach here, all records were processed successfully
+      await queryRunner.commitTransaction();
+      
+      result.success = true;
+      result.successCount = createdTrainers.length;
+      result.failureCount = 0;
+      result.createdTrainers = createdTrainers;
+      
+      console.log(`✅ All ${createdTrainers.length} trainers created successfully in single transaction`);
+      
+      return result;
+
+    } catch (dbError) {
+      // Rollback the entire transaction if ANY database operation fails
+      await queryRunner.rollbackTransaction();
+      console.error('❌ Database error occurred, rolling back ALL changes:', dbError.message);
+      throw new Error(`Database operation failed: ${dbError.message}. All changes have been rolled back.`);
+    }
+
+  } catch (error) {
+    // Handle any errors (validation, duplicate check, database errors)
+    console.error('❌ Bulk upload failed:', error.message);
+    
+    result.success = false;
+    result.successCount = 0;
+    
+    // If it's a validation error, we already have the errors populated
+    if (result.errors.length === 0) {
+      result.errors.push({
+        row: 0,
+        errors: [error.message]
+      });
+    }
+    
+    throw error;
+    
+  } finally {
+    // Always release the query runner
+    if (queryRunner.isReleased === false) {
+      await queryRunner.release();
+    }
+    
+    // Cleanup uploaded file
+    ExcelUtility.cleanupFile(filePath);
+  }
+};
+
+const generateTemplate = (): Buffer => {
+  const headers = [
+    'first_name', 'last_name', 'gender', 'date_of_birth', 'mobile_number',
+    'alternate_contact', 'email', 'trainer_type', 'course_auth', 'acc_numbers',
+    'yoe', 'state_covered', 'cities_covered', 'available_days', 'time_slots',
+    'suprise_visit', 'wwchildcheck', 'wwc_expiry_date', 'police_check_number',
+    'police_check_expiry_date', 'login_user_id', 'login_password'
+  ];
+
+  const sampleData = [{
+    first_name: 'John',
+    last_name: 'Doe',
+    gender: 'Male',
+    date_of_birth: '1990-01-15',
+    mobile_number: '0912345678',
+    alternate_contact: '0912345679',
+    email: 'john.doe@example.com',
+    trainer_type: 'Full-time,Part-time',
+    course_auth: 'CHC33021 - Certificate III in Individual Support,CHC43021 - Certificate IV in Ageing Support',
+    acc_numbers: 'ACC123456',
+    yoe: '5',
+    state_covered: 'NSW,VIC',
+    cities_covered: 'Sydney,Melbourne',
+    available_days: 'Monday,Tuesday,Wednesday',
+    time_slots: '09:00-12:00,14:00-17:00',
+    suprise_visit: '1',
+    wwchildcheck: '1',
+    wwc_expiry_date: '2025-12-31',
+    police_check_number: 'POL-2024-12345',
+    police_check_expiry_date: '2025-06-30',
+    login_user_id: 'john.doe',
+    login_password: 'SecurePass123'
+  }];
+
+  return ExcelUtility.generateTemplate(headers, sampleData);
+};
+
 export default {
   create,
   getById,
   update,
   list,
   remove,
-  permanentlyDelete
+  permanentlyDelete,
+  bulkUpload,
+  generateTemplate
 };

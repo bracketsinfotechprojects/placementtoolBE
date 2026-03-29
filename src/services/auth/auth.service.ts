@@ -29,6 +29,11 @@ export interface ILoginResponse {
     roleID: number;
     role: string;
     status: string;
+    studentID?: number;
+    facilityID?: number;
+    supervisorID?: number;
+    placementExecutiveID?: number;
+    trainerID?: number;
   };
   accessToken: string;
   refreshToken: string;
@@ -109,15 +114,37 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
 
     console.log('✅ Login successful for user:', loginID);
 
+    // Prepare user response with role-specific ID
+    const userResponse: any = {
+      id: user.id,
+      loginID: user.loginID,
+      roleID: user.roleID,
+      role: getRoleName(user.roleID),
+      status: user.status
+    };
+
+    // Add role-specific ID based on roleID
+    switch (user.roleID) {
+      case 6: // Student
+        if (user.studentID) userResponse.studentID = user.studentID;
+        break;
+      case 2: // Facility
+        if (user.facilityID) userResponse.facilityID = user.facilityID;
+        break;
+      case 3: // Supervisor
+        if (user.supervisorID) userResponse.supervisorID = user.supervisorID;
+        break;
+      case 4: // Placement Executive
+        if (user.placementExecutiveID) userResponse.placementExecutiveID = user.placementExecutiveID;
+        break;
+      case 5: // Trainer
+        if (user.trainerID) userResponse.trainerID = user.trainerID;
+        break;
+    }
+
     // Return response
     const response: ILoginResponse = {
-      user: {
-        id: user.id,
-        loginID: user.loginID,
-        roleID: user.roleID,
-        role: getRoleName(user.roleID),
-        status: user.status
-      },
+      user: userResponse,
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresIn: JwtUtility.getAccessTokenExpirySeconds(),

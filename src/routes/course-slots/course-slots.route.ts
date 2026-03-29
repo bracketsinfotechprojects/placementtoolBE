@@ -212,6 +212,83 @@ router.get(
 
 /**
  * @swagger
+ * /api/course-slots/by-trainer/{trainerId}:
+ *   get:
+ *     summary: Get all course slots by trainer ID with trainer details
+ *     description: Fetches all courses created/assigned to a specific trainer. Works for both admin and trainer logins. Returns courses regardless of student assignments.
+ *     tags:
+ *       - CourseSlots
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: trainerId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Trainer ID to fetch courses for
+ *     responses:
+ *       200:
+ *         description: List of course slots with trainer details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/CourseSlots'
+ *                       - type: object
+ *                         properties:
+ *                           trainer:
+ *                             type: object
+ *                             description: Full trainer details
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  '/by-trainer/:trainerId',
+  async (req: any, res: any) => {
+    try {
+      const courseSlotsRepository = getRepository(CourseSlots);
+      const { trainerId } = req.params;
+      
+      const queryBuilder = courseSlotsRepository.createQueryBuilder('courseSlot')
+        .leftJoinAndSelect('courseSlot.trainer', 'trainer')
+        .where('courseSlot.isDeleted = :isDeleted', { isDeleted: false })
+        .andWhere('courseSlot.trainer_id = :trainerId', { trainerId: parseInt(trainerId) });
+      
+      const courseSlots = await queryBuilder.getMany();
+      
+      return res.status(200).json({
+        success: true,
+        count: courseSlots.length,
+        data: courseSlots
+      });
+    } catch (error: any) {
+      console.error('Error fetching course slots by trainer:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: error.message || 'Failed to fetch course slots by trainer'
+        }
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
  * /api/course-slots/{id}:
  *   get:
  *     summary: Get a course slot by ID

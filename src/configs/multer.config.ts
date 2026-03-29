@@ -67,7 +67,7 @@ export const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    fileSize: 25 * 1024 * 1024, // 25MB max file size (increased for bulk uploads)
     files: 10 // Allow multiple files for fields like photograph, id_proof, etc.
   }
 });
@@ -77,7 +77,7 @@ export const uploadMultiple = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max per file
+    fileSize: 25 * 1024 * 1024, // 25MB max per file (increased for bulk uploads)
     files: 10 // Maximum 10 files per request
   }
 });

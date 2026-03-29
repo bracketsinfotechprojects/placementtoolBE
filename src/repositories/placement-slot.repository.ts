@@ -178,31 +178,28 @@ export default class PlacementSlotRepository {
     sortBy: string = 'placementslot_id',
     sortOrder: string = 'DESC'
   ): SelectQueryBuilder<PlacementSlot> {
-    // Whitelist of valid sort columns to prevent SQL errors
-    const validSortColumns = [
-      'placementslot_id',
-      'facility_id',
-      'placementslot_type',
-      'course_applicable',
-      'total_slots_offered',
-      'placement_start_date',
-      'placement_end_date',
-      'total_hours_required',
-      'urgent_requirement',
-      'priority_category',
-      'shift_type',
-      'working_days',
-      'gender_preference',
-      'placement_fee_status',
-      'work_hour_limit',
-      'created_by',
-      'created_at'
+    const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Validate that the sortBy column exists in the entity
+    const validColumns = [
+      'placementslot_id', 'facility_id', 'created_by', 'created_at', 'is_deleted',
+      'placementslot_type', 'course_applicable', 'total_slots_offered',
+      'placement_start_date', 'placement_end_date', 'total_hours_required',
+      'expected_duration', 'shift_type', 'shift_timings', 'working_days',
+      'mandatory_courses', 'documents_required', 'allowed_visa_types',
+      'work_hour_limit', 'work_hour_limit_details', 'gender_preference',
+      'dress_code', 'attendance_rules', 'leave_policy', 'behaviour_expectations',
+      'placement_fee', 'placement_fee_status', 'invoice_required',
+      'special_commercial_terms', 'urgent_requirement', 'priority_category',
+      'restrictions', 'not_comfortable_with'
     ];
 
-    // Default to placementslot_id if invalid column provided
-    const validSortBy = validSortColumns.includes(sortBy) ? sortBy : 'placementslot_id';
-    const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-    return query.orderBy(`placementSlot.${validSortBy}`, order);
+    if (!validColumns.includes(sortBy)) {
+      // Default to placementslot_id if invalid column provided
+      return query.orderBy('placementSlot.placementslot_id', order);
+    }
+
+    return query.orderBy(`placementSlot.${sortBy}`, order);
   }
 
   static applyPagination(

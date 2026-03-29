@@ -234,6 +234,7 @@ const create = async (params: ICreateStudent) => {
     // Support both direct email/password and login object format
     const email = params.email || params.login?.email;
     const password = params.password || params.login?.password;
+    const userStatus = params.login?.status || 'active'; // Get status from login object, default to 'active'
     
     if (email && password) {
       try {
@@ -251,7 +252,7 @@ const create = async (params: ICreateStudent) => {
         user.supervisorID = null;
         user.placementExecutiveID = null;
         user.trainerID = null;
-        user.status = 'active';
+        user.status = userStatus; // Use status from login payload or default to 'active'
 
         await queryRunner.manager.save(User, user);
         console.log('✅ User account created successfully');
@@ -394,6 +395,7 @@ export interface ICreateStudent {
   login?: { // Alternative format for email/password
     email: string;
     password: string;
+    status?: 'active' | 'inactive'; // User account status (optional)
   };
 
   // Related entities (optional)
