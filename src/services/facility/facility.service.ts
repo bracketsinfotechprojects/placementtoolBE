@@ -343,25 +343,323 @@ const detail = async (id: number) => {
   return facility;
 };
 
-const update = async (params: IUpdateFacility) => {
+const update = async (params: IUpdateFacility, agreementFiles?: Map<number, IAgreementFiles>) => {
   const facility = await FacilityRepository.findById(params.id);
   if (!facility) {
     throw new StringError('Facility does not exist');
   }
 
-  const updateData: Partial<Facility> = {
-    organization_name: params.organization_name,
-    registered_business_name: params.registered_business_name,
-    website_url: params.website_url,
-    abn_registration_number: params.abn_registration_number,
-    source_of_data: params.source_of_data,
-    states_covered: params.states_covered,
-    categories: params.categories,
-    updatedAt: new Date()
-  };
+  const connection = getConnection();
+  const queryRunner = connection.createQueryRunner();
 
-  await getRepository(Facility).update({ facility_id: params.id }, updateData);
-  return await detail(params.id);
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    const facilityId = params.id;
+
+    // Update main facility fields
+    if (params.organization_name || params.registered_business_name || params.website_url || 
+        params.abn_registration_number || params.source_of_data || params.states_covered || params.categories) {
+      const updateData: Partial<Facility> = {
+        updatedAt: new Date()
+      };
+      
+      if (params.organization_name !== undefined) updateData.organization_name = params.organization_name;
+      if (params.registered_business_name !== undefined) updateData.registered_business_name = params.registered_business_name;
+      if (params.website_url !== undefined) updateData.website_url = params.website_url;
+      if (params.abn_registration_number !== undefined) updateData.abn_registration_number = params.abn_registration_number;
+      if (params.source_of_data !== undefined) updateData.source_of_data = params.source_of_data;
+      if (params.states_covered !== undefined) updateData.states_covered = params.states_covered;
+      if (params.categories !== undefined) updateData.categories = params.categories;
+
+      await queryRunner.manager.update(Facility, { facility_id: facilityId }, updateData);
+    }
+
+    // Update attributes if provided
+    if (params.attributes !== undefined) {
+      // Delete existing attributes
+      await queryRunner.manager.delete(FacilityAttribute, { facility_id: facilityId });
+      
+      // Insert new attributes
+      if (params.attributes.length > 0) {
+        const attributes = params.attributes.map(attr => {
+          const facilityAttr = new FacilityAttribute();
+          facilityAttr.facility_id = facilityId;
+          facilityAttr.attribute_type = attr.attribute_type;
+          facilityAttr.attribute_value = attr.attribute_value;
+          return facilityAttr;
+        });
+        await queryRunner.manager.save(attributes);
+      }
+    }
+
+    // Update organization structures if provided
+    if (params.organization_structures !== undefined) {
+      await queryRunner.manager.delete(FacilityOrganizationStructure, { facility_id: facilityId });
+      
+      if (params.organization_structures.length > 0) {
+        const orgStructures = params.organization_structures.map(org => {
+          const orgStruct = new FacilityOrganizationStructure();
+          orgStruct.facility_id = facilityId;
+          orgStruct.deal_with = org.deal_with;
+          orgStruct.head_office_addr = org.head_office_addr;
+          orgStruct.contact_name = org.contact_name;
+          orgStruct.designation = org.designation;
+          orgStruct.phone = org.phone;
+          orgStruct.email = org.email;
+          orgStruct.alternate_contact = org.alternate_contact;
+          orgStruct.notes = org.notes;
+          return orgStruct;
+        });
+        await queryRunner.manager.save(orgStructures);
+      }
+    }
+
+    // Update branches if provided
+    if (params.branches !== undefined) {
+      await queryRunner.manager.delete(FacilityBranchSite, { facility_id: facilityId });
+      
+      if (params.branches.length > 0) {
+        const branches = params.branches.map(branch => {
+          const branchSite = new FacilityBranchSite();
+          branchSite.facility_id = facilityId;
+          branchSite.site_code = branch.site_code;
+          branchSite.full_address = branch.full_address;
+          branchSite.suburb = branch.suburb;
+          branchSite.city = branch.city;
+          branchSite.state = branch.state;
+          branchSite.postcode = branch.postcode;
+          branchSite.site_type = branch.site_type;
+          branchSite.palliative_care = branch.palliative_care || false;
+          branchSite.dementia_care = branch.dementia_care || false;
+          branchSite.num_beds = branch.num_beds;
+          branchSite.gender_rules = branch.gender_rules;
+          branchSite.contact_name = branch.contact_name;
+          branchSite.contact_role = branch.contact_role;
+          branchSite.contact_phone = branch.contact_phone;
+          branchSite.contact_email = branch.contact_email;
+          branchSite.contact_comments = branch.contact_comments;
+          return branchSite;
+        });
+        await queryRunner.manager.save(branches);
+      }
+    }
+
+    // Update agreements if provided
+    if (params.agreements !== undefined) {
+      // Get existing agreements
+      const existingAgreements = await queryRunner.manager.find(FacilityAgreement, {
+        where: { facility_id: facilityId },
+        order: { agreement_id: 'ASC' }
+      });
+      
+      console.log(`📋 Updating agreements - Existing: ${existingAgreements.length}, New: ${params.agreements.length}`);
+      console.log(`📁 Agreement files map size: ${agreementFiles?.size || 0}`);
+      
+      // Update or create agreements
+      for (let i = 0; i < params.agreements.length; i++) {
+        const agr = params.agreements[i];
+        const existingAgreement = existingAgreements[i];
+        
+        if (existingAgreement) {
+          // UPDATE existing agreement
+          console.log(`✏️ Updating existing agreement ID: ${existingAgreement.agreement_id}`);
+          
+          const updateData: Partial<FacilityAgreement> = {
+            sent_students: agr.sent_students,
+            with_mou: agr.with_mou,
+            no_mou_but_taken: agr.no_mou_but_taken,
+            mou_exists_no_spot: agr.mou_exists_no_spot,
+            total_students: agr.total_students,
+            last_placement: agr.last_placement,
+            has_mou: agr.has_mou,
+            signed_on: agr.signed_on,
+            expiry_date: agr.expiry_date,
+            company_name: agr.company_name
+              ? (Array.isArray(agr.company_name) ? agr.company_name : [agr.company_name])
+              : agr.company_name,
+            payment_required: agr.payment_required,
+            amount_per_spot: agr.amount_per_spot,
+            payment_notes: agr.payment_notes,
+            updatedAt: new Date()
+          };
+          
+          // Only update document paths if explicitly provided in request
+          if (agr.mou_document !== undefined) {
+            updateData.mou_document = agr.mou_document;
+          }
+          if (agr.insurance_doc !== undefined) {
+            updateData.insurance_doc = agr.insurance_doc;
+          }
+          
+          await queryRunner.manager.update(FacilityAgreement, 
+            { agreement_id: existingAgreement.agreement_id }, 
+            updateData
+          );
+          
+          // Upload new files if provided
+          if (agreementFiles && agreementFiles.has(i)) {
+            const files = agreementFiles.get(i)!;
+            console.log(`📁 Processing files for agreement ${i}:`, { 
+              hasMou: !!files.mou_document, 
+              hasInsurance: !!files.insurance_doc 
+            });
+            
+            if (files.mou_document) {
+              console.log(`📁 Uploading MOU document for agreement ${i}:`, files.mou_document.originalname);
+              const mouPath = await uploadDocument(
+                files.mou_document,
+                existingAgreement.agreement_id,
+                DocumentType.MOU_DOCUMENT,
+                queryRunner.manager
+              );
+              await queryRunner.manager.update(FacilityAgreement, 
+                { agreement_id: existingAgreement.agreement_id }, 
+                { mou_document: mouPath }
+              );
+              console.log(`✅ MOU document path updated: ${mouPath}`);
+            }
+            
+            if (files.insurance_doc) {
+              console.log(`📁 Uploading insurance document for agreement ${i}:`, files.insurance_doc.originalname);
+              const insurancePath = await uploadDocument(
+                files.insurance_doc,
+                existingAgreement.agreement_id,
+                DocumentType.INSURANCE_DOCUMENT,
+                queryRunner.manager
+              );
+              await queryRunner.manager.update(FacilityAgreement, 
+                { agreement_id: existingAgreement.agreement_id }, 
+                { insurance_doc: insurancePath }
+              );
+              console.log(`✅ Insurance document path updated: ${insurancePath}`);
+            }
+          }
+          
+        } else {
+          // CREATE new agreement
+          console.log(`➕ Creating new agreement at index ${i}`);
+          
+          const agreement = new FacilityAgreement();
+          agreement.facility_id = facilityId;
+          agreement.sent_students = agr.sent_students;
+          agreement.with_mou = agr.with_mou;
+          agreement.no_mou_but_taken = agr.no_mou_but_taken;
+          agreement.mou_exists_no_spot = agr.mou_exists_no_spot;
+          agreement.total_students = agr.total_students;
+          agreement.last_placement = agr.last_placement;
+          agreement.has_mou = agr.has_mou;
+          agreement.signed_on = agr.signed_on;
+          agreement.expiry_date = agr.expiry_date;
+          agreement.company_name = agr.company_name
+            ? (Array.isArray(agr.company_name) ? agr.company_name : [agr.company_name])
+            : agr.company_name;
+          agreement.payment_required = agr.payment_required;
+          agreement.amount_per_spot = agr.amount_per_spot;
+          agreement.payment_notes = agr.payment_notes;
+          agreement.mou_document = agr.mou_document || null;
+          agreement.insurance_doc = agr.insurance_doc || null;
+          
+          const savedAgreement = await queryRunner.manager.save(agreement);
+          console.log(`✅ New agreement created with ID: ${savedAgreement.agreement_id}`);
+          
+          // Upload files if provided
+          if (agreementFiles && agreementFiles.has(i)) {
+            const files = agreementFiles.get(i)!;
+            
+            if (files.mou_document) {
+              const mouPath = await uploadDocument(
+                files.mou_document,
+                savedAgreement.agreement_id,
+                DocumentType.MOU_DOCUMENT,
+                queryRunner.manager
+              );
+              await queryRunner.manager.update(FacilityAgreement, 
+                { agreement_id: savedAgreement.agreement_id }, 
+                { mou_document: mouPath }
+              );
+              console.log(`✅ MOU document uploaded: ${mouPath}`);
+            }
+            
+            if (files.insurance_doc) {
+              const insurancePath = await uploadDocument(
+                files.insurance_doc,
+                savedAgreement.agreement_id,
+                DocumentType.INSURANCE_DOCUMENT,
+                queryRunner.manager
+              );
+              await queryRunner.manager.update(FacilityAgreement, 
+                { agreement_id: savedAgreement.agreement_id }, 
+                { insurance_doc: insurancePath }
+              );
+              console.log(`✅ Insurance document uploaded: ${insurancePath}`);
+            }
+          }
+        }
+      }
+      
+      // Delete extra agreements if new list is shorter
+      if (existingAgreements.length > params.agreements.length) {
+        const agreementsToDelete = existingAgreements.slice(params.agreements.length);
+        for (const agr of agreementsToDelete) {
+          console.log(`🗑️ Deleting extra agreement ID: ${agr.agreement_id}`);
+          await queryRunner.manager.delete(FacilityAgreement, { agreement_id: agr.agreement_id });
+        }
+      }
+    }
+
+    // Update documents required if provided
+    if (params.documents_required !== undefined) {
+      await queryRunner.manager.delete(FacilityDocumentRequired, { facility_id: facilityId });
+      
+      if (params.documents_required.length > 0) {
+        const documents = params.documents_required.map(doc => {
+          const document = new FacilityDocumentRequired();
+          document.facility_id = facilityId;
+          document.document_name = doc.document_name;
+          document.notice_period_days = doc.notice_period_days;
+          document.orientation_req = doc.orientation_req;
+          document.facilitator_req = doc.facilitator_req;
+          return document;
+        });
+        await queryRunner.manager.save(documents);
+      }
+    }
+
+    // Update rules if provided
+    if (params.rules !== undefined) {
+      await queryRunner.manager.delete(FacilityRule, { facility_id: facilityId });
+      
+      if (params.rules.length > 0) {
+        const rules = params.rules.map(r => {
+          const rule = new FacilityRule();
+          rule.facility_id = facilityId;
+          rule.obligations = r.obligations;
+          rule.obligations_univ = r.obligations_univ;
+          rule.obligations_student = r.obligations_student;
+          rule.process_notes = r.process_notes;
+          rule.shift_rules = r.shift_rules;
+          rule.attendance_policy = r.attendance_policy;
+          rule.dress_code = r.dress_code;
+          rule.behaviour_rules = r.behaviour_rules;
+          rule.special_instr = r.special_instr;
+          return rule;
+        });
+        await queryRunner.manager.save(rules);
+      }
+    }
+
+    await queryRunner.commitTransaction();
+
+    return await detail(facilityId);
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    console.error('❌ Update transaction failed, rolling back all changes:', error);
+    throw error;
+  } finally {
+    await queryRunner.release();
+  }
 };
 
 const updateComplete = async (params: IUpdateCompleteFacility) => {
@@ -723,6 +1021,72 @@ export interface IUpdateFacility {
   source_of_data?: string;
   states_covered?: string[];
   categories?: string[];
+  attributes?: Array<{
+    attribute_type: any;
+    attribute_value: string;
+  }>;
+  organization_structures?: Array<{
+    deal_with: any;
+    head_office_addr?: string;
+    contact_name?: string;
+    designation?: string;
+    phone?: string;
+    email?: string;
+    alternate_contact?: string;
+    notes?: string;
+  }>;
+  branches?: Array<{
+    site_code?: string;
+    full_address?: string;
+    suburb?: string;
+    city?: string;
+    state?: string;
+    postcode?: string;
+    site_type?: string;
+    palliative_care?: boolean;
+    dementia_care?: boolean;
+    num_beds?: number;
+    gender_rules?: string;
+    contact_name?: string;
+    contact_role?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    contact_comments?: string;
+  }>;
+  agreements?: Array<{
+    sent_students?: boolean;
+    with_mou?: boolean;
+    no_mou_but_taken?: boolean;
+    mou_exists_no_spot?: boolean;
+    total_students?: number;
+    last_placement?: any;
+    has_mou?: boolean;
+    signed_on?: any;
+    expiry_date?: any;
+    company_name?: string[];
+    payment_required?: boolean;
+    amount_per_spot?: number;
+    payment_notes?: string;
+    mou_document?: string;
+    insurance_doc?: string;
+  }>;
+  documents_required?: Array<{
+    document_name?: string;
+    notice_period_days?: number;
+    orientation_req?: boolean;
+    facilitator_req?: boolean;
+  }>;
+  rules?: Array<{
+    obligations?: string;
+    obligations_univ?: string;
+    obligations_student?: string;
+    process_notes?: string;
+    shift_rules?: string;
+    attendance_policy?: string;
+    dress_code?: string;
+    behaviour_rules?: string;
+    special_instr?: string;
+  }>;
 }
 
 export interface IUpdateCompleteFacility {
