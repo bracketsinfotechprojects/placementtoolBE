@@ -1,4 +1,4 @@
-import { getRepository, In } from 'typeorm';
+import { getRepository, In, getConnection } from 'typeorm';
 
 // Entities
 import { Student } from '../../entities/student/student.entity';
@@ -21,6 +21,7 @@ import RoleService from '../role/role.service';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import TransactionUtility from '../../utilities/transaction.utility';
+import ExcelUtility from '../../utilities/excel.utility';
 
 // Interfaces
 import { IDeleteById, IDetailById } from '../../interfaces/common.interface';
@@ -1978,6 +1979,646 @@ export interface IUpdateSelfPlacement {
   review_comments?: string;
 }
 
+// Bulk upload result interface
+interface IBulkUploadResult {
+  success: boolean;
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  errors: Array<{ row: number; email?: string; errors: string[] }>;
+  createdStudents: Array<{ student_id: number; email: string; full_name: string }>;
+}
+
+// Bulk upload row interface
+interface IBulkStudentRow {
+  first_name: string;
+  last_name: string;
+  dob: string;
+  gender?: string;
+  nationality?: string;
+  student_type?: string;
+  status?: string;
+  email?: string;
+  password?: string;
+  login_status?: string;
+  
+  // Contact details
+  primary_mobile?: string;
+  alternate_contact?: string;
+  emergency_contact?: string;
+  emergency_contact_name?: string;
+  relationship?: string;
+  contact_type?: string;
+  
+  // Visa details
+  visa_type?: string;
+  visa_number?: string;
+  visa_start_date?: string;
+  visa_expiry_date?: string;
+  visa_status?: string;
+  issuing_country?: string;
+  work_limitation?: string;
+  
+  // Address
+  address_line1?: string;
+  address_line2?: string;
+  suburb?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  address_type?: string;
+  
+  // Eligibility status
+  classes_completed?: string;
+  fees_paid?: string;
+  assignments_submitted?: string;
+  documents_submitted?: string;
+  trainer_consent?: string;
+  overall_status?: string;
+  
+  // Student lifestyle
+  currently_working?: string;
+  working_hours?: string;
+  has_dependents?: string;
+  married?: string;
+  driving_license?: string;
+  own_vehicle?: string;
+  public_transport_only?: string;
+  fully_flexible?: string;
+  
+  // Placement preferences
+  preferred_states?: string;
+  preferred_cities?: string;
+  max_travel_distance_km?: string;
+  morning_only?: string;
+  evening_only?: string;
+  part_time?: string;
+  full_time?: string;
+  urgency_level?: string;
+}
+
+// Validate student row
+const validateStudentRow = (row: IBulkStudentRow, rowIndex: number): string[] => {
+  const errors: string[] = [];
+  
+  // Required fields
+  if (!row.first_name || row.first_name.trim() === '') {
+    errors.push('first_name is required');
+  }
+  if (!row.last_name || row.last_name.trim() === '') {
+    errors.push('last_name is required');
+  }
+  if (!row.dob || row.dob.trim() === '') {
+    errors.push('dob is required');
+  } else {
+    const dobDate = new Date(row.dob);
+    if (isNaN(dobDate.getTime())) {
+      errors.push('dob must be a valid date (YYYY-MM-DD)');
+    }
+  }
+  
+  // Email validation (if provided)
+  if (row.email && row.email.trim() !== '') {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(row.email)) {
+      errors.push('email must be a valid email address');
+    }
+  }
+  
+  // Gender validation
+  if (row.gender && !['male', 'female', 'other'].includes(row.gender.toLowerCase())) {
+    errors.push('gender must be male, female, or other');
+  }
+  
+  // Student type validation
+  if (row.student_type && !['domestic', 'international', 'external'].includes(row.student_type.toLowerCase())) {
+    errors.push('student_type must be domestic, international, or external');
+  }
+  
+  // Status validation
+  const validStatuses = ['active', 'inactive', 'internship_completed', 'eligible_for_certification', 'placement_initiated', 'self_placement_verification_pending', 'self_placement_approved', 'certified', 'completed', 'graduated', 'withdrawn'];
+  if (row.status && !validStatuses.includes(row.status.toLowerCase())) {
+    errors.push(`status must be one of: ${validStatuses.join(', ')}`);
+  }
+  
+  // Visa dates validation
+  if (row.visa_start_date && row.visa_start_date.trim() !== '') {
+    const visaStartDate = new Date(row.visa_start_date);
+    if (isNaN(visaStartDate.getTime())) {
+      errors.push('visa_start_date must be a valid date (YYYY-MM-DD)');
+    }
+  }
+  if (row.visa_expiry_date && row.visa_expiry_date.trim() !== '') {
+    const visaExpiryDate = new Date(row.visa_expiry_date);
+    if (isNaN(visaExpiryDate.getTime())) {
+      errors.push('visa_expiry_date must be a valid date (YYYY-MM-DD)');
+    }
+  }
+  
+  // Urgency level validation
+  if (row.urgency_level && !['immediate', 'within_month', 'within_quarter', 'flexible'].includes(row.urgency_level.toLowerCase())) {
+    errors.push('urgency_level must be immediate, within_month, within_quarter, or flexible');
+  }
+  
+  return errors;
+};
+
+// Convert Excel row to student data
+const convertRowToStudent = (row: IBulkStudentRow): ICreateStudent => {
+  const studentData: ICreateStudent = {
+    first_name: row.first_name.trim(),
+    last_name: row.last_name.trim(),
+    dob: new Date(row.dob),
+    gender: row.gender?.trim(),
+    nationality: row.nationality?.trim(),
+    student_type: row.student_type?.toLowerCase().trim() || 'domestic',
+    status: (row.status?.toLowerCase().trim() as any) || 'active'
+  };
+  
+  // Add login credentials if provided
+  if (row.email && row.email.trim() !== '') {
+    studentData.login = {
+      email: row.email.trim(),
+      password: row.password?.trim() || '',
+      status: (row.login_status?.toLowerCase().trim() as any) || 'active'
+    };
+  }
+  
+  // Add contact details if any contact field is provided
+  if (row.primary_mobile || row.email || row.alternate_contact || row.emergency_contact) {
+    studentData.contact_details = {
+      primary_mobile: row.primary_mobile?.trim(),
+      email: row.email?.trim(),
+      alternate_contact: row.alternate_contact?.trim(),
+      emergency_contact: row.emergency_contact?.trim(),
+      emergency_contact_name: row.emergency_contact_name?.trim(),
+      relationship: row.relationship?.trim(),
+      contact_type: (row.contact_type?.toLowerCase().trim() as any) || 'mobile',
+      is_primary: true
+    };
+  }
+  
+  // Add visa details if any visa field is provided
+  if (row.visa_type || row.visa_number) {
+    studentData.visa_details = {
+      visa_type: row.visa_type?.trim(),
+      visa_number: row.visa_number?.trim(),
+      start_date: row.visa_start_date ? new Date(row.visa_start_date) : undefined,
+      expiry_date: row.visa_expiry_date ? new Date(row.visa_expiry_date) : undefined,
+      status: (row.visa_status?.toLowerCase().trim() as any) || 'active',
+      issuing_country: row.issuing_country?.trim(),
+      work_limitation: row.work_limitation?.trim()
+    };
+  }
+  
+  // Add address if any address field is provided
+  if (row.address_line1 || row.city) {
+    studentData.addresses = [{
+      line1: row.address_line1?.trim(),
+      line2: row.address_line2?.trim(),
+      suburb: row.suburb?.trim(),
+      city: row.city?.trim(),
+      state: row.state?.trim(),
+      country: row.country?.trim(),
+      postal_code: row.postal_code?.trim(),
+      address_type: (row.address_type?.toLowerCase().trim() as any) || 'current',
+      is_primary: true
+    }];
+  }
+  
+  // Add eligibility status if any eligibility field is provided
+  if (row.classes_completed || row.fees_paid || row.overall_status) {
+    const parseBool = (val?: string) => val?.toLowerCase() === 'true' || val?.toLowerCase() === 'yes' || val === '1';
+    studentData.eligibility_status = {
+      classes_completed: parseBool(row.classes_completed),
+      fees_paid: parseBool(row.fees_paid),
+      assignments_submitted: parseBool(row.assignments_submitted),
+      documents_submitted: parseBool(row.documents_submitted),
+      trainer_consent: parseBool(row.trainer_consent),
+      overall_status: (row.overall_status?.toLowerCase().trim() as any) || 'not_eligible'
+    };
+  }
+  
+  // Add student lifestyle if any lifestyle field is provided
+  if (row.currently_working || row.married || row.driving_license) {
+    const parseBool = (val?: string) => val?.toLowerCase() === 'true' || val?.toLowerCase() === 'yes' || val === '1';
+    studentData.student_lifestyle = {
+      currently_working: parseBool(row.currently_working),
+      working_hours: row.working_hours?.trim(),
+      has_dependents: parseBool(row.has_dependents),
+      married: parseBool(row.married),
+      driving_license: parseBool(row.driving_license),
+      own_vehicle: parseBool(row.own_vehicle),
+      public_transport_only: parseBool(row.public_transport_only),
+      fully_flexible: parseBool(row.fully_flexible)
+    };
+  }
+  
+  // Add placement preferences if any preference field is provided
+  if (row.preferred_states || row.preferred_cities || row.urgency_level) {
+    const parseBool = (val?: string) => val?.toLowerCase() === 'true' || val?.toLowerCase() === 'yes' || val === '1';
+    studentData.placement_preferences = {
+      preferred_states: row.preferred_states?.trim(),
+      preferred_cities: row.preferred_cities?.trim(),
+      max_travel_distance_km: row.max_travel_distance_km ? parseInt(row.max_travel_distance_km) : undefined,
+      morning_only: parseBool(row.morning_only),
+      evening_only: parseBool(row.evening_only),
+      part_time: parseBool(row.part_time),
+      full_time: parseBool(row.full_time),
+      urgency_level: (row.urgency_level?.toLowerCase().trim() as any) || 'flexible'
+    };
+  }
+  
+  return studentData;
+};
+
+// Bulk upload students from Excel
+const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
+  const result: IBulkUploadResult = {
+    success: false,
+    totalRows: 0,
+    successCount: 0,
+    failureCount: 0,
+    errors: [],
+    createdStudents: []
+  };
+
+  const connection = getConnection();
+  const queryRunner = connection.createQueryRunner();
+
+  try {
+    // Parse Excel file
+    const excelData = ExcelUtility.parseExcelFile<IBulkStudentRow>(filePath);
+    result.totalRows = excelData.length;
+
+    console.log(`📋 Processing ${excelData.length} student records from Excel file`);
+
+    if (excelData.length === 0) {
+      throw new Error('Excel file contains no data rows with actual content');
+    }
+
+    // Capacity check
+    if (excelData.length > 2000) {
+      throw new Error(`File contains ${excelData.length} rows. Maximum allowed is 2000 records per upload. Please split into smaller files.`);
+    }
+
+    // Required columns for validation
+    const requiredFields = ['first_name', 'last_name', 'dob'];
+
+    // Validate Excel structure
+    const structureErrors = ExcelUtility.validateExcelStructure(excelData, requiredFields);
+    if (structureErrors.length > 0) {
+      result.errors.push({
+        row: 0,
+        errors: structureErrors.map(err => err.message)
+      });
+      return result;
+    }
+
+    // PHASE 1: Validate ALL records first
+    console.log('🔍 Phase 1: Validating all records...');
+    
+    const validationErrors: Array<{ row: number; email?: string; errors: string[] }> = [];
+    const validatedData: Array<{ rowIndex: number; data: ICreateStudent }> = [];
+
+    for (let i = 0; i < excelData.length; i++) {
+      const rowIndex = i + 2; // Excel row number (accounting for header)
+      const row = excelData[i];
+
+      // Validate row data
+      const rowErrors = validateStudentRow(row, rowIndex);
+      if (rowErrors.length > 0) {
+        validationErrors.push({
+          row: rowIndex,
+          email: row.email,
+          errors: rowErrors
+        });
+        continue;
+      }
+
+      // Convert row to student object
+      const studentData = convertRowToStudent(row);
+      validatedData.push({
+        rowIndex,
+        data: studentData
+      });
+    }
+
+    // If ANY validation errors, fail the entire operation
+    if (validationErrors.length > 0) {
+      result.errors = validationErrors;
+      result.failureCount = validationErrors.length;
+      result.successCount = 0;
+      throw new Error(`Validation failed for ${validationErrors.length} records. All records must be valid for bulk upload to proceed.`);
+    }
+
+    // PHASE 2: Check for duplicates
+    console.log('🔍 Phase 2: Checking for duplicate emails...');
+    
+    const allEmails = validatedData
+      .filter(item => item.data.login?.email)
+      .map(item => item.data.login!.email.toLowerCase());
+
+    // Check for duplicates within the file itself
+    const emailDuplicates = allEmails.filter((email, index) => allEmails.indexOf(email) !== index);
+
+    if (emailDuplicates.length > 0) {
+      throw new Error(`Duplicate emails found within the file: ${[...new Set(emailDuplicates)].join(', ')}`);
+    }
+
+    // Check for existing records in database (only for students with email)
+    if (allEmails.length > 0) {
+      const existingUsers = await getRepository(User).find({ 
+        where: { loginID: In(allEmails) } 
+      });
+
+      if (existingUsers.length > 0) {
+        const existingLoginIds = existingUsers.map(u => u.loginID).join(', ');
+        throw new Error(`The following emails already exist in the system: ${existingLoginIds}`);
+      }
+    }
+
+    // PHASE 3: Pre-hash all passwords
+    console.log('🔐 Phase 3: Hashing passwords...');
+    
+    const passwordHashPromises = validatedData.map(async (item, index) => {
+      if (item.data.login?.password) {
+        return {
+          index,
+          hashedPassword: await PasswordUtility.hashPassword(item.data.login.password)
+        };
+      }
+      return { index, hashedPassword: null };
+    });
+
+    const hashedPasswords = await Promise.all(passwordHashPromises);
+    const passwordMap = new Map(hashedPasswords.map(p => [p.index, p.hashedPassword]));
+
+    // PHASE 4: Get student role ID
+    const studentRoleId = await RoleService.getRoleIdByName('Student');
+
+    // PHASE 5: Start single transaction for ALL database operations
+    console.log('💾 Phase 5: Starting database transaction for all records...');
+    
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    const createdStudents: Array<{ student_id: number; email: string; full_name: string }> = [];
+
+    try {
+      // Process all records within the single transaction
+      for (let i = 0; i < validatedData.length; i++) {
+        const { data: studentData, rowIndex } = validatedData[i];
+        
+        console.log(`📝 Creating student ${i + 1}/${validatedData.length}: ${studentData.first_name} ${studentData.last_name}`);
+
+        // Create student record
+        const student = new Student();
+        student.first_name = studentData.first_name;
+        student.last_name = studentData.last_name;
+        student.dob = studentData.dob;
+        student.gender = studentData.gender;
+        student.nationality = studentData.nationality;
+        student.student_type = studentData.student_type || 'domestic';
+        student.status = studentData.status || 'active';
+
+        const savedStudent = await queryRunner.manager.save(Student, student);
+
+        // Create contact details if provided
+        if (studentData.contact_details) {
+          const contactDetails = new ContactDetails();
+          contactDetails.student = savedStudent;
+          contactDetails.primary_mobile = studentData.contact_details.primary_mobile;
+          contactDetails.email = studentData.contact_details.email;
+          contactDetails.alternate_contact = studentData.contact_details.alternate_contact;
+          contactDetails.emergency_contact = studentData.contact_details.emergency_contact;
+          contactDetails.emergency_contact_name = studentData.contact_details.emergency_contact_name;
+          contactDetails.relationship = studentData.contact_details.relationship;
+          contactDetails.contact_type = studentData.contact_details.contact_type || 'mobile';
+          contactDetails.is_primary = true;
+
+          await queryRunner.manager.save(ContactDetails, contactDetails);
+        }
+
+        // Create visa details if provided
+        if (studentData.visa_details) {
+          const visaDetails = new VisaDetails();
+          visaDetails.student = savedStudent;
+          visaDetails.visa_type = studentData.visa_details.visa_type;
+          visaDetails.visa_number = studentData.visa_details.visa_number;
+          visaDetails.start_date = studentData.visa_details.start_date;
+          visaDetails.expiry_date = studentData.visa_details.expiry_date;
+          visaDetails.status = studentData.visa_details.status || 'active';
+          visaDetails.issuing_country = studentData.visa_details.issuing_country;
+          visaDetails.work_limitation = studentData.visa_details.work_limitation;
+
+          await queryRunner.manager.save(VisaDetails, visaDetails);
+        }
+
+        // Create addresses if provided
+        if (studentData.addresses && studentData.addresses.length > 0) {
+          for (const addressData of studentData.addresses) {
+            const address = new Address();
+            address.student = savedStudent;
+            address.line1 = addressData.line1;
+            address.line2 = addressData.line2;
+            address.suburb = addressData.suburb;
+            address.city = addressData.city;
+            address.state = addressData.state;
+            address.country = addressData.country;
+            address.postal_code = addressData.postal_code;
+            address.address_type = addressData.address_type || 'current';
+            address.is_primary = addressData.is_primary || false;
+
+            await queryRunner.manager.save(Address, address);
+          }
+        }
+
+        // Create eligibility status if provided
+        if (studentData.eligibility_status) {
+          const eligibilityStatus = new EligibilityStatus();
+          eligibilityStatus.student = savedStudent;
+          eligibilityStatus.classes_completed = studentData.eligibility_status.classes_completed;
+          eligibilityStatus.fees_paid = studentData.eligibility_status.fees_paid;
+          eligibilityStatus.assignments_submitted = studentData.eligibility_status.assignments_submitted;
+          eligibilityStatus.documents_submitted = studentData.eligibility_status.documents_submitted;
+          eligibilityStatus.trainer_consent = studentData.eligibility_status.trainer_consent;
+          eligibilityStatus.overall_status = studentData.eligibility_status.overall_status as any || 'not_eligible';
+
+          await queryRunner.manager.save(EligibilityStatus, eligibilityStatus);
+        }
+
+        // Create student lifestyle if provided
+        if (studentData.student_lifestyle) {
+          const lifestyle = new StudentLifestyle();
+          lifestyle.student = savedStudent;
+          lifestyle.currently_working = studentData.student_lifestyle.currently_working;
+          lifestyle.working_hours = studentData.student_lifestyle.working_hours;
+          lifestyle.has_dependents = studentData.student_lifestyle.has_dependents;
+          lifestyle.married = studentData.student_lifestyle.married;
+          lifestyle.driving_license = studentData.student_lifestyle.driving_license;
+          lifestyle.own_vehicle = studentData.student_lifestyle.own_vehicle;
+          lifestyle.public_transport_only = studentData.student_lifestyle.public_transport_only;
+          lifestyle.fully_flexible = studentData.student_lifestyle.fully_flexible;
+
+          await queryRunner.manager.save(StudentLifestyle, lifestyle);
+        }
+
+        // Create placement preferences if provided
+        if (studentData.placement_preferences) {
+          const preferences = new PlacementPreferences();
+          preferences.student = savedStudent;
+          preferences.preferred_states = studentData.placement_preferences.preferred_states;
+          preferences.preferred_cities = studentData.placement_preferences.preferred_cities;
+          preferences.max_travel_distance_km = studentData.placement_preferences.max_travel_distance_km;
+          preferences.morning_only = studentData.placement_preferences.morning_only;
+          preferences.evening_only = studentData.placement_preferences.evening_only;
+          preferences.part_time = studentData.placement_preferences.part_time;
+          preferences.full_time = studentData.placement_preferences.full_time;
+          preferences.urgency_level = studentData.placement_preferences.urgency_level as any || 'flexible';
+
+          await queryRunner.manager.save(PlacementPreferences, preferences);
+        }
+
+        // Create user account if email and password provided
+        if (studentData.login?.email && studentData.login?.password) {
+          const user = new User();
+          user.loginID = studentData.login.email;
+          user.password = passwordMap.get(i); // Use pre-hashed password
+          user.roleID = studentRoleId;
+          user.studentID = savedStudent.student_id;
+          user.facilityID = null;
+          user.supervisorID = null;
+          user.placementExecutiveID = null;
+          user.trainerID = null;
+          user.status = studentData.login.status || 'active';
+
+          await queryRunner.manager.save(User, user);
+        }
+
+        createdStudents.push({
+          student_id: savedStudent.student_id,
+          email: studentData.login?.email || studentData.contact_details?.email || '',
+          full_name: `${savedStudent.first_name} ${savedStudent.last_name}`
+        });
+      }
+
+      // If we reach here, all records were processed successfully
+      await queryRunner.commitTransaction();
+      
+      result.success = true;
+      result.successCount = createdStudents.length;
+      result.failureCount = 0;
+      result.createdStudents = createdStudents;
+      
+      console.log(`✅ All ${createdStudents.length} students created successfully in single transaction`);
+      
+      return result;
+
+    } catch (dbError) {
+      // Rollback the entire transaction if ANY database operation fails
+      await queryRunner.rollbackTransaction();
+      console.error('❌ Database error occurred, rolling back ALL changes:', dbError.message);
+      throw new Error(`Database operation failed: ${dbError.message}. All changes have been rolled back.`);
+    }
+
+  } catch (error) {
+    console.error('❌ Bulk upload failed:', error.message);
+    
+    result.success = false;
+    
+    if (!result.errors || result.errors.length === 0) {
+      result.errors.push({
+        row: 0,
+        errors: [error.message]
+      });
+    }
+    
+    return result;
+    
+  } finally {
+    await queryRunner.release();
+    
+    // Cleanup uploaded file
+    ExcelUtility.cleanupFile(filePath);
+  }
+};
+
+// Generate Excel template for bulk student upload
+const generateTemplate = (): Buffer => {
+  const headers = [
+    'first_name', 'last_name', 'dob', 'gender', 'nationality', 'student_type', 'status',
+    'email', 'password', 'login_status',
+    'primary_mobile', 'alternate_contact', 'emergency_contact', 'emergency_contact_name', 'relationship', 'contact_type',
+    'visa_type', 'visa_number', 'visa_start_date', 'visa_expiry_date', 'visa_status', 'issuing_country', 'work_limitation',
+    'address_line1', 'address_line2', 'suburb', 'city', 'state', 'country', 'postal_code', 'address_type',
+    'classes_completed', 'fees_paid', 'assignments_submitted', 'documents_submitted', 'trainer_consent', 'overall_status',
+    'currently_working', 'working_hours', 'has_dependents', 'married', 'driving_license', 'own_vehicle', 'public_transport_only', 'fully_flexible',
+    'preferred_states', 'preferred_cities', 'max_travel_distance_km', 'morning_only', 'evening_only', 'part_time', 'full_time', 'urgency_level'
+  ];
+
+  const sampleData = [
+    {
+      first_name: 'John',
+      last_name: 'Doe',
+      dob: '2000-01-15',
+      gender: 'male',
+      nationality: 'Australian',
+      student_type: 'domestic',
+      status: 'active',
+      email: 'john.doe@example.com',
+      password: 'SecurePass123',
+      login_status: 'active',
+      primary_mobile: '0412345678',
+      alternate_contact: '',
+      emergency_contact: '0498765432',
+      emergency_contact_name: 'Jane Doe',
+      relationship: 'Mother',
+      contact_type: 'mobile',
+      visa_type: '',
+      visa_number: '',
+      visa_start_date: '',
+      visa_expiry_date: '',
+      visa_status: '',
+      issuing_country: '',
+      work_limitation: '',
+      address_line1: '123 Main St',
+      address_line2: '',
+      suburb: 'Suburb',
+      city: 'Sydney',
+      state: 'NSW',
+      country: 'Australia',
+      postal_code: '2000',
+      address_type: 'current',
+      classes_completed: 'true',
+      fees_paid: 'true',
+      assignments_submitted: 'true',
+      documents_submitted: 'true',
+      trainer_consent: 'true',
+      overall_status: 'eligible',
+      currently_working: 'false',
+      working_hours: '0',
+      has_dependents: 'false',
+      married: 'false',
+      driving_license: 'true',
+      own_vehicle: 'true',
+      public_transport_only: 'false',
+      fully_flexible: 'true',
+      preferred_states: 'NSW,VIC',
+      preferred_cities: 'Sydney,Melbourne',
+      max_travel_distance_km: '20',
+      morning_only: 'false',
+      evening_only: 'false',
+      part_time: 'false',
+      full_time: 'true',
+      urgency_level: 'within_month'
+    }
+  ];
+
+  return ExcelUtility.generateTemplate(headers, sampleData);
+};
+
 export default {
   create,
   createExternalStudent,
@@ -1999,7 +2640,9 @@ export default {
   addSelfPlacement,
   updateAddressChangeRequest,
   updateJobStatusUpdate,
-  updateSelfPlacement
+  updateSelfPlacement,
+  bulkUpload,
+  generateTemplate
   // activate and deactivate removed - use generic activation API instead:
   // PATCH /api/students/{id}/activate?activate={true|false}
 };
