@@ -369,4 +369,34 @@ export default class FacilitySupervisorController extends BaseController {
       ApiResponseUtility.success(res, null, 'Facility Supervisor permanently deleted');
     }, 'Permanently delete facility supervisor');
   }
+
+  static async bulkUpload(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      if (!req.file) {
+        throw new Error('Excel file is required');
+      }
+
+      const result = await FacilitySupervisorService.bulkUpload(req.file.path);
+
+      if (result.success) {
+        ApiResponseUtility.success(res, result, 'Bulk upload completed successfully');
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Bulk upload failed - see errors for details',
+          data: result
+        });
+      }
+    }, 'Bulk upload facility supervisors');
+  }
+
+  static async downloadTemplate(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const buffer = FacilitySupervisorService.generateTemplate();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=facility_supervisors_template.xlsx');
+      res.send(buffer);
+    }, 'Download facility supervisors template');
+  }
 }
