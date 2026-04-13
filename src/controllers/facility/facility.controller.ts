@@ -3,6 +3,8 @@ import BaseController from '../base.controller';
 import FacilityService from '../../services/facility/facility.service';
 import ApiResponseUtility from '../../utilities/api-response.utility';
 import { IFacilityQueryParams } from '../../repositories/facility.repository';
+import FileService from '../../services/file/file.service';
+import { EntityType, DocumentType } from '../../entities/file/file.entity';
 
 export default class FacilityController extends BaseController {
   static async create(req: Request, res: Response) {
@@ -67,8 +69,72 @@ export default class FacilityController extends BaseController {
   static async update(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
-      const facility = await FacilityService.update({ id, ...req.body });
-      ApiResponseUtility.success(res, facility, 'Facility updated successfully');
+      
+      // Extract files from multer upload
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      
+      // Parse body data
+      let bodyData = req.body;
+      
+      // Helper function to check if value is provided and not empty
+      const hasValue = (value: any) => {
+        return value !== undefined && value !== null && value !== '';
+      };
+      
+      // Build update data object - only include fields with actual values
+      const updateData: any = { id };
+      
+      if (hasValue(bodyData.organization_name)) updateData.organization_name = bodyData.organization_name;
+      if (hasValue(bodyData.registered_business_name)) updateData.registered_business_name = bodyData.registered_business_name;
+      if (hasValue(bodyData.website_url)) updateData.website_url = bodyData.website_url;
+      if (hasValue(bodyData.abn_registration_number)) updateData.abn_registration_number = bodyData.abn_registration_number;
+      if (hasValue(bodyData.source_of_data)) updateData.source_of_data = bodyData.source_of_data;
+      
+      try {
+        // Update basic facility data first
+        if (Object.keys(updateData).length > 1) { // More than just 'id'
+          await FacilityService.update(updateData);
+        }
+        
+        // Handle agreement document uploads if files are provided
+        if (files?.mou_document?.[0] || files?.insurance_doc?.[0]) {
+          // Get the first agreement for this facility
+          const FacilityAgreementService = (await import('../../services/facility/facility-agreement.service')).default;
+          const agreements = await FacilityAgreementService.getByFacilityId(id);
+          
+          if (agreements && agreements.length > 0) {
+            const firstAgreement = agreements[0];
+            
+            // Deactivate old files if new ones are being uploaded
+            if (files?.mou_document?.[0]) {
+              await FileService.deactivateEntityFiles(EntityType.AGREEMENT, firstAgreement.agreement_id, DocumentType.MOU_DOCUMENT);
+            }
+            if (files?.insurance_doc?.[0]) {
+              await FileService.deactivateEntityFiles(EntityType.AGREEMENT, firstAgreement.agreement_id, DocumentType.INSURANCE_DOCUMENT);
+            }
+            
+            // Prepare files object
+            const agreementFiles = {
+              mou_document: files?.mou_document?.[0],
+              insurance_doc: files?.insurance_doc?.[0]
+            };
+            
+            // Update the first agreement with new documents
+            await FacilityAgreementService.update({ id: firstAgreement.agreement_id }, agreementFiles);
+          } else {
+            console.warn('⚠️ No agreements found for facility, skipping document upload');
+          }
+        }
+        
+        // Get the final facility with all updated data
+        const facility = await FacilityService.detail(id);
+        
+        ApiResponseUtility.success(res, facility, 'Facility updated successfully');
+        
+      } catch (error: any) {
+        console.error('❌ Error in facility update:', error.message);
+        throw error;
+      }
     }, 'Update facility');
   }
 

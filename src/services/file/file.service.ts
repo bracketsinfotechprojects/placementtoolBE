@@ -329,6 +329,17 @@ export default class FileService {
   }
 
   /**
+   * Get files by entity and document type (case-insensitive)
+   */
+  static async getFilesByEntityAndDocTypeCaseInsensitive(
+    entityType: EntityType,
+    entityId: number,
+    docType: string
+  ): Promise<File[]> {
+    return await FileRepository.findByEntityAndDocTypeCaseInsensitive(entityType, entityId, docType);
+  }
+
+  /**
    * Delete file (soft delete)
    */
   static async deleteFile(id: number): Promise<void> {
@@ -340,6 +351,27 @@ export default class FileService {
 
     await FileRepository.softDelete(id);
     console.log(`🗑️ File marked as inactive: ${file.file_path}`);
+  }
+
+  /**
+   * Deactivate all files for a specific entity and document type
+   * Used when uploading a new file to replace old ones
+   */
+  static async deactivateEntityFiles(
+    entityType: EntityType,
+    entityId: number,
+    docType: DocumentType
+  ): Promise<void> {
+    const files = await FileRepository.findByEntityAndDocType(entityType, entityId, docType);
+    
+    if (files && files.length > 0) {
+      for (const file of files) {
+        if (file.is_active) {
+          await FileRepository.softDelete(file.id);
+          console.log(`🗑️ Deactivated old file: ${file.file_path} (${docType})`);
+        }
+      }
+    }
   }
 
   /**

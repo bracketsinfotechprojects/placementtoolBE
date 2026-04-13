@@ -184,8 +184,157 @@ export default class FacilitySupervisorController extends BaseController {
   static async update(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
-      const supervisor = await FacilitySupervisorService.update({ id, ...req.body });
-      ApiResponseUtility.success(res, supervisor, 'Facility Supervisor updated successfully');
+      
+      // Extract file paths from multer upload
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Parse body data
+      let bodyData = req.body;
+      
+      // Parse array fields from JSON strings if received as multipart/form-data
+      if (bodyData.facility_types && typeof bodyData.facility_types === 'string') {
+        try {
+          bodyData.facility_types = JSON.parse(bodyData.facility_types);
+        } catch (error) {
+          bodyData.facility_types = bodyData.facility_types.split(',').map((s: string) => s.trim());
+        }
+      }
+      
+      // Convert numeric fields from strings to numbers
+      if (bodyData.facility_id && typeof bodyData.facility_id === 'string') {
+        bodyData.facility_id = parseInt(bodyData.facility_id);
+      }
+      if (bodyData.max_students_can_handle && typeof bodyData.max_students_can_handle === 'string') {
+        bodyData.max_students_can_handle = parseInt(bodyData.max_students_can_handle);
+      }
+      
+      // Convert boolean string fields to actual booleans
+      if (bodyData.portal_access_enabled === 'yes' || bodyData.portal_access_enabled === 'true') bodyData.portal_access_enabled = true;
+      if (bodyData.portal_access_enabled === 'no' || bodyData.portal_access_enabled === 'false') bodyData.portal_access_enabled = false;
+      
+      const uploadedFiles: any[] = [];
+      
+      try {
+        // Build update data object - only include fields that have actual values
+        const updateData: any = { id };
+        
+        // Helper function to check if value is provided and not empty
+        const hasValue = (value: any) => {
+          return value !== undefined && value !== null && value !== '';
+        };
+        
+        // Only add fields that have actual values (not empty strings from Swagger)
+        if (hasValue(bodyData.full_name)) updateData.full_name = bodyData.full_name;
+        if (hasValue(bodyData.designation)) updateData.designation = bodyData.designation;
+        if (hasValue(bodyData.mobile_number)) updateData.mobile_number = bodyData.mobile_number;
+        if (hasValue(bodyData.email)) updateData.email = bodyData.email;
+        if (hasValue(bodyData.facility_id)) updateData.facility_id = bodyData.facility_id;
+        if (hasValue(bodyData.facility_name)) updateData.facility_name = bodyData.facility_name;
+        if (hasValue(bodyData.branch_site)) updateData.branch_site = bodyData.branch_site;
+        if (bodyData.facility_types !== undefined && bodyData.facility_types !== null && bodyData.facility_types !== '') {
+          updateData.facility_types = bodyData.facility_types;
+        }
+        if (hasValue(bodyData.facility_address)) updateData.facility_address = bodyData.facility_address;
+        if (hasValue(bodyData.max_students_can_handle)) updateData.max_students_can_handle = bodyData.max_students_can_handle;
+        if (bodyData.portal_access_enabled !== undefined && bodyData.portal_access_enabled !== null && bodyData.portal_access_enabled !== '') {
+          updateData.portal_access_enabled = bodyData.portal_access_enabled;
+        }
+        
+        // Update basic supervisor data first (without file paths)
+        if (Object.keys(updateData).length > 1) { // More than just 'id'
+          await FacilitySupervisorService.update(updateData);
+        }
+        
+        // Handle file uploads only if new files are provided
+        
+        // Upload photograph if provided
+        if (files?.photograph?.[0]) {
+          // Deactivate old photograph files
+          await FileService.deactivateEntityFiles(EntityType.FACILITY_SUPERVISOR, id, DocumentType.PHOTOGRAPH);
+          
+          const fileRecord = await FileService.uploadFile({
+            file: files.photograph[0],
+            entity_type: EntityType.FACILITY_SUPERVISOR,
+            entity_id: id,
+            doc_type: DocumentType.PHOTOGRAPH
+          });
+          uploadedFiles.push(fileRecord);
+          await FacilitySupervisorService.update({
+            id,
+            photograph: fileRecord.file_path
+          });
+        }
+        
+        // Upload id_proof_document if provided
+        if (files?.id_proof_document?.[0]) {
+          // Deactivate old ID proof files
+          await FileService.deactivateEntityFiles(EntityType.FACILITY_SUPERVISOR, id, DocumentType.ID_PROOF);
+          
+          const fileRecord = await FileService.uploadFile({
+            file: files.id_proof_document[0],
+            entity_type: EntityType.FACILITY_SUPERVISOR,
+            entity_id: id,
+            doc_type: DocumentType.ID_PROOF
+          });
+          uploadedFiles.push(fileRecord);
+          await FacilitySupervisorService.update({
+            id,
+            id_proof_document: fileRecord.file_path
+          });
+        }
+        
+        // Upload police_check_document if provided
+        if (files?.police_check_document?.[0]) {
+          // Deactivate old police check files
+          await FileService.deactivateEntityFiles(EntityType.FACILITY_SUPERVISOR, id, DocumentType.POLICE_CHECK);
+          
+          const fileRecord = await FileService.uploadFile({
+            file: files.police_check_document[0],
+            entity_type: EntityType.FACILITY_SUPERVISOR,
+            entity_id: id,
+            doc_type: DocumentType.POLICE_CHECK
+          });
+          uploadedFiles.push(fileRecord);
+          await FacilitySupervisorService.update({
+            id,
+            police_check_document: fileRecord.file_path
+          });
+        }
+        
+        // Upload authorization_letter_document if provided
+        if (files?.authorization_letter_document?.[0]) {
+          // Deactivate old authorization letter files
+          await FileService.deactivateEntityFiles(EntityType.FACILITY_SUPERVISOR, id, DocumentType.AUTHORIZATION_LETTER);
+          
+          const fileRecord = await FileService.uploadFile({
+            file: files.authorization_letter_document[0],
+            entity_type: EntityType.FACILITY_SUPERVISOR,
+            entity_id: id,
+            doc_type: DocumentType.AUTHORIZATION_LETTER
+          });
+          uploadedFiles.push(fileRecord);
+          await FacilitySupervisorService.update({
+            id,
+            authorization_letter_document: fileRecord.file_path
+          });
+        }
+        
+        // Get the final supervisor with all updated data
+        const supervisor = await FacilitySupervisorService.getById(id);
+        
+        ApiResponseUtility.success(res, {
+          ...supervisor,
+          uploaded_files: uploadedFiles.length > 0 ? uploadedFiles : undefined
+        }, 'Facility Supervisor updated successfully');
+        
+      } catch (error: any) {
+        console.error('❌ Error in facility supervisor update:', error.message);
+        
+        // Clean up any uploaded temp files on error
+        FacilitySupervisorController.cleanupFiles(files);
+        
+        throw error;
+      }
     }, 'Update facility supervisor');
   }
 

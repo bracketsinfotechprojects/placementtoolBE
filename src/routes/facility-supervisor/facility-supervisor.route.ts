@@ -258,7 +258,11 @@ router.get('/:id', FacilitySupervisorController.getById);
  * @swagger
  * /api/facility-supervisors/{id}:
  *   put:
- *     summary: Update facility supervisor
+ *     summary: Update facility supervisor with optional file uploads
+ *     description: |
+ *       Update facility supervisor information with support for file uploads.
+ *       Only upload new files if provided in the request.
+ *       If a new file is uploaded, the old file will be deactivated.
  *     tags:
  *       - Facility Supervisors
  *     security:
@@ -272,7 +276,7 @@ router.get('/:id', FacilitySupervisorController.getById);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -286,6 +290,8 @@ router.get('/:id', FacilitySupervisorController.getById);
  *                 type: string
  *               photograph:
  *                 type: string
+ *                 format: binary
+ *                 description: New photograph file (optional)
  *               facility_id:
  *                 type: integer
  *               facility_name:
@@ -302,10 +308,16 @@ router.get('/:id', FacilitySupervisorController.getById);
  *                 type: integer
  *               id_proof_document:
  *                 type: string
+ *                 format: binary
+ *                 description: New ID proof document file (optional)
  *               police_check_document:
  *                 type: string
+ *                 format: binary
+ *                 description: New police check document file (optional)
  *               authorization_letter_document:
  *                 type: string
+ *                 format: binary
+ *                 description: New authorization letter document file (optional)
  *               portal_access_enabled:
  *                 type: boolean
  *     responses:
@@ -316,7 +328,12 @@ router.get('/:id', FacilitySupervisorController.getById);
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id', FacilitySupervisorController.update);
+router.put('/:id', upload.fields([
+  { name: 'photograph', maxCount: 1 },
+  { name: 'id_proof_document', maxCount: 1 },
+  { name: 'police_check_document', maxCount: 1 },
+  { name: 'authorization_letter_document', maxCount: 1 }
+]), FacilitySupervisorController.update);
 
 /**
  * @swagger

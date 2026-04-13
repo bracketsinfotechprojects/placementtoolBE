@@ -214,7 +214,11 @@ router.get('/:id', PlacementExecutiveController.getById);
  * @swagger
  * /api/placement-executives/{id}:
  *   put:
- *     summary: Update placement executive
+ *     summary: Update placement executive with optional photograph upload
+ *     description: |
+ *       Update placement executive information with support for photograph upload.
+ *       Only upload new photograph if provided in the request.
+ *       If a new photograph is uploaded, the old photograph will be deactivated.
  *     tags:
  *       - Placement Executives
  *     security:
@@ -228,7 +232,7 @@ router.get('/:id', PlacementExecutiveController.getById);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -242,6 +246,10 @@ router.get('/:id', PlacementExecutiveController.getById);
  *                 type: string
  *                 format: email
  *                 example: "john.smith.updated@example.com"
+ *               photograph:
+ *                 type: string
+ *                 format: binary
+ *                 description: New photograph file (optional)
  *               joining_date:
  *                 type: string
  *                 format: date
@@ -264,7 +272,7 @@ router.get('/:id', PlacementExecutiveController.getById);
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id', PlacementExecutiveController.update);
+router.put('/:id', upload.single('photograph'), PlacementExecutiveController.update);
 
 /**
  * @swagger

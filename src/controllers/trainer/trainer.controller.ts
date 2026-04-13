@@ -112,7 +112,27 @@ export default class TrainerController extends BaseController {
   static async update(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
-      const trainer = await TrainerService.update({ id, ...req.body });
+      const photographFile = req.file;
+      
+      // Parse array fields from JSON strings if received as multipart/form-data
+      let bodyData = req.body;
+      const arrayFields = ['trainer_type', 'course_auth', 'state_covered', 'cities_covered', 'available_days', 'time_slots'];
+      for (const field of arrayFields) {
+        if (bodyData[field] && typeof bodyData[field] === 'string') {
+          try {
+            bodyData[field] = JSON.parse(bodyData[field]);
+          } catch (error) {
+            // If not valid JSON, split by comma
+            bodyData[field] = bodyData[field].split(',').map((s: string) => s.trim());
+          }
+        }
+      }
+      
+      // Convert boolean string fields to actual booleans ('yes'/'no' or 'true'/'false')
+      if (bodyData.suprise_visit === 'yes' || bodyData.suprise_visit === 'true') bodyData.suprise_visit = true;
+      if (bodyData.suprise_visit === 'no' || bodyData.suprise_visit === 'false') bodyData.suprise_visit = false;
+      
+      const trainer = await TrainerService.update({ id, ...bodyData }, photographFile);
       ApiResponseUtility.success(res, trainer, 'Trainer updated successfully');
     }, 'Update trainer');
   }

@@ -53,6 +53,14 @@ export class PlacementSlot {
   total_slots_offered: number;
 
   @Column({
+    type: 'int',
+    nullable: true,
+    name: 'remaining_seats',
+    comment: 'Number of remaining seats available for booking'
+  })
+  remaining_seats: number;
+
+  @Column({
     type: 'date',
     nullable: true,
     name: 'placement_start_date',
