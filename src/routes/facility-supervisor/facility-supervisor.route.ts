@@ -13,6 +13,144 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/facility-supervisors/template:
+ *   get:
+ *     summary: Download Excel template for bulk upload
+ *     tags:
+ *       - Facility Supervisors
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Excel template file
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/template', FacilitySupervisorController.downloadTemplate);
+
+/**
+ * @swagger
+ * /api/facility-supervisors/bulk-upload:
+ *   post:
+ *     summary: Bulk upload facility supervisors from Excel file
+ *     description: |
+ *       Upload multiple facility supervisors at once using an Excel file.
+ *       
+ *       **Features:**
+ *       - Upload up to 2,000 facility supervisors per file
+ *       - All-or-nothing transaction (if any record fails, all changes are rolled back)
+ *       - Duplicate detection (within file and database)
+ *       - Detailed per-row error reporting
+ *       - Automatic password hashing
+ *       
+ *       **Required Excel Columns:**
+ *       - full_name
+ *       - designation
+ *       - mobile_number
+ *       - facility_id (numeric)
+ *       - login_id
+ *       - password
+ *       
+ *       **Optional Excel Columns:**
+ *       - email
+ *       - facility_name
+ *       - branch_site
+ *       - facility_types (comma-separated: Aged Care,Disability,Home Care)
+ *       - facility_address
+ *       - max_students_can_handle (numeric)
+ *       - portal_access_enabled (true/false, yes/no, 1/0)
+ *       
+ *       **Download template first:** GET /api/facility-supervisors/template
+ *     tags:
+ *       - Facility Supervisors
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file (.xlsx or .xls) with facility supervisor data
+ *     responses:
+ *       200:
+ *         description: Bulk upload completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload completed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *                     totalRows:
+ *                       type: integer
+ *                       example: 50
+ *                     successCount:
+ *                       type: integer
+ *                       example: 50
+ *                     failureCount:
+ *                       type: integer
+ *                       example: 0
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 5
+ *                           email:
+ *                             type: string
+ *                             example: "john@example.com"
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             example: ["email must be a valid email address"]
+ *                     createdSupervisors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           supervisor_id:
+ *                             type: integer
+ *                             example: 1001
+ *                           email:
+ *                             type: string
+ *                             example: "john.supervisor@example.com"
+ *                           full_name:
+ *                             type: string
+ *                             example: "John Supervisor"
+ *       400:
+ *         description: Bad Request - Validation errors or duplicate data
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/bulk-upload', upload.single('file'), FacilitySupervisorController.bulkUpload);
+
+/**
+ * @swagger
  * /api/facility-supervisors:
  *   post:
  *     summary: Create new facility supervisor with optional documents

@@ -13,6 +13,169 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/placement-executives/template:
+ *   get:
+ *     summary: Download Excel template for bulk upload
+ *     tags:
+ *       - Placement Executives
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Excel template file
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/template', PlacementExecutiveController.downloadTemplate);
+
+/**
+ * @swagger
+ * /api/placement-executives/bulk-upload:
+ *   post:
+ *     summary: Bulk upload placement executives from Excel file
+ *     description: |
+ *       Upload multiple placement executives at once using an Excel file.
+ *       
+ *       **Features:**
+ *       - Upload up to 2,000 placement executives per file
+ *       - All-or-nothing transaction (if any record fails, all changes are rolled back)
+ *       - Duplicate detection (within file and database)
+ *       - Detailed per-row error reporting
+ *       - Automatic password hashing
+ *       
+ *       **Required Excel Columns:**
+ *       - full_name
+ *       - mobile_number
+ *       - email
+ *       - joining_date (YYYY-MM-DD format)
+ *       - employment_type (comma-separated: full-time,part-time,contract)
+ *       - login_id
+ *       - password
+ *       
+ *       **Optional Excel Columns:**
+ *       - facility_types_handled (comma-separated: Aged Care,Disability,Home Care)
+ *       
+ *       **Download template first:** GET /api/placement-executives/template
+ *     tags:
+ *       - Placement Executives
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file (.xlsx or .xls) with placement executive data
+ *     responses:
+ *       200:
+ *         description: Bulk upload completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload completed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *                     totalRows:
+ *                       type: integer
+ *                       example: 50
+ *                     successCount:
+ *                       type: integer
+ *                       example: 50
+ *                     failureCount:
+ *                       type: integer
+ *                       example: 0
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 5
+ *                           email:
+ *                             type: string
+ *                             example: "john@example.com"
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             example: ["email must be a valid email address"]
+ *                     createdExecutives:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           executive_id:
+ *                             type: integer
+ *                             example: 1001
+ *                           email:
+ *                             type: string
+ *                             example: "john.smith@example.com"
+ *                           full_name:
+ *                             type: string
+ *                             example: "John Smith"
+ *       400:
+ *         description: Bad Request - Validation errors or duplicate data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload failed - see errors for details"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: false
+ *                     totalRows:
+ *                       type: integer
+ *                       example: 50
+ *                     successCount:
+ *                       type: integer
+ *                       example: 0
+ *                     failureCount:
+ *                       type: integer
+ *                       example: 3
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/bulk-upload', upload.single('file'), PlacementExecutiveController.bulkUpload);
+
+/**
+ * @swagger
  * /api/placement-executives:
  *   post:
  *     summary: Create new placement executive with optional photograph
