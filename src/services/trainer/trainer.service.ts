@@ -65,6 +65,118 @@ const uploadPhotograph = async (
 };
 
 /**
+ * Upload WWC document and create file record within transaction
+ */
+const uploadWWCDocument = async (
+  file: Express.Multer.File,
+  trainerId: number,
+  manager: EntityManager
+): Promise<string> => {
+  // Validate file type for documents
+  const allowedMimeTypes = [
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error('Invalid file type. Only PDF, images, or Word documents are allowed for WWC documents.');
+  }
+
+  // Generate folder path
+  const folderPath = path.join('uploads', 'trainers', trainerId.toString());
+
+  // Ensure directory exists
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true, mode: 0o755 });
+  }
+
+  // Generate secure filename
+  const ext = path.extname(file.originalname).toLowerCase();
+  const timestamp = Date.now();
+  const filename = `WWC_DOCUMENT_${timestamp}${ext}`;
+  const fullPath = path.join(folderPath, filename);
+
+  // Move file from temp location
+  fs.renameSync(file.path, fullPath);
+  fs.chmodSync(fullPath, 0o644);
+
+  // Create file record within the transaction
+  const fileRecord = new File();
+  fileRecord.entity_type = EntityType.TRAINER;
+  fileRecord.entity_id = trainerId;
+  fileRecord.doc_type = DocumentType.WORK_CHILD_CHECK;
+  fileRecord.file_path = fullPath.replace(/\\/g, '/');
+  fileRecord.file_name = file.originalname;
+  fileRecord.mime_type = file.mimetype;
+  fileRecord.file_size = file.size;
+  fileRecord.version = 1;
+  fileRecord.expiry_date = null;
+
+  await manager.save(fileRecord);
+
+  console.log(`✅ WWC Document uploaded: ${fullPath}`);
+
+  return fullPath.replace(/\\/g, '/');
+};
+
+/**
+ * Upload Police Check document and create file record within transaction
+ */
+const uploadPoliceCheckDocument = async (
+  file: Express.Multer.File,
+  trainerId: number,
+  manager: EntityManager
+): Promise<string> => {
+  // Validate file type for documents
+  const allowedMimeTypes = [
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new Error('Invalid file type. Only PDF, images, or Word documents are allowed for Police Check documents.');
+  }
+
+  // Generate folder path
+  const folderPath = path.join('uploads', 'trainers', trainerId.toString());
+
+  // Ensure directory exists
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true, mode: 0o755 });
+  }
+
+  // Generate secure filename
+  const ext = path.extname(file.originalname).toLowerCase();
+  const timestamp = Date.now();
+  const filename = `POLICE_CHECK_DOCUMENT_${timestamp}${ext}`;
+  const fullPath = path.join(folderPath, filename);
+
+  // Move file from temp location
+  fs.renameSync(file.path, fullPath);
+  fs.chmodSync(fullPath, 0o644);
+
+  // Create file record within the transaction
+  const fileRecord = new File();
+  fileRecord.entity_type = EntityType.TRAINER;
+  fileRecord.entity_id = trainerId;
+  fileRecord.doc_type = DocumentType.POLICE_CHECK;
+  fileRecord.file_path = fullPath.replace(/\\/g, '/');
+  fileRecord.file_name = file.originalname;
+  fileRecord.mime_type = file.mimetype;
+  fileRecord.file_size = file.size;
+  fileRecord.version = 1;
+  fileRecord.expiry_date = null;
+
+  await manager.save(fileRecord);
+
+  console.log(`✅ Police Check Document uploaded: ${fullPath}`);
+
+  return fullPath.replace(/\\/g, '/');
+};
+
+/**
  * Cleanup photograph on rollback
  */
 const cleanupPhotograph = (photographPath: string) => {
@@ -78,7 +190,21 @@ const cleanupPhotograph = (photographPath: string) => {
   }
 };
 
-const create = async (params: ICreateTrainer, photographFile?: Express.Multer.File) => {
+/**
+ * Cleanup document on rollback
+ */
+const cleanupDocument = (documentPath: string) => {
+  try {
+    if (documentPath && fs.existsSync(documentPath)) {
+      fs.unlinkSync(documentPath);
+      console.log(`🗑️ Cleaned up document file: ${documentPath}`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to cleanup document file:', error);
+  }
+};
+
+const create = async (params: ICreateTrainer, photographFile?: Express.Multer.File, wwcDocumentFile?: Express.Multer.File, policeCheckDocumentFile?: Express.Multer.File) => {
   // Validate required fields
   if (!params.first_name) {
     throw new Error('first_name is required');
@@ -112,6 +238,8 @@ const create = async (params: ICreateTrainer, photographFile?: Express.Multer.Fi
   await queryRunner.startTransaction();
 
   let photographPath: string | null = null;
+  let wwcDocumentPath: string | null = null;
+  let policeCheckDocumentPath: string | null = null;
 
   try {
     // Check if email already exists
@@ -210,6 +338,34 @@ const create = async (params: ICreateTrainer, photographFile?: Express.Multer.Fi
       });
     }
 
+    // Upload WWC document if provided (within transaction)
+    if (wwcDocumentFile) {
+      wwcDocumentPath = await uploadWWCDocument(
+        wwcDocumentFile,
+        savedTrainer.trainer_id,
+        queryRunner.manager
+      );
+
+      // Update trainer with WWC document path
+      await queryRunner.manager.update(Trainer, { trainer_id: savedTrainer.trainer_id }, {
+        wwcDocument: wwcDocumentPath
+      });
+    }
+
+    // Upload Police Check document if provided (within transaction)
+    if (policeCheckDocumentFile) {
+      policeCheckDocumentPath = await uploadPoliceCheckDocument(
+        policeCheckDocumentFile,
+        savedTrainer.trainer_id,
+        queryRunner.manager
+      );
+
+      // Update trainer with Police Check document path
+      await queryRunner.manager.update(Trainer, { trainer_id: savedTrainer.trainer_id }, {
+        policeCheckDocument: policeCheckDocumentPath
+      });
+    }
+
     await queryRunner.commitTransaction();
 
     console.log(`✅ Created trainer with user account (userID=${savedUser.id}, trainerID=${savedTrainer.trainer_id})`);
@@ -223,9 +379,15 @@ const create = async (params: ICreateTrainer, photographFile?: Express.Multer.Fi
     }
     console.error('❌ Transaction failed, rolling back all changes:', error);
 
-    // Cleanup uploaded file if it was moved
+    // Cleanup uploaded files if they were moved
     if (photographPath) {
       cleanupPhotograph(photographPath);
+    }
+    if (wwcDocumentPath) {
+      cleanupDocument(wwcDocumentPath);
+    }
+    if (policeCheckDocumentPath) {
+      cleanupDocument(policeCheckDocumentPath);
     }
 
     throw error;
@@ -257,7 +419,7 @@ const getById = async (id: number) => {
   return trainerWithPhoto;
 };
 
-const update = async (params: IUpdateTrainer, photographFile?: Express.Multer.File) => {
+const update = async (params: IUpdateTrainer, photographFile?: Express.Multer.File, wwcDocumentFile?: Express.Multer.File, policeCheckDocumentFile?: Express.Multer.File) => {
   const trainer = await TrainerRepository.findById(params.id);
   if (!trainer) {
     throw new StringError('Trainer does not exist');
@@ -316,50 +478,110 @@ const update = async (params: IUpdateTrainer, photographFile?: Express.Multer.Fi
   if (params.policeCheckNumber !== undefined) updateData.policeCheckNumber = params.policeCheckNumber;
   if (params.policeCheckExpiryDate !== undefined) updateData.policeCheckExpiryDate = new Date(params.policeCheckExpiryDate);
 
-  // If no photograph file, do simple update without transaction
-  if (!photographFile) {
+  // If no files provided, do simple update without transaction
+  if (!photographFile && !wwcDocumentFile && !policeCheckDocumentFile) {
     await getRepository(Trainer).update({ trainer_id: params.id }, updateData);
     console.log('✅ Trainer updated successfully (no file upload)');
     return await getById(params.id);
   }
 
-  // If photograph file is provided, use transaction
+  // If any file is provided, use transaction
   const queryRunner = getConnection().createQueryRunner();
   await queryRunner.connect();
   await queryRunner.startTransaction();
 
   let photographPath: string | null = null;
+  let wwcDocumentPath: string | null = null;
+  let policeCheckDocumentPath: string | null = null;
 
   try {
     // Update trainer data
     await queryRunner.manager.update(Trainer, { trainer_id: params.id }, updateData);
 
-    // Deactivate old photograph files
-    await queryRunner.manager.update(
-      File,
-      { 
-        entity_type: EntityType.TRAINER, 
-        entity_id: params.id, 
-        is_active: true 
-      },
-      { is_active: false }
-    );
+    // Handle photograph upload
+    if (photographFile) {
+      // Deactivate old photograph files
+      await queryRunner.manager.update(
+        File,
+        { 
+          entity_type: EntityType.TRAINER, 
+          entity_id: params.id,
+          doc_type: DocumentType.PHOTOGRAPH,
+          is_active: true 
+        },
+        { is_active: false }
+      );
 
-    // Upload new photograph
-    photographPath = await uploadPhotograph(
-      photographFile,
-      params.id,
-      queryRunner.manager
-    );
+      // Upload new photograph
+      photographPath = await uploadPhotograph(
+        photographFile,
+        params.id,
+        queryRunner.manager
+      );
 
-    // Update trainer with new photograph path
-    await queryRunner.manager.update(Trainer, { trainer_id: params.id }, {
-      photograph: photographPath
-    });
+      // Update trainer with new photograph path
+      await queryRunner.manager.update(Trainer, { trainer_id: params.id }, {
+        photograph: photographPath
+      });
+    }
+
+    // Handle WWC document upload
+    if (wwcDocumentFile) {
+      // Deactivate old WWC document files
+      await queryRunner.manager.update(
+        File,
+        { 
+          entity_type: EntityType.TRAINER, 
+          entity_id: params.id,
+          doc_type: DocumentType.WORK_CHILD_CHECK,
+          is_active: true 
+        },
+        { is_active: false }
+      );
+
+      // Upload new WWC document
+      wwcDocumentPath = await uploadWWCDocument(
+        wwcDocumentFile,
+        params.id,
+        queryRunner.manager
+      );
+
+      // Update trainer with new WWC document path
+      await queryRunner.manager.update(Trainer, { trainer_id: params.id }, {
+        wwcDocument: wwcDocumentPath
+      });
+    }
+
+    // Handle Police Check document upload
+    if (policeCheckDocumentFile) {
+      // Deactivate old Police Check document files
+      await queryRunner.manager.update(
+        File,
+        { 
+          entity_type: EntityType.TRAINER, 
+          entity_id: params.id,
+          doc_type: DocumentType.POLICE_CHECK,
+          is_active: true 
+        },
+        { is_active: false }
+      );
+
+      // Upload new Police Check document
+      policeCheckDocumentPath = await uploadPoliceCheckDocument(
+        policeCheckDocumentFile,
+        params.id,
+        queryRunner.manager
+      );
+
+      // Update trainer with new Police Check document path
+      await queryRunner.manager.update(Trainer, { trainer_id: params.id }, {
+        policeCheckDocument: policeCheckDocumentPath
+      });
+    }
 
     // Commit transaction
     await queryRunner.commitTransaction();
-    console.log('✅ Trainer updated successfully with photograph upload');
+    console.log('✅ Trainer updated successfully with file uploads');
 
     return await getById(params.id);
 
@@ -368,9 +590,15 @@ const update = async (params: IUpdateTrainer, photographFile?: Express.Multer.Fi
     await queryRunner.rollbackTransaction();
     console.error('❌ Error in trainer update, rolling back...', error.message);
 
-    // Cleanup uploaded file if it was moved
+    // Cleanup uploaded files if they were moved
     if (photographPath) {
       cleanupPhotograph(photographPath);
+    }
+    if (wwcDocumentPath) {
+      cleanupDocument(wwcDocumentPath);
+    }
+    if (policeCheckDocumentPath) {
+      cleanupDocument(policeCheckDocumentPath);
     }
 
     throw error;
