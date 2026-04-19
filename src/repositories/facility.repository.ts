@@ -27,17 +27,17 @@ export default class FacilityRepository {
   }
 
   static async findByIdWithRelations(id: number): Promise<Facility | undefined> {
-    return await getRepository(Facility).findOne({
-      where: { facility_id: id, isDeleted: false },
-      relations: [
-        'attributes',
-        'organizationStructures',
-        'branches',
-        'agreements',
-        'documentsRequired',
-        'rules'
-      ]
-    });
+    return await getRepository(Facility)
+      .createQueryBuilder('facility')
+      .where('facility.facility_id = :id', { id })
+      .andWhere('facility.isDeleted = :isDeleted', { isDeleted: false })
+      .leftJoinAndSelect('facility.attributes', 'attributes', 'attributes.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.organizationStructures', 'organizationStructures', 'organizationStructures.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.branches', 'branches', 'branches.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.agreements', 'agreements', 'agreements.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.documentsRequired', 'documentsRequired', 'documentsRequired.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.rules', 'rules', 'rules.isDeleted = :isDeleted')
+      .getOne();
   }
 
   static buildFilteredQuery(params: IFacilityFilters): SelectQueryBuilder<Facility> {
