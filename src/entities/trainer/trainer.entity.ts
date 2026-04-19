@@ -172,6 +172,15 @@ export class Trainer extends BaseEntity {
 
   @Column({ 
     type: 'varchar', 
+    length: 255, 
+    nullable: true,
+    name: 'wwc_document',
+    comment: 'Path to Working With Children Check document file'
+  })
+  wwcDocument: string;
+
+  @Column({ 
+    type: 'varchar', 
     length: 100, 
     nullable: true,
     name: 'police_check_number',
@@ -186,6 +195,15 @@ export class Trainer extends BaseEntity {
     comment: 'Police check expiry date'
   })
   policeCheckExpiryDate: Date;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 255, 
+    nullable: true,
+    name: 'police_check_document',
+    comment: 'Path to Police Check document file'
+  })
+  policeCheckDocument: string;
 
   @Column({ 
     type: 'varchar', 
