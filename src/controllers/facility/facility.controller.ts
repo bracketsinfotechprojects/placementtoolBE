@@ -31,17 +31,42 @@ export default class FacilityController extends BaseController {
       const agreementFiles: Map<number, { mou_document?: Express.Multer.File; insurance_doc?: Express.Multer.File }> = new Map();
       
       if (filesArray && Array.isArray(filesArray)) {
-        // Process files (format: mou_document_0, mou_document_1, etc.)
+        // Process files - support both indexed (mou_document_0) and non-indexed (mou_document) formats
         for (const file of filesArray) {
-          if (file.fieldname.startsWith('mou_document_')) {
-            const index = parseInt(file.fieldname.replace('mou_document_', ''), 10);
+          // Handle MOU documents
+          if (file.fieldname.startsWith('mou_document')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., mou_document_0, mou_document_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'mou_document') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
             if (!agreementFiles.has(index)) {
               agreementFiles.set(index, {});
             }
             agreementFiles.get(index)!.mou_document = file;
           }
-          if (file.fieldname.startsWith('insurance_doc_')) {
-            const index = parseInt(file.fieldname.replace('insurance_doc_', ''), 10);
+          
+          // Handle insurance documents
+          if (file.fieldname.startsWith('insurance_doc')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., insurance_doc_0, insurance_doc_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'insurance_doc') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
             if (!agreementFiles.has(index)) {
               agreementFiles.set(index, {});
             }
@@ -92,17 +117,42 @@ export default class FacilityController extends BaseController {
       const agreementFiles: Map<number, { mou_document?: Express.Multer.File; insurance_doc?: Express.Multer.File }> = new Map();
       
       if (filesArray && Array.isArray(filesArray)) {
-        // Process files (format: mou_document_0, mou_document_1, etc.)
+        // Process files - support both indexed (mou_document_0) and non-indexed (mou_document) formats
         for (const file of filesArray) {
-          if (file.fieldname.startsWith('mou_document_')) {
-            const index = parseInt(file.fieldname.replace('mou_document_', ''), 10);
+          // Handle MOU documents
+          if (file.fieldname.startsWith('mou_document')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., mou_document_0, mou_document_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'mou_document') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
             if (!agreementFiles.has(index)) {
               agreementFiles.set(index, {});
             }
             agreementFiles.get(index)!.mou_document = file;
           }
-          if (file.fieldname.startsWith('insurance_doc_')) {
-            const index = parseInt(file.fieldname.replace('insurance_doc_', ''), 10);
+          
+          // Handle insurance documents
+          if (file.fieldname.startsWith('insurance_doc')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., insurance_doc_0, insurance_doc_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'insurance_doc') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
             if (!agreementFiles.has(index)) {
               agreementFiles.set(index, {});
             }
