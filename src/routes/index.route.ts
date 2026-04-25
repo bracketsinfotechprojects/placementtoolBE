@@ -19,6 +19,7 @@ import placementAssignmentRouter from './placement-assignment/placement-assignme
 import cleanupRouter from './admin/cleanup.route';
 import activationRouter from './common/activation.route';
 import fileRouter from './file/file.route';
+import locationRouter from './location/location.route';
 
 const router = express.Router();
 
@@ -39,6 +40,7 @@ router.use('/course-assignments', jwtAuth, courseAssignmentRouter); // Authentic
 router.use('/placement-slots', jwtAuth, placementSlotRouter); // Authenticated users
 router.use('/placement-assignments', jwtAuth, placementAssignmentRouter); // Authenticated users
 router.use('/files', jwtAuth, fileRouter); // File upload and management
+router.use('/location', jwtAuth, locationRouter); // Location-based queries
 router.use('/admin/cleanup', jwtAuth, adminOnly, cleanupRouter); // Admin only
 
 // Generic activation route (must be after specific routes to avoid conflicts)

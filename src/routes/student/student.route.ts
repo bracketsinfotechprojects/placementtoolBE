@@ -58,6 +58,16 @@ const router = Router();
  *                 type: string
  *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 12.9716
+ *                 description: "Latitude coordinate (optional, can be added later)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 77.5946
+ *                 description: "Longitude coordinate (optional, can be added later)"
  *               email:
  *                 type: string
  *                 format: email
@@ -369,6 +379,16 @@ router.post('/', StudentController.create);
  *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 default: "active"
  *                 example: "active"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 12.9716
+ *                 description: "Latitude coordinate (optional, can be added later)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 77.5946
+ *                 description: "Longitude coordinate (optional, can be added later)"
  *               contact_details:
  *                 type: object
  *                 properties:
@@ -1560,6 +1580,16 @@ router.get('/:id', StudentController.detail);
  *                 type: string
  *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 12.9716
+ *                 description: "Latitude coordinate (optional)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 77.5946
+ *                 description: "Longitude coordinate (optional)"
  *               contact_details:
  *                 type: object
  *                 description: If provided, replaces existing contact details

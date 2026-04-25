@@ -116,7 +116,35 @@ const create = async (params: ICreateFacility, agreementFiles?: Map<number, IAgr
     facility.states_covered = params.states_covered || [];
     facility.categories = params.categories || [];
 
-    const savedFacility = await queryRunner.manager.save(facility);
+    // Handle location with ST_MakePoint if latitude and longitude provided
+    let savedFacility;
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      // Save facility first without location
+      const tempFacility = await queryRunner.manager.save(facility);
+      const facilityId = tempFacility.facility_id;
+
+      // Update with POINT for location (MySQL format: POINT(longitude, latitude))
+      await queryRunner.manager.query(
+        `UPDATE facility SET location = POINT(?, ?) WHERE facility_id = ?`,
+        [params.longitude, params.latitude, facilityId]
+      );
+
+      // Fetch the updated facility
+      savedFacility = await queryRunner.manager.findOne(Facility, { where: { facility_id: facilityId } });
+    } else {
+      // Save facility with default location POINT(0, 0)
+      const tempFacility = await queryRunner.manager.save(facility);
+      const facilityId = tempFacility.facility_id;
+
+      // Set default location
+      await queryRunner.manager.query(
+        `UPDATE facility SET location = POINT(0, 0) WHERE facility_id = ?`,
+        [facilityId]
+      );
+
+      savedFacility = await queryRunner.manager.findOne(Facility, { where: { facility_id: facilityId } });
+    }
+
     const facilityId = savedFacility.facility_id;
 
     // Create user account if email and password provided
@@ -695,6 +723,14 @@ const updateComplete = async (params: IUpdateCompleteFacility) => {
       await queryRunner.manager.update(Facility, { facility_id: facilityId }, updateData);
     }
 
+    // Update location if latitude and longitude provided
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      await queryRunner.manager.query(
+        `UPDATE facility SET location = POINT(?, ?) WHERE facility_id = ?`,
+        [params.longitude, params.latitude, facilityId]
+      );
+    }
+
     // Update attributes - replace all
     if (params.attributes !== undefined) {
       // Delete existing attributes
@@ -942,6 +978,8 @@ export interface ICreateFacility {
     email: string;
     password: string;
   };
+  latitude?: number;
+  longitude?: number;
   states_covered?: string[];
   categories?: string[];
   attributes?: Array<{
@@ -1019,6 +1057,8 @@ export interface IUpdateFacility {
   website_url?: string;
   abn_registration_number?: string;
   source_of_data?: string;
+  latitude?: number;
+  longitude?: number;
   states_covered?: string[];
   categories?: string[];
   attributes?: Array<{
@@ -1096,6 +1136,8 @@ export interface IUpdateCompleteFacility {
   website_url?: string;
   abn_registration_number?: string;
   source_of_data?: string;
+  latitude?: number;
+  longitude?: number;
   states_covered?: string[];
   categories?: string[];
   attributes?: Array<{
