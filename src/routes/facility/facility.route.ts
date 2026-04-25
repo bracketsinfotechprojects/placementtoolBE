@@ -69,6 +69,16 @@ const router = express.Router();
  *               password:
  *                 type: string
  *                 example: "SecurePass123"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: -33.8688
+ *                 description: "Latitude coordinate (optional, can be added later)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 151.2093
+ *                 description: "Longitude coordinate (optional, can be added later)"
  *               states_covered:
  *                 type: string
  *                 example: '["NSW", "VIC"]'
@@ -456,6 +466,16 @@ router.get('/simplified', FacilityController.listSimplified);
  *                 type: array
  *                 items:
  *                   type: string
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: -33.8688
+ *                 description: "Latitude coordinate (optional)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 151.2093
+ *                 description: "Longitude coordinate (optional)"
  *               attributes:
  *                 type: array
  *                 items:
@@ -610,6 +630,17 @@ router.get('/:id', FacilityController.getById);
  *                 example: '[{"obligations":"Provide supervision","obligations_univ":"Ensure training completed","obligations_student":"Maintain 95% attendance","shift_rules":"7am-3pm, 3pm-11pm","attendance_policy":"Minimum 95% required","dress_code":"Business casual","behaviour_rules":"Professional conduct","special_instr":"Complete infection control training"}]'
  *                 description: JSON string array of facility rules
  *               mou_document_0:
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: -33.8688
+ *                 description: "Latitude coordinate (optional)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 151.2093
+ *                 description: "Longitude coordinate (optional)"
+ *               mou_document:
  *                 type: string
  *                 format: binary
  *                 description: MOU document for first agreement (index 0). Uploads new file and updates path.

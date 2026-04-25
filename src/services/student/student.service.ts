@@ -46,7 +46,41 @@ const create = async (params: ICreateStudent) => {
     student.student_type = params.student_type || 'domestic';
     student.status = params.status || 'active';
 
-    const studentData = await queryRunner.manager.save(Student, student);
+    // Handle location with ST_MakePoint if latitude and longitude provided
+    let studentData;
+    console.log('🔍 Location params:', { latitude: params.latitude, longitude: params.longitude });
+    
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      console.log('✅ Both coordinates provided, setting actual location');
+      // Save student first without location
+      const tempStudent = await queryRunner.manager.save(Student, student);
+      const studentId = tempStudent.student_id;
+
+      // Update with POINT for location (MySQL format: POINT(longitude, latitude))
+      await queryRunner.manager.query(
+        `UPDATE students SET location = POINT(?, ?) WHERE student_id = ?`,
+        [params.longitude, params.latitude, studentId]
+      );
+      console.log(`📍 Location set to POINT(${params.longitude}, ${params.latitude})`);
+
+      // Fetch the updated student
+      studentData = await queryRunner.manager.findOne(Student, { where: { student_id: studentId } });
+    } else {
+      console.log('⚠️ Coordinates not provided or incomplete, using default POINT(0, 0)');
+      // Save student with default location POINT(0, 0)
+      const tempStudent = await queryRunner.manager.save(Student, student);
+      const studentId = tempStudent.student_id;
+
+      // Set default location
+      await queryRunner.manager.query(
+        `UPDATE students SET location = POINT(0, 0) WHERE student_id = ?`,
+        [studentId]
+      );
+      console.log('📍 Location set to default POINT(0, 0)');
+
+      studentData = await queryRunner.manager.findOne(Student, { where: { student_id: studentId } });
+    }
+
     console.log('✅ Student record created with ID:', studentData.student_id);
 
     // Step 2: Create contact details if provided
@@ -294,7 +328,35 @@ const createExternalStudent = async (params: ICreateExternalStudent) => {
     student.student_type = params.student_type || 'external';
     student.status = params.status || 'active';
 
-    const studentData = await queryRunner.manager.save(Student, student);
+    // Handle location with ST_MakePoint if latitude and longitude provided
+    let studentData;
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      // Save student first without location
+      const tempStudent = await queryRunner.manager.save(Student, student);
+      const studentId = tempStudent.student_id;
+
+      // Update with POINT for location (MySQL format: POINT(longitude, latitude))
+      await queryRunner.manager.query(
+        `UPDATE students SET location = POINT(?, ?) WHERE student_id = ?`,
+        [params.longitude, params.latitude, studentId]
+      );
+
+      // Fetch the updated student
+      studentData = await queryRunner.manager.findOne(Student, { where: { student_id: studentId } });
+    } else {
+      // Save student with default location POINT(0, 0)
+      const tempStudent = await queryRunner.manager.save(Student, student);
+      const studentId = tempStudent.student_id;
+
+      // Set default location
+      await queryRunner.manager.query(
+        `UPDATE students SET location = POINT(0, 0) WHERE student_id = ?`,
+        [studentId]
+      );
+
+      studentData = await queryRunner.manager.findOne(Student, { where: { student_id: studentId } });
+    }
+
     console.log('✅ External Student record created with ID:', studentData.student_id);
 
     // Step 2: Create contact details if provided
@@ -391,6 +453,8 @@ export interface ICreateStudent {
   nationality?: string;
   student_type?: string;
   status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  latitude?: number;
+  longitude?: number;
   email?: string; // Email for contact details and user account
   password?: string; // Password for user account (optional)
   login?: { // Alternative format for email/password
@@ -420,6 +484,8 @@ export interface ICreateExternalStudent {
   nationality?: string;
   student_type?: string;  // Defaults to 'external'
   status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  latitude?: number;
+  longitude?: number;
 
   // Only these 3 related entities for external students
   contact_details?: ICreateContactDetails;
@@ -440,6 +506,8 @@ export interface IUpdateStudent {
   nationality?: string;
   student_type?: string;
   status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  latitude?: number;
+  longitude?: number;
 
   // Related entities (optional) - same as create
   contact_details?: ICreateContactDetails;
@@ -1218,6 +1286,15 @@ const update = async (params: IUpdateStudent) => {
       updateData.updatedAt = new Date();
       await queryRunner.manager.update(Student, query, updateData);
       console.log('✅ Student basic info updated');
+    }
+
+    // Update location if latitude and longitude provided
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      await queryRunner.manager.query(
+        `UPDATE students SET location = POINT(?, ?) WHERE student_id = ?`,
+        [params.longitude, params.latitude, params.student_id]
+      );
+      console.log('✅ Student location updated');
     }
 
     // Step 3: Update or create contact details if provided

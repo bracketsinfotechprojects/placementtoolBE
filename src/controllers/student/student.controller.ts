@@ -36,6 +36,8 @@ export default class StudentController extends BaseController {
         nationality: req.body.nationality,
         student_type: req.body.student_type || 'domestic',
         status: req.body.status || 'active',
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
         email: email,
         password: password,
         
@@ -77,6 +79,8 @@ export default class StudentController extends BaseController {
         nationality: req.body.nationality,
         student_type: req.body.student_type || 'external',
         status: req.body.status || 'active',
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
 
         // Only these 3 related entities for external students
         contact_details: req.body.contact_details,
