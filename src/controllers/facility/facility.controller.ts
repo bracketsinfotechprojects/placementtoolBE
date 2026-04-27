@@ -276,4 +276,38 @@ export default class FacilityController extends BaseController {
       ApiResponseUtility.success(res, null, 'Facility permanently deleted');
     }, 'Permanently delete facility');
   }
+
+  static async bulkUpload(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      if (!req.file) {
+        throw new Error('Excel file is required');
+      }
+
+      const result = await FacilityService.bulkUpload(req.file.path);
+
+      if (result.success) {
+        ApiResponseUtility.createdSuccess(
+          res,
+          {
+            totalRows: result.totalRows,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            createdFacilities: result.createdFacilities
+          },
+          `Bulk upload completed: ${result.successCount} facilities created`
+        );
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Bulk upload failed',
+          data: {
+            totalRows: result.totalRows,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            errors: result.errors
+          }
+        });
+      }
+    }, 'Bulk upload facilities');
+  }
 }
