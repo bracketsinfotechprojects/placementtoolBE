@@ -781,7 +781,24 @@ const getById = async (params: IDetailById) => {
     const data = await getRepository(Student).findOne({
       where: { student_id: params.id },
     });
-    return ApiUtility.sanitizeStudent(data);
+    
+    if (!data) return null;
+    
+    // Extract latitude and longitude from location POINT
+    const locationData: any[] = await getConnection().query(
+      `SELECT ST_X(location) as longitude, ST_Y(location) as latitude FROM students WHERE student_id = ?`,
+      [params.id]
+    );
+    
+    const sanitized: any = ApiUtility.sanitizeStudent(data);
+    
+    // Add lat/long to response
+    if (locationData && locationData[0]) {
+      sanitized.latitude = locationData[0].latitude;
+      sanitized.longitude = locationData[0].longitude;
+    }
+    
+    return sanitized;
   } catch (e) {
     return null;
   }
@@ -1203,12 +1220,24 @@ const getAllDetails = async (params: IDetailById) => {
       throw new StringError('Student does not exist');
     }
 
-    const sanitizedStudent = ApiUtility.sanitizeStudent(student);
+    const sanitizedStudent: any = ApiUtility.sanitizeStudent(student);
+
+    // Extract latitude and longitude from location POINT
+    const locationData: any[] = await getConnection().query(
+      `SELECT ST_X(location) as longitude, ST_Y(location) as latitude FROM students WHERE student_id = ?`,
+      [params.id]
+    );
+    
+    // Add lat/long to response
+    if (locationData && locationData[0]) {
+      sanitizedStudent.latitude = locationData[0].latitude;
+      sanitizedStudent.longitude = locationData[0].longitude;
+    }
 
     // Get associated user account information
     let userDetails = null;
     if (student.contact_details && student.contact_details.length > 0) {
-      const primaryEmail = student.contact_details.find(cd => cd.email)?.email;
+      const primaryEmail = student.contact_details.find((cd: any) => cd.email)?.email;
       if (primaryEmail) {
         try {
           const user = await getRepository(User).findOne({
@@ -1614,8 +1643,30 @@ const list = async (params: IStudentQueryParams) => {
 
   const response = [];
   if (students && students.length) {
+    // Get all student IDs
+    const studentIds = students.map(s => s.student_id);
+    
+    // Fetch lat/long for all students in one query
+    const locationData: any[] = await getConnection().query(
+      `SELECT student_id, ST_X(location) as longitude, ST_Y(location) as latitude 
+       FROM students WHERE student_id IN (?)`,
+      [studentIds]
+    );
+    
+    // Create a map for quick lookup
+    const locationMap = new Map();
+    locationData.forEach((loc: any) => {
+      locationMap.set(loc.student_id, { latitude: loc.latitude, longitude: loc.longitude });
+    });
+    
     for (const item of students) {
-      response.push(ApiUtility.sanitizeStudent(item));
+      const sanitized: any = ApiUtility.sanitizeStudent(item);
+      const location = locationMap.get(item.student_id);
+      if (location) {
+        sanitized.latitude = location.latitude;
+        sanitized.longitude = location.longitude;
+      }
+      response.push(sanitized);
     }
   }
 
@@ -1776,7 +1827,7 @@ const getWithUserDetails = async (studentId: number) => {
 
   let userDetails = null;
   if (student.contact_details && student.contact_details.length > 0) {
-    const primaryEmail = student.contact_details.find(cd => cd.email)?.email;
+    const primaryEmail = student.contact_details.find((cd: any) => cd.email)?.email;
     if (primaryEmail) {
       try {
         const user = await getRepository(User).findOne({
@@ -2133,6 +2184,10 @@ interface IBulkStudentRow {
   part_time?: string;
   full_time?: string;
   urgency_level?: string;
+  
+  // Location
+  latitude?: string;
+  longitude?: string;
 }
 
 // Validate student row
@@ -2196,6 +2251,32 @@ const validateStudentRow = (row: IBulkStudentRow, rowIndex: number): string[] =>
   // Urgency level validation
   if (row.urgency_level && !['immediate', 'within_month', 'within_quarter', 'flexible'].includes(row.urgency_level.toLowerCase())) {
     errors.push('urgency_level must be immediate, within_month, within_quarter, or flexible');
+  }
+  
+  // Latitude validation (optional, but if provided must be valid)
+  if (row.latitude && row.latitude.trim() !== '') {
+    const lat = parseFloat(row.latitude);
+    if (isNaN(lat)) {
+      errors.push('latitude must be a valid number');
+    } else if (lat < -90 || lat > 90) {
+      errors.push('latitude must be between -90 and 90');
+    }
+  }
+  
+  // Longitude validation (optional, but if provided must be valid)
+  if (row.longitude && row.longitude.trim() !== '') {
+    const lng = parseFloat(row.longitude);
+    if (isNaN(lng)) {
+      errors.push('longitude must be a valid number');
+    } else if (lng < -180 || lng > 180) {
+      errors.push('longitude must be between -180 and 180');
+    }
+  }
+  
+  // If one coordinate is provided, both must be provided
+  if ((row.latitude && row.latitude.trim() !== '' && (!row.longitude || row.longitude.trim() === '')) ||
+      (row.longitude && row.longitude.trim() !== '' && (!row.latitude || row.latitude.trim() === ''))) {
+    errors.push('Both latitude and longitude must be provided together');
   }
   
   return errors;
@@ -2305,6 +2386,12 @@ const convertRowToStudent = (row: IBulkStudentRow): ICreateStudent => {
       full_time: parseBool(row.full_time),
       urgency_level: (row.urgency_level?.toLowerCase().trim() as any) || 'flexible'
     };
+  }
+  
+  // Add location if both latitude and longitude are provided
+  if (row.latitude && row.latitude.trim() !== '' && row.longitude && row.longitude.trim() !== '') {
+    studentData.latitude = parseFloat(row.latitude);
+    studentData.longitude = parseFloat(row.longitude);
   }
   
   return studentData;
@@ -2461,6 +2548,20 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
         student.status = studentData.status || 'active';
 
         const savedStudent = await queryRunner.manager.save(Student, student);
+        
+        // Set location if latitude and longitude are provided
+        if (studentData.latitude !== undefined && studentData.longitude !== undefined) {
+          await queryRunner.manager.query(
+            `UPDATE students SET location = POINT(?, ?) WHERE student_id = ?`,
+            [studentData.longitude, studentData.latitude, savedStudent.student_id]
+          );
+        } else {
+          // Set default location POINT(0, 0)
+          await queryRunner.manager.query(
+            `UPDATE students SET location = POINT(0, 0) WHERE student_id = ?`,
+            [savedStudent.student_id]
+          );
+        }
 
         // Create contact details if provided
         if (studentData.contact_details) {
@@ -2632,7 +2733,8 @@ const generateTemplate = (): Buffer => {
     'address_line1', 'address_line2', 'suburb', 'city', 'state', 'country', 'postal_code', 'address_type',
     'classes_completed', 'fees_paid', 'assignments_submitted', 'documents_submitted', 'trainer_consent', 'overall_status',
     'currently_working', 'working_hours', 'has_dependents', 'married', 'driving_license', 'own_vehicle', 'public_transport_only', 'fully_flexible',
-    'preferred_states', 'preferred_cities', 'max_travel_distance_km', 'morning_only', 'evening_only', 'part_time', 'full_time', 'urgency_level'
+    'preferred_states', 'preferred_cities', 'max_travel_distance_km', 'morning_only', 'evening_only', 'part_time', 'full_time', 'urgency_level',
+    'latitude', 'longitude'
   ];
 
   const sampleData = [
@@ -2689,7 +2791,9 @@ const generateTemplate = (): Buffer => {
       evening_only: 'false',
       part_time: 'false',
       full_time: 'true',
-      urgency_level: 'within_month'
+      urgency_level: 'within_month',
+      latitude: '-33.8688',
+      longitude: '151.2093'
     }
   ];
 
