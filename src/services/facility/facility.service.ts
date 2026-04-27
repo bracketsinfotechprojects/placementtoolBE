@@ -917,7 +917,11 @@ const list = async (params: IFacilityQueryParams) => {
       states_covered: facility.states_covered || [],
       categories: facility.categories || [],
       has_mou: primaryAgreement?.has_mou || false,
-      source_of_data: facility.source_of_data || null
+      source_of_data: facility.source_of_data || null,
+      
+      // Location coordinates
+      latitude: (facility as any).latitude || null,
+      longitude: (facility as any).longitude || null
     };
   });
 
@@ -941,7 +945,9 @@ const listSimplified = async (params: IFacilityQueryParams) => {
     num_branches: facility.branches ? facility.branches.length : 0,
     has_mou: facility.agreements && facility.agreements.length > 0
       ? facility.agreements[0].has_mou || false
-      : false
+      : false,
+    latitude: (facility as any).latitude || null,
+    longitude: (facility as any).longitude || null
   }));
 
   return { response: simplifiedFacilities, pagination: pagRes.pagination };

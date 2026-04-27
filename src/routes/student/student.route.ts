@@ -1025,6 +1025,7 @@ router.post('/bulk-upload', upload.single('file'), StudentController.bulkUpload)
  *       - Eligibility: classes_completed, fees_paid, overall_status, etc.
  *       - Lifestyle: currently_working, married, driving_license, etc.
  *       - Preferences: preferred_states, preferred_cities, urgency_level, etc.
+ *       - Location: latitude, longitude (optional, for geolocation features)
  *     tags:
  *       - Students
  *     security:
