@@ -115,6 +115,152 @@ router.post('/', uploadMultiple.any(), FacilityController.create);
 
 /**
  * @swagger
+ * /api/facilities/bulk-upload:
+ *   post:
+ *     summary: Bulk upload facilities from Excel file with all fields (except file uploads)
+ *     description: |
+ *       Upload multiple facilities with complete data including nested structures.
+ *       
+ *       **Excel Columns:**
+ *       
+ *       **Basic Fields:**
+ *       - organization_name (required) - Organization name
+ *       - registered_business_name - Registered business name
+ *       - website_url - Website URL
+ *       - abn_registration_number - ABN registration number
+ *       - source_of_data - Source of data
+ *       - email - Email for user account (requires password)
+ *       - password - Password for user account (requires email)
+ *       - latitude - Latitude coordinate (-90 to 90)
+ *       - longitude - Longitude coordinate (-180 to 180)
+ *       - states_covered - Comma-separated states (e.g., "NSW,VIC,QLD")
+ *       - categories - Comma-separated categories (e.g., "Aged Care,Disability")
+ *       
+ *       **Nested Fields (JSON Format):**
+ *       - attributes - JSON array: [{"attribute_type":"Category","attribute_value":"Aged Care"}]
+ *         * attribute_type values: Category, State, care_type, capacity, facility_type, accreditation, specialty
+ *       - organization_structures - JSON array: [{"deal_with":"Head Office","contact_name":"John","phone":"0412345678","email":"john@facility.com"}]
+ *         * deal_with values: Head Office, Branch, Both
+ *       - branches - JSON array: [{"site_code":"SC001","city":"Sydney","state":"NSW","postcode":"2000","num_beds":50}]
+ *       - agreements - JSON array: [{"has_mou":true,"signed_on":"2024-01-01","expiry_date":"2025-12-31"}] (file uploads excluded)
+ *       - documents_required - JSON array: [{"document_name":"Police Check","notice_period_days":7,"orientation_req":true}]
+ *       - rules - JSON array: [{"obligations":"Follow safety protocols","shift_rules":"8 hour shifts"}]
+ *       
+ *       **Important:**
+ *       - Maximum 500 records per upload
+ *       - All-or-nothing transaction (if one fails, all rollback)
+ *       - JSON fields must be valid JSON format (double quotes, single line)
+ *       - File uploads (mou_document, insurance_doc) must be added via update API
+ *       - Validates all records before creating any
+ *       - Automatically creates user accounts when email/password provided
+ *     tags:
+ *       - Facilities
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: |
+ *                   Excel file (.xlsx) with facility data.
+ *                   Download template: facilities_bulk_upload_template.xlsx
+ *                   See BULK_FACILITIES_COMPLETE_GUIDE.md for detailed field descriptions.
+ *     responses:
+ *       201:
+ *         description: Bulk upload completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload completed: 3 facilities created"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalRows:
+ *                       type: number
+ *                       example: 3
+ *                     successCount:
+ *                       type: number
+ *                       example: 3
+ *                     failureCount:
+ *                       type: number
+ *                       example: 0
+ *                     createdFacilities:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           facility_id:
+ *                             type: number
+ *                             example: 101
+ *                           organization_name:
+ *                             type: string
+ *                             example: "Sunshine Care Home"
+ *       400:
+ *         description: Validation errors or bulk upload failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload failed"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalRows:
+ *                       type: number
+ *                       example: 3
+ *                     successCount:
+ *                       type: number
+ *                       example: 0
+ *                     failureCount:
+ *                       type: number
+ *                       example: 2
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: number
+ *                             example: 2
+ *                           organization_name:
+ *                             type: string
+ *                             example: "Test Facility"
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             example: ["Invalid email format", "attributes must be valid JSON format"]
+ *       401:
+ *         description: Unauthorized
+ *       413:
+ *         description: File too large or too many records (max 500)
+ */
+router.post('/bulk-upload', uploadMultiple.single('file'), FacilityController.bulkUpload);
+
+
+/**
+ * @swagger
  * /api/facilities:
  *   get:
  *     summary: List facilities (full details with advanced filters)

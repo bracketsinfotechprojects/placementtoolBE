@@ -1,4 +1,4 @@
-import { getRepository, getConnection, EntityManager } from 'typeorm';
+import { getRepository, getConnection, EntityManager, In } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
@@ -16,6 +16,7 @@ import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import RoleService from '../role/role.service';
 import { StringError } from '../../errors/string.error';
+import ExcelUtility from '../../utilities/excel.utility';
 
 /**
  * Upload a document file and create file record within transaction
@@ -1208,6 +1209,505 @@ export interface IUpdateCompleteFacility {
   }>;
 }
 
+/**
+ * Bulk upload facilities from Excel file
+ */
+interface IBulkFacilityRow {
+  organization_name: string;
+  registered_business_name?: string;
+  website_url?: string;
+  abn_registration_number?: string;
+  source_of_data?: string;
+  email?: string;
+  password?: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  states_covered?: string;
+  categories?: string;
+  attributes?: string;
+  organization_structures?: string;
+  branches?: string;
+  agreements?: string;
+  documents_required?: string;
+  rules?: string;
+}
+
+interface IBulkUploadResult {
+  success: boolean;
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  errors: Array<{ row: number; organization_name?: string; errors: string[] }>;
+  createdFacilities: Array<{ facility_id: number; organization_name: string }>;
+}
+
+const validateFacilityRow = (row: IBulkFacilityRow, rowIndex: number): string[] => {
+  const errors: string[] = [];
+
+  if (!row.organization_name || row.organization_name.trim() === '') {
+    errors.push('organization_name is required');
+  }
+
+  if (row.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(row.email)) {
+      errors.push('Invalid email format');
+    }
+    if (!row.password || row.password.trim() === '') {
+      errors.push('password is required when email is provided');
+    }
+  }
+
+  if (row.password && !row.email) {
+    errors.push('email is required when password is provided');
+  }
+
+  if (row.latitude !== undefined && row.latitude !== null && row.latitude !== '') {
+    const lat = typeof row.latitude === 'string' ? parseFloat(row.latitude) : row.latitude;
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      errors.push('latitude must be between -90 and 90');
+    }
+  }
+
+  if (row.longitude !== undefined && row.longitude !== null && row.longitude !== '') {
+    const lng = typeof row.longitude === 'string' ? parseFloat(row.longitude) : row.longitude;
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      errors.push('longitude must be between -180 and 180');
+    }
+  }
+
+  // Validate JSON fields
+  const jsonFields: Array<keyof IBulkFacilityRow> = ['attributes', 'organization_structures', 'branches', 'agreements', 'documents_required', 'rules'];
+  for (const field of jsonFields) {
+    const value = row[field];
+    if (value && typeof value === 'string' && value.trim() !== '') {
+      try {
+        JSON.parse(value);
+      } catch (e) {
+        errors.push(`${field} must be valid JSON format`);
+      }
+    }
+  }
+
+  return errors;
+};
+
+const convertRowToFacility = (row: IBulkFacilityRow): ICreateFacility => {
+  const facilityData: ICreateFacility = {
+    organization_name: row.organization_name.trim(),
+    registered_business_name: row.registered_business_name?.trim(),
+    website_url: row.website_url?.trim(),
+    abn_registration_number: row.abn_registration_number?.trim(),
+    source_of_data: row.source_of_data?.trim()
+  };
+
+  if (row.email && row.password) {
+    facilityData.email = row.email.trim().toLowerCase();
+    facilityData.password = row.password.trim();
+  }
+
+  if (row.latitude !== undefined && row.latitude !== null && row.latitude !== '') {
+    const lat = typeof row.latitude === 'string' ? parseFloat(row.latitude) : row.latitude;
+    if (!isNaN(lat)) {
+      facilityData.latitude = lat;
+    }
+  }
+
+  if (row.longitude !== undefined && row.longitude !== null && row.longitude !== '') {
+    const lng = typeof row.longitude === 'string' ? parseFloat(row.longitude) : row.longitude;
+    if (!isNaN(lng)) {
+      facilityData.longitude = lng;
+    }
+  }
+
+  if (row.states_covered) {
+    facilityData.states_covered = row.states_covered
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s);
+  }
+
+  if (row.categories) {
+    facilityData.categories = row.categories
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s);
+  }
+
+  // Parse JSON fields
+  if (row.attributes && row.attributes.trim() !== '') {
+    try {
+      facilityData.attributes = JSON.parse(row.attributes);
+    } catch (e) {
+      // Already validated, should not happen
+    }
+  }
+
+  if (row.organization_structures && row.organization_structures.trim() !== '') {
+    try {
+      facilityData.organization_structures = JSON.parse(row.organization_structures);
+    } catch (e) {
+      // Already validated
+    }
+  }
+
+  if (row.branches && row.branches.trim() !== '') {
+    try {
+      facilityData.branches = JSON.parse(row.branches);
+    } catch (e) {
+      // Already validated
+    }
+  }
+
+  if (row.agreements && row.agreements.trim() !== '') {
+    try {
+      facilityData.agreements = JSON.parse(row.agreements);
+    } catch (e) {
+      // Already validated
+    }
+  }
+
+  if (row.documents_required && row.documents_required.trim() !== '') {
+    try {
+      facilityData.documents_required = JSON.parse(row.documents_required);
+    } catch (e) {
+      // Already validated
+    }
+  }
+
+  if (row.rules && row.rules.trim() !== '') {
+    try {
+      facilityData.rules = JSON.parse(row.rules);
+    } catch (e) {
+      // Already validated
+    }
+  }
+
+  return facilityData;
+};
+
+const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
+  const result: IBulkUploadResult = {
+    success: false,
+    totalRows: 0,
+    successCount: 0,
+    failureCount: 0,
+    errors: [],
+    createdFacilities: []
+  };
+
+  const connection = getConnection();
+  const queryRunner = connection.createQueryRunner();
+
+  try {
+    const excelData = ExcelUtility.parseExcelFile<IBulkFacilityRow>(filePath);
+    result.totalRows = excelData.length;
+
+    console.log(`📋 Processing ${excelData.length} facility records from Excel file`);
+
+    if (excelData.length === 0) {
+      throw new Error('Excel file contains no data rows');
+    }
+
+    if (excelData.length > 500) {
+      throw new Error(`File contains ${excelData.length} rows. Maximum allowed is 500 records per upload.`);
+    }
+
+    const requiredFields = ['organization_name'];
+    const structureErrors = ExcelUtility.validateExcelStructure(excelData, requiredFields);
+    if (structureErrors.length > 0) {
+      result.errors.push({
+        row: 0,
+        errors: structureErrors.map(err => err.message)
+      });
+      return result;
+    }
+
+    console.log('🔍 Phase 1: Validating all records...');
+    
+    const validationErrors: Array<{ row: number; organization_name?: string; errors: string[] }> = [];
+    const validatedData: Array<{ rowIndex: number; data: ICreateFacility }> = [];
+
+    for (let i = 0; i < excelData.length; i++) {
+      const rowIndex = i + 2;
+      const row = excelData[i];
+
+      const rowErrors = validateFacilityRow(row, rowIndex);
+      if (rowErrors.length > 0) {
+        validationErrors.push({
+          row: rowIndex,
+          organization_name: row.organization_name,
+          errors: rowErrors
+        });
+        continue;
+      }
+
+      const facilityData = convertRowToFacility(row);
+      validatedData.push({
+        rowIndex,
+        data: facilityData
+      });
+    }
+
+    if (validationErrors.length > 0) {
+      result.errors = validationErrors;
+      result.failureCount = validationErrors.length;
+      result.successCount = 0;
+      throw new Error(`Validation failed for ${validationErrors.length} records.`);
+    }
+
+    console.log('🔍 Phase 2: Checking for duplicate emails...');
+    
+    const allEmails = validatedData
+      .filter(item => item.data.email)
+      .map(item => item.data.email!.toLowerCase());
+
+    if (allEmails.length > 0) {
+      const emailDuplicates = allEmails.filter((email, index) => allEmails.indexOf(email) !== index);
+      if (emailDuplicates.length > 0) {
+        throw new Error(`Duplicate emails found: ${[...new Set(emailDuplicates)].join(', ')}`);
+      }
+
+      const existingUsers = await getRepository(User).find({ 
+        where: { loginID: In(allEmails) } 
+      });
+
+      if (existingUsers.length > 0) {
+        const existingEmails = existingUsers.map(u => u.loginID).join(', ');
+        throw new Error(`Emails already exist: ${existingEmails}`);
+      }
+    }
+
+    console.log('🔐 Phase 3: Hashing passwords...');
+    
+    const passwordHashPromises = validatedData
+      .filter(item => item.data.password)
+      .map(async (item, index) => {
+        return {
+          index,
+          hashedPassword: await PasswordUtility.hashPassword(item.data.password!)
+        };
+      });
+
+    const hashedPasswords = await Promise.all(passwordHashPromises);
+    const passwordMap = new Map(hashedPasswords.map(p => [p.index, p.hashedPassword]));
+
+    const facilityRoleId = await RoleService.getRoleIdByName('Facility');
+
+    console.log('💾 Phase 4: Starting database transaction...');
+    
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    const createdFacilities: Array<{ facility_id: number; organization_name: string }> = [];
+
+    try {
+      for (let i = 0; i < validatedData.length; i++) {
+        const { data: facilityData } = validatedData[i];
+        
+        console.log(`📝 Creating facility ${i + 1}/${validatedData.length}: ${facilityData.organization_name}`);
+
+        const facility = new Facility();
+        facility.organization_name = facilityData.organization_name;
+        facility.registered_business_name = facilityData.registered_business_name;
+        facility.website_url = facilityData.website_url;
+        facility.abn_registration_number = facilityData.abn_registration_number;
+        facility.source_of_data = facilityData.source_of_data;
+        facility.states_covered = facilityData.states_covered || [];
+        facility.categories = facilityData.categories || [];
+
+        let savedFacility;
+        if (facilityData.latitude !== undefined && facilityData.longitude !== undefined) {
+          const tempFacility = await queryRunner.manager.save(facility);
+          const facilityId = tempFacility.facility_id;
+
+          await queryRunner.manager.query(
+            `UPDATE facility SET location = POINT(?, ?) WHERE facility_id = ?`,
+            [facilityData.longitude, facilityData.latitude, facilityId]
+          );
+
+          savedFacility = await queryRunner.manager.findOne(Facility, { where: { facility_id: facilityId } });
+        } else {
+          const tempFacility = await queryRunner.manager.save(facility);
+          const facilityId = tempFacility.facility_id;
+
+          await queryRunner.manager.query(
+            `UPDATE facility SET location = POINT(0, 0) WHERE facility_id = ?`,
+            [facilityId]
+          );
+
+          savedFacility = await queryRunner.manager.findOne(Facility, { where: { facility_id: facilityId } });
+        }
+
+        const facilityId = savedFacility.facility_id;
+
+        // Create user account if email and password provided
+        if (facilityData.email && facilityData.password) {
+          const user = new User();
+          user.loginID = facilityData.email;
+          user.password = passwordMap.get(i) || await PasswordUtility.hashPassword(facilityData.password);
+          user.roleID = facilityRoleId;
+          user.facilityID = facilityId;
+          user.studentID = null;
+          user.status = 'active';
+
+          await queryRunner.manager.save(user);
+          console.log(`✅ Created user account for facility: ${facilityData.email}`);
+        }
+
+        // Create attributes
+        if (facilityData.attributes && facilityData.attributes.length > 0) {
+          const attributes = facilityData.attributes.map(attr => {
+            const facilityAttr = new FacilityAttribute();
+            facilityAttr.facility_id = facilityId;
+            facilityAttr.attribute_type = attr.attribute_type;
+            facilityAttr.attribute_value = attr.attribute_value;
+            return facilityAttr;
+          });
+          await queryRunner.manager.save(attributes);
+        }
+
+        // Create organization structures
+        if (facilityData.organization_structures && facilityData.organization_structures.length > 0) {
+          const orgStructures = facilityData.organization_structures.map(org => {
+            const orgStruct = new FacilityOrganizationStructure();
+            orgStruct.facility_id = facilityId;
+            orgStruct.deal_with = org.deal_with;
+            orgStruct.head_office_addr = org.head_office_addr;
+            orgStruct.contact_name = org.contact_name;
+            orgStruct.designation = org.designation;
+            orgStruct.phone = org.phone;
+            orgStruct.email = org.email;
+            orgStruct.alternate_contact = org.alternate_contact;
+            orgStruct.notes = org.notes;
+            return orgStruct;
+          });
+          await queryRunner.manager.save(orgStructures);
+        }
+
+        // Create branches
+        if (facilityData.branches && facilityData.branches.length > 0) {
+          const branches = facilityData.branches.map(branch => {
+            const branchSite = new FacilityBranchSite();
+            branchSite.facility_id = facilityId;
+            branchSite.site_code = branch.site_code;
+            branchSite.full_address = branch.full_address;
+            branchSite.suburb = branch.suburb;
+            branchSite.city = branch.city;
+            branchSite.state = branch.state;
+            branchSite.postcode = branch.postcode;
+            branchSite.site_type = branch.site_type;
+            branchSite.palliative_care = branch.palliative_care || false;
+            branchSite.dementia_care = branch.dementia_care || false;
+            branchSite.num_beds = branch.num_beds;
+            branchSite.gender_rules = branch.gender_rules;
+            branchSite.contact_name = branch.contact_name;
+            branchSite.contact_role = branch.contact_role;
+            branchSite.contact_phone = branch.contact_phone;
+            branchSite.contact_email = branch.contact_email;
+            branchSite.contact_comments = branch.contact_comments;
+            return branchSite;
+          });
+          await queryRunner.manager.save(branches);
+        }
+
+        // Create agreements (without file uploads)
+        if (facilityData.agreements && facilityData.agreements.length > 0) {
+          const agreements = facilityData.agreements.map(agr => {
+            const agreement = new FacilityAgreement();
+            agreement.facility_id = facilityId;
+            agreement.sent_students = agr.sent_students;
+            agreement.with_mou = agr.with_mou;
+            agreement.no_mou_but_taken = agr.no_mou_but_taken;
+            agreement.mou_exists_no_spot = agr.mou_exists_no_spot;
+            agreement.total_students = agr.total_students;
+            agreement.last_placement = agr.last_placement;
+            agreement.has_mou = agr.has_mou;
+            agreement.signed_on = agr.signed_on;
+            agreement.expiry_date = agr.expiry_date;
+            agreement.company_name = agr.company_name
+              ? (Array.isArray(agr.company_name) ? agr.company_name : [agr.company_name])
+              : agr.company_name;
+            agreement.payment_required = agr.payment_required;
+            agreement.amount_per_spot = agr.amount_per_spot;
+            agreement.payment_notes = agr.payment_notes;
+            return agreement;
+          });
+          await queryRunner.manager.save(agreements);
+        }
+
+        // Create documents required
+        if (facilityData.documents_required && facilityData.documents_required.length > 0) {
+          const documents = facilityData.documents_required.map(doc => {
+            const document = new FacilityDocumentRequired();
+            document.facility_id = facilityId;
+            document.document_name = doc.document_name;
+            document.notice_period_days = doc.notice_period_days;
+            document.orientation_req = doc.orientation_req;
+            document.facilitator_req = doc.facilitator_req;
+            return document;
+          });
+          await queryRunner.manager.save(documents);
+        }
+
+        // Create rules
+        if (facilityData.rules && facilityData.rules.length > 0) {
+          const rules = facilityData.rules.map(r => {
+            const rule = new FacilityRule();
+            rule.facility_id = facilityId;
+            rule.obligations = r.obligations;
+            rule.obligations_univ = r.obligations_univ;
+            rule.obligations_student = r.obligations_student;
+            rule.process_notes = r.process_notes;
+            rule.shift_rules = r.shift_rules;
+            rule.attendance_policy = r.attendance_policy;
+            rule.dress_code = r.dress_code;
+            rule.behaviour_rules = r.behaviour_rules;
+            rule.special_instr = r.special_instr;
+            return rule;
+          });
+          await queryRunner.manager.save(rules);
+        }
+
+        createdFacilities.push({
+          facility_id: facilityId,
+          organization_name: savedFacility.organization_name
+        });
+      }
+
+      await queryRunner.commitTransaction();
+      
+      result.success = true;
+      result.successCount = createdFacilities.length;
+      result.createdFacilities = createdFacilities;
+
+      console.log(`✅ Bulk upload completed: ${result.successCount} facilities created`);
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('❌ Transaction failed, rolling back:', error);
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('❌ Bulk upload failed:', error);
+    result.success = false;
+    
+    if (!result.errors.length) {
+      result.errors.push({
+        row: 0,
+        errors: [error.message || 'Unknown error occurred']
+      });
+    }
+    
+    return result;
+  }
+};
+
 export default {
   create,
   getById,
@@ -1217,5 +1717,6 @@ export default {
   list,
   listSimplified,
   remove,
-  permanentlyDelete
+  permanentlyDelete,
+  bulkUpload
 };
