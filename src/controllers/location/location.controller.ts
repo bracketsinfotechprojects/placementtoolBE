@@ -50,12 +50,12 @@ export default class LocationController extends BaseController {
    */
   static async getFacilitiesNearby(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const coords = this.parseCoordinates(req);
+      const coords = LocationController.parseCoordinates(req);
       if (!coords) {
         return ApiResponseUtility.badRequest(res, 'Valid latitude and longitude are required');
       }
 
-      const { radius_km, limit } = this.parseLocationParams(req);
+      const { radius_km, limit } = LocationController.parseLocationParams(req);
 
       const result = await LocationService.getFacilitiesNearby({
         ...coords,
@@ -77,12 +77,12 @@ export default class LocationController extends BaseController {
    */
   static async getStudentsNearby(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const coords = this.parseCoordinates(req);
+      const coords = LocationController.parseCoordinates(req);
       if (!coords) {
         return ApiResponseUtility.badRequest(res, 'Valid latitude and longitude are required');
       }
 
-      const { radius_km, limit } = this.parseLocationParams(req);
+      const { radius_km, limit } = LocationController.parseLocationParams(req);
 
       const result = await LocationService.getStudentsNearby({
         ...coords,
@@ -105,7 +105,7 @@ export default class LocationController extends BaseController {
   static async getStudentsNearFacility(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const facilityId = BaseController.parseId(req, 'facilityId');
-      const { radius_km, limit } = this.parseLocationParams(req);
+      const { radius_km, limit } = LocationController.parseLocationParams(req);
 
       const result = await LocationService.getStudentsNearFacility(
         facilityId,
@@ -128,7 +128,7 @@ export default class LocationController extends BaseController {
   static async getFacilitiesNearStudent(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const studentId = BaseController.parseId(req, 'studentId');
-      const { radius_km, limit } = this.parseLocationParams(req);
+      const { radius_km, limit } = LocationController.parseLocationParams(req);
 
       const result = await LocationService.getFacilitiesNearStudent(
         studentId,
