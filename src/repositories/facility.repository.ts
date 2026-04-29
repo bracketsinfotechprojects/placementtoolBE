@@ -21,23 +21,55 @@ export default class FacilityRepository {
   }
 
   static async findById(id: number): Promise<Facility | undefined> {
-    return await getRepository(Facility).findOne({
+    const facility = await getRepository(Facility).findOne({
       where: { facility_id: id, isDeleted: false }
     });
+    
+    if (!facility) return undefined;
+    
+    // Extract latitude and longitude from location POINT
+    const locationData = await getRepository(Facility).query(
+      `SELECT ST_X(location) as longitude, ST_Y(location) as latitude FROM facility WHERE facility_id = ?`,
+      [id]
+    );
+    
+    // Add lat/long to facility object
+    if (locationData && locationData[0]) {
+      (facility as any).latitude = locationData[0].latitude;
+      (facility as any).longitude = locationData[0].longitude;
+    }
+    
+    return facility;
   }
 
   static async findByIdWithRelations(id: number): Promise<Facility | undefined> {
-    return await getRepository(Facility).findOne({
-      where: { facility_id: id, isDeleted: false },
-      relations: [
-        'attributes',
-        'organizationStructures',
-        'branches',
-        'agreements',
-        'documentsRequired',
-        'rules'
-      ]
-    });
+    const facility = await getRepository(Facility)
+      .createQueryBuilder('facility')
+      .where('facility.facility_id = :id', { id })
+      .andWhere('facility.isDeleted = :isDeleted', { isDeleted: false })
+      .leftJoinAndSelect('facility.attributes', 'attributes', 'attributes.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.organizationStructures', 'organizationStructures', 'organizationStructures.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.branches', 'branches', 'branches.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.agreements', 'agreements', 'agreements.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.documentsRequired', 'documentsRequired', 'documentsRequired.isDeleted = :isDeleted')
+      .leftJoinAndSelect('facility.rules', 'rules', 'rules.isDeleted = :isDeleted')
+      .getOne();
+    
+    if (!facility) return undefined;
+    
+    // Extract latitude and longitude from location POINT
+    const locationData = await getRepository(Facility).query(
+      `SELECT ST_X(location) as longitude, ST_Y(location) as latitude FROM facility WHERE facility_id = ?`,
+      [id]
+    );
+    
+    // Add lat/long to facility object
+    if (locationData && locationData[0]) {
+      (facility as any).latitude = locationData[0].latitude;
+      (facility as any).longitude = locationData[0].longitude;
+    }
+    
+    return facility;
   }
 
   static buildFilteredQuery(params: IFacilityFilters): SelectQueryBuilder<Facility> {
@@ -248,6 +280,31 @@ export default class FacilityRepository {
     query = this.applyPagination(query, params.limit, params.page);
 
     const facilities = await query.getMany();
+    
+    // Extract lat/long for all facilities
+    if (facilities && facilities.length > 0) {
+      const facilityIds = facilities.map(f => f.facility_id);
+      const locationData: any[] = await getRepository(Facility).query(
+        `SELECT facility_id, ST_X(location) as longitude, ST_Y(location) as latitude 
+         FROM facility WHERE facility_id IN (?)`,
+        [facilityIds]
+      );
+      
+      // Create a map for quick lookup
+      const locationMap = new Map();
+      locationData.forEach((loc: any) => {
+        locationMap.set(loc.facility_id, { latitude: loc.latitude, longitude: loc.longitude });
+      });
+      
+      // Add lat/long to each facility
+      facilities.forEach(facility => {
+        const location = locationMap.get(facility.facility_id);
+        if (location) {
+          (facility as any).latitude = location.latitude;
+          (facility as any).longitude = location.longitude;
+        }
+      });
+    }
 
     return { facilities, total };
   }

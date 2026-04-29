@@ -31,17 +31,42 @@ export default class FacilityController extends BaseController {
       const agreementFiles: Map<number, { mou_document?: Express.Multer.File; insurance_doc?: Express.Multer.File }> = new Map();
       
       if (filesArray && Array.isArray(filesArray)) {
-        // Process files (format: mou_document_0, mou_document_1, etc.)
+        // Process files - support both indexed (mou_document_0) and non-indexed (mou_document) formats
         for (const file of filesArray) {
-          if (file.fieldname.startsWith('mou_document_')) {
-            const index = parseInt(file.fieldname.replace('mou_document_', ''), 10);
+          // Handle MOU documents
+          if (file.fieldname.startsWith('mou_document')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., mou_document_0, mou_document_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'mou_document') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
             if (!agreementFiles.has(index)) {
               agreementFiles.set(index, {});
             }
             agreementFiles.get(index)!.mou_document = file;
           }
-          if (file.fieldname.startsWith('insurance_doc_')) {
-            const index = parseInt(file.fieldname.replace('insurance_doc_', ''), 10);
+          
+          // Handle insurance documents
+          if (file.fieldname.startsWith('insurance_doc')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., insurance_doc_0, insurance_doc_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'insurance_doc') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
             if (!agreementFiles.has(index)) {
               agreementFiles.set(index, {});
             }
@@ -70,78 +95,108 @@ export default class FacilityController extends BaseController {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
       
-      // Extract files from multer upload
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      // Get uploaded files if any - when using upload.any(), req.files is an array
+      const filesArray = req.files as Express.Multer.File[] | undefined;
       
-      // Parse body data
-      let bodyData = req.body;
+      // Parse body data - handle JSON strings for nested objects (for multipart/form-data)
+      let bodyData = { ...req.body };
       
-      // Helper function to check if value is provided and not empty
-      const hasValue = (value: any) => {
-        return value !== undefined && value !== null && value !== '';
-      };
-      
-      // Build update data object - only include fields with actual values
-      const updateData: any = { id };
-      
-      if (hasValue(bodyData.organization_name)) updateData.organization_name = bodyData.organization_name;
-      if (hasValue(bodyData.registered_business_name)) updateData.registered_business_name = bodyData.registered_business_name;
-      if (hasValue(bodyData.website_url)) updateData.website_url = bodyData.website_url;
-      if (hasValue(bodyData.abn_registration_number)) updateData.abn_registration_number = bodyData.abn_registration_number;
-      if (hasValue(bodyData.source_of_data)) updateData.source_of_data = bodyData.source_of_data;
-      
-      try {
-        // Update basic facility data first
-        if (Object.keys(updateData).length > 1) { // More than just 'id'
-          await FacilityService.update(updateData);
-        }
-        
-        // Handle agreement document uploads if files are provided
-        if (files?.mou_document?.[0] || files?.insurance_doc?.[0]) {
-          // Get the first agreement for this facility
-          const FacilityAgreementService = (await import('../../services/facility/facility-agreement.service')).default;
-          const agreements = await FacilityAgreementService.getByFacilityId(id);
-          
-          if (agreements && agreements.length > 0) {
-            const firstAgreement = agreements[0];
-            
-            // Deactivate old files if new ones are being uploaded
-            if (files?.mou_document?.[0]) {
-              await FileService.deactivateEntityFiles(EntityType.AGREEMENT, firstAgreement.agreement_id, DocumentType.MOU_DOCUMENT);
-            }
-            if (files?.insurance_doc?.[0]) {
-              await FileService.deactivateEntityFiles(EntityType.AGREEMENT, firstAgreement.agreement_id, DocumentType.INSURANCE_DOCUMENT);
-            }
-            
-            // Prepare files object
-            const agreementFiles = {
-              mou_document: files?.mou_document?.[0],
-              insurance_doc: files?.insurance_doc?.[0]
-            };
-            
-            // Update the first agreement with new documents
-            await FacilityAgreementService.update({ id: firstAgreement.agreement_id }, agreementFiles);
-          } else {
-            console.warn('⚠️ No agreements found for facility, skipping document upload');
+      // Parse JSON string fields if they exist (from form-data)
+      const jsonFields = ['attributes', 'organization_structures', 'branches', 'agreements', 'documents_required', 'rules', 'states_covered', 'categories'];
+      for (const field of jsonFields) {
+        if (bodyData[field] && typeof bodyData[field] === 'string') {
+          try {
+            bodyData[field] = JSON.parse(bodyData[field]);
+          } catch (error) {
+            // Keep original value if not valid JSON
           }
         }
-        
-        // Get the final facility with all updated data
-        const facility = await FacilityService.detail(id);
-        
-        ApiResponseUtility.success(res, facility, 'Facility updated successfully');
-        
-      } catch (error: any) {
-        console.error('❌ Error in facility update:', error.message);
-        throw error;
       }
+      
+      // Parse numeric fields (latitude, longitude) if they come as strings
+      if (bodyData.latitude !== undefined) {
+        bodyData.latitude = parseFloat(bodyData.latitude);
+      }
+      if (bodyData.longitude !== undefined) {
+        bodyData.longitude = parseFloat(bodyData.longitude);
+      }
+      
+      // Prepare agreement files mapping
+      const agreementFiles: Map<number, { mou_document?: Express.Multer.File; insurance_doc?: Express.Multer.File }> = new Map();
+      
+      if (filesArray && Array.isArray(filesArray)) {
+        // Process files - support both indexed (mou_document_0) and non-indexed (mou_document) formats
+        for (const file of filesArray) {
+          // Handle MOU documents
+          if (file.fieldname.startsWith('mou_document')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., mou_document_0, mou_document_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'mou_document') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
+            if (!agreementFiles.has(index)) {
+              agreementFiles.set(index, {});
+            }
+            agreementFiles.get(index)!.mou_document = file;
+          }
+          
+          // Handle insurance documents
+          if (file.fieldname.startsWith('insurance_doc')) {
+            let index = 0; // Default to first agreement
+            
+            // Check if it has an index suffix (e.g., insurance_doc_0, insurance_doc_1)
+            if (file.fieldname.includes('_') && file.fieldname !== 'insurance_doc') {
+              const parts = file.fieldname.split('_');
+              const lastPart = parts[parts.length - 1];
+              const parsedIndex = parseInt(lastPart, 10);
+              if (!isNaN(parsedIndex)) {
+                index = parsedIndex;
+              }
+            }
+            
+            if (!agreementFiles.has(index)) {
+              agreementFiles.set(index, {});
+            }
+            agreementFiles.get(index)!.insurance_doc = file;
+          }
+        }
+      }
+      
+      console.log('📁 Files received:', filesArray?.map(f => f.fieldname) || []);
+      console.log('📁 Agreement files map:', Array.from(agreementFiles.entries()));
+      
+      const facility = await FacilityService.update({ id, ...bodyData }, agreementFiles);
+      ApiResponseUtility.success(res, facility, 'Facility updated successfully');
     }, 'Update facility');
   }
 
   static async updateComplete(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
-      const facility = await FacilityService.updateComplete({ id, ...req.body });
+      
+      // Parse body data - handle JSON strings for nested objects (for multipart/form-data)
+      let bodyData = { ...req.body };
+      
+      // Parse JSON string fields if they exist (from form-data)
+      const jsonFields = ['attributes', 'organization_structures', 'branches', 'agreements', 'documents_required', 'rules', 'states_covered', 'categories'];
+      for (const field of jsonFields) {
+        if (bodyData[field] && typeof bodyData[field] === 'string') {
+          try {
+            bodyData[field] = JSON.parse(bodyData[field]);
+          } catch (error) {
+            // Keep original value if not valid JSON
+          }
+        }
+      }
+      
+      const facility = await FacilityService.updateComplete({ id, ...bodyData });
       ApiResponseUtility.success(res, facility, 'Facility updated successfully with all relations');
     }, 'Update complete facility');
   }
@@ -228,5 +283,39 @@ export default class FacilityController extends BaseController {
       await FacilityService.permanentlyDelete(id);
       ApiResponseUtility.success(res, null, 'Facility permanently deleted');
     }, 'Permanently delete facility');
+  }
+
+  static async bulkUpload(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      if (!req.file) {
+        throw new Error('Excel file is required');
+      }
+
+      const result = await FacilityService.bulkUpload(req.file.path);
+
+      if (result.success) {
+        ApiResponseUtility.createdSuccess(
+          res,
+          {
+            totalRows: result.totalRows,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            createdFacilities: result.createdFacilities
+          },
+          `Bulk upload completed: ${result.successCount} facilities created`
+        );
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Bulk upload failed',
+          data: {
+            totalRows: result.totalRows,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            errors: result.errors
+          }
+        });
+      }
+    }, 'Bulk upload facilities');
   }
 }

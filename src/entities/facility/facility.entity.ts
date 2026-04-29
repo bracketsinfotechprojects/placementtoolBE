@@ -81,6 +81,15 @@ export class Facility extends BaseEntity {
     })
     categories: string[];
 
+    @Column({
+        type: 'point',
+        nullable: true,
+        name: 'location',
+        comment: 'Geographic location (latitude, longitude) of the facility. Default POINT(0,0) means location not set.',
+        select: false
+    })
+    location: string;
+
     // Relations
     @OneToMany(() => FacilityAttribute, attribute => attribute.facility)
     attributes: FacilityAttribute[];

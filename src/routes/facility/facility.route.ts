@@ -69,6 +69,16 @@ const router = express.Router();
  *               password:
  *                 type: string
  *                 example: "SecurePass123"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: -33.8688
+ *                 description: "Latitude coordinate (optional, can be added later)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 151.2093
+ *                 description: "Longitude coordinate (optional, can be added later)"
  *               states_covered:
  *                 type: string
  *                 example: '["NSW", "VIC"]'
@@ -102,6 +112,152 @@ const router = express.Router();
  *         description: Unauthorized
  */
 router.post('/', uploadMultiple.any(), FacilityController.create);
+
+/**
+ * @swagger
+ * /api/facilities/bulk-upload:
+ *   post:
+ *     summary: Bulk upload facilities from Excel file with all fields (except file uploads)
+ *     description: |
+ *       Upload multiple facilities with complete data including nested structures.
+ *       
+ *       **Excel Columns:**
+ *       
+ *       **Basic Fields:**
+ *       - organization_name (required) - Organization name
+ *       - registered_business_name - Registered business name
+ *       - website_url - Website URL
+ *       - abn_registration_number - ABN registration number
+ *       - source_of_data - Source of data
+ *       - email - Email for user account (requires password)
+ *       - password - Password for user account (requires email)
+ *       - latitude - Latitude coordinate (-90 to 90)
+ *       - longitude - Longitude coordinate (-180 to 180)
+ *       - states_covered - Comma-separated states (e.g., "NSW,VIC,QLD")
+ *       - categories - Comma-separated categories (e.g., "Aged Care,Disability")
+ *       
+ *       **Nested Fields (JSON Format):**
+ *       - attributes - JSON array: [{"attribute_type":"Category","attribute_value":"Aged Care"}]
+ *         * attribute_type values: Category, State, care_type, capacity, facility_type, accreditation, specialty
+ *       - organization_structures - JSON array: [{"deal_with":"Head Office","contact_name":"John","phone":"0412345678","email":"john@facility.com"}]
+ *         * deal_with values: Head Office, Branch, Both
+ *       - branches - JSON array: [{"site_code":"SC001","city":"Sydney","state":"NSW","postcode":"2000","num_beds":50}]
+ *       - agreements - JSON array: [{"has_mou":true,"signed_on":"2024-01-01","expiry_date":"2025-12-31"}] (file uploads excluded)
+ *       - documents_required - JSON array: [{"document_name":"Police Check","notice_period_days":7,"orientation_req":true}]
+ *       - rules - JSON array: [{"obligations":"Follow safety protocols","shift_rules":"8 hour shifts"}]
+ *       
+ *       **Important:**
+ *       - Maximum 500 records per upload
+ *       - All-or-nothing transaction (if one fails, all rollback)
+ *       - JSON fields must be valid JSON format (double quotes, single line)
+ *       - File uploads (mou_document, insurance_doc) must be added via update API
+ *       - Validates all records before creating any
+ *       - Automatically creates user accounts when email/password provided
+ *     tags:
+ *       - Facilities
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: |
+ *                   Excel file (.xlsx) with facility data.
+ *                   Download template: facilities_bulk_upload_template.xlsx
+ *                   See BULK_FACILITIES_COMPLETE_GUIDE.md for detailed field descriptions.
+ *     responses:
+ *       201:
+ *         description: Bulk upload completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload completed: 3 facilities created"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalRows:
+ *                       type: number
+ *                       example: 3
+ *                     successCount:
+ *                       type: number
+ *                       example: 3
+ *                     failureCount:
+ *                       type: number
+ *                       example: 0
+ *                     createdFacilities:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           facility_id:
+ *                             type: number
+ *                             example: 101
+ *                           organization_name:
+ *                             type: string
+ *                             example: "Sunshine Care Home"
+ *       400:
+ *         description: Validation errors or bulk upload failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload failed"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalRows:
+ *                       type: number
+ *                       example: 3
+ *                     successCount:
+ *                       type: number
+ *                       example: 0
+ *                     failureCount:
+ *                       type: number
+ *                       example: 2
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: number
+ *                             example: 2
+ *                           organization_name:
+ *                             type: string
+ *                             example: "Test Facility"
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             example: ["Invalid email format", "attributes must be valid JSON format"]
+ *       401:
+ *         description: Unauthorized
+ *       413:
+ *         description: File too large or too many records (max 500)
+ */
+router.post('/bulk-upload', uploadMultiple.single('file'), FacilityController.bulkUpload);
+
 
 /**
  * @swagger
@@ -396,6 +552,44 @@ router.get('/simplified', FacilityController.listSimplified);
  *     requestBody:
  *       required: true
  *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name:
+ *                 type: string
+ *               registered_business_name:
+ *                 type: string
+ *               website_url:
+ *                 type: string
+ *               abn_registration_number:
+ *                 type: string
+ *               source_of_data:
+ *                 type: string
+ *               states_covered:
+ *                 type: string
+ *                 example: '["NSW", "VIC"]'
+ *               categories:
+ *                 type: string
+ *                 example: '["Aged Care"]'
+ *               attributes:
+ *                 type: string
+ *                 example: '[{"attribute_type":"Category","attribute_value":"Residential Care"}]'
+ *               organization_structures:
+ *                 type: string
+ *                 example: '[{"deal_with":"Head Office","contact_name":"John"}]'
+ *               branches:
+ *                 type: string
+ *                 example: '[{"site_code":"NSW001","city":"Sydney"}]'
+ *               agreements:
+ *                 type: string
+ *                 example: '[{"has_mou":true,"signed_on":"2025-01-10"}]'
+ *               documents_required:
+ *                 type: string
+ *                 example: '[{"document_name":"Police Check"}]'
+ *               rules:
+ *                 type: string
+ *                 example: '[{"obligations":"Provide supervision"}]'
  *         application/json:
  *           schema:
  *             type: object
@@ -410,6 +604,24 @@ router.get('/simplified', FacilityController.listSimplified);
  *                 type: string
  *               source_of_data:
  *                 type: string
+ *               states_covered:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: -33.8688
+ *                 description: "Latitude coordinate (optional)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 151.2093
+ *                 description: "Longitude coordinate (optional)"
  *               attributes:
  *                 type: array
  *                 items:
@@ -445,7 +657,7 @@ router.get('/simplified', FacilityController.listSimplified);
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id/complete', FacilityController.updateComplete);
+router.put('/:id/complete', uploadMultiple.any(), FacilityController.updateComplete);
 
 /**
  * @swagger
@@ -497,12 +709,8 @@ router.get('/:id', FacilityController.getById);
  * @swagger
  * /api/facilities/{id}:
  *   put:
- *     summary: Update facility with optional agreement document uploads
- *     description: |
- *       Update facility information with support for uploading agreement documents.
- *       If agreement documents are provided, they will update the first agreement record.
- *       Only upload new documents if provided in the request.
- *       If new documents are uploaded, old documents will be deactivated.
+ *     summary: Update facility with all related data and optional file uploads
+ *     description: Updates facility and all its related entities (attributes, organization_structures, branches, agreements, documents_required, rules) in a single transaction. Supports file uploads for agreement documents. Only provide fields you want to update - omitted fields remain unchanged.
  *     tags:
  *       - Facilities
  *     security:
@@ -535,24 +743,133 @@ router.get('/:id', FacilityController.getById);
  *               source_of_data:
  *                 type: string
  *                 example: "Updated Source"
+ *               states_covered:
+ *                 type: string
+ *                 example: '["NSW", "VIC", "QLD"]'
+ *                 description: JSON string array of states
+ *               categories:
+ *                 type: string
+ *                 example: '["Aged Care", "Residential Care"]'
+ *                 description: JSON string array of categories
+ *               attributes:
+ *                 type: string
+ *                 example: '[{"attribute_type":"Category","attribute_value":"Residential Care"},{"attribute_type":"State","attribute_value":"NSW"}]'
+ *                 description: JSON string array of attributes. Valid attribute_type values - Category, State, care_type, capacity, facility_type, accreditation, specialty
+ *               organization_structures:
+ *                 type: string
+ *                 example: '[{"deal_with":"Head Office","head_office_addr":"123 Main St","contact_name":"John Doe","designation":"Manager","phone":"0412345678","email":"john@example.com"}]'
+ *                 description: JSON string array of organization structures
+ *               branches:
+ *                 type: string
+ *                 example: '[{"site_code":"NSW001","full_address":"456 Branch St","suburb":"Sydney","city":"Sydney","state":"NSW","postcode":"2000","site_type":"Residential Aged Care","palliative_care":true,"dementia_care":true,"num_beds":100,"gender_rules":"All genders","contact_name":"Jane Smith","contact_role":"Branch Manager","contact_phone":"0423456789","contact_email":"jane@example.com"}]'
+ *                 description: JSON string array of branches/sites
+ *               agreements:
+ *                 type: string
+ *                 example: '[{"sent_students":true,"with_mou":true,"has_mou":true,"signed_on":"2025-01-10","expiry_date":"2027-01-10","company_name":["University of Sydney"],"payment_required":true,"amount_per_spot":"750.00","payment_notes":"Payment due 30 days before"}]'
+ *                 description: JSON string array of agreements
+ *               documents_required:
+ *                 type: string
+ *                 example: '[{"document_name":"Police Check","notice_period_days":30,"orientation_req":true,"facilitator_req":true}]'
+ *                 description: JSON string array of required documents
+ *               rules:
+ *                 type: string
+ *                 example: '[{"obligations":"Provide supervision","obligations_univ":"Ensure training completed","obligations_student":"Maintain 95% attendance","shift_rules":"7am-3pm, 3pm-11pm","attendance_policy":"Minimum 95% required","dress_code":"Business casual","behaviour_rules":"Professional conduct","special_instr":"Complete infection control training"}]'
+ *                 description: JSON string array of facility rules
+ *               mou_document_0:
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: -33.8688
+ *                 description: "Latitude coordinate (optional)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 151.2093
+ *                 description: "Longitude coordinate (optional)"
  *               mou_document:
  *                 type: string
  *                 format: binary
- *                 description: New MOU document file (optional)
- *               insurance_doc:
+ *                 description: MOU document for first agreement (index 0). Uploads new file and updates path.
+ *               insurance_doc_0:
  *                 type: string
  *                 format: binary
- *                 description: New insurance document file (optional)
+ *                 description: Insurance document for first agreement (index 0). Uploads new file and updates path.
+ *               mou_document_1:
+ *                 type: string
+ *                 format: binary
+ *                 description: MOU document for second agreement (index 1)
+ *               insurance_doc_1:
+ *                 type: string
+ *                 format: binary
+ *                 description: Insurance document for second agreement (index 1)
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name:
+ *                 type: string
+ *                 example: "Updated Sunshine Care Home"
+ *               registered_business_name:
+ *                 type: string
+ *                 example: "Updated Sunshine Care Pty Ltd"
+ *               website_url:
+ *                 type: string
+ *                 example: "https://newsunshinecare.com.au"
+ *               abn_registration_number:
+ *                 type: string
+ *                 example: "98765432109"
+ *               source_of_data:
+ *                 type: string
+ *                 example: "Updated Source"
+ *               states_covered:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["NSW", "VIC", "QLD"]
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Aged Care", "Residential Care"]
+ *               attributes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     attribute_type:
+ *                       type: string
+ *                       enum: [Category, State, care_type, capacity, facility_type, accreditation, specialty]
+ *                     attribute_value:
+ *                       type: string
+ *               organization_structures:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               branches:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               agreements:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               documents_required:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               rules:
+ *                 type: array
+ *                 items:
+ *                   type: object
  *     responses:
  *       200:
- *         description: Updated
+ *         description: Facility updated successfully with all relations
  *       401:
  *         description: Unauthorized
+ *       404:
+ *         description: Facility not found
  */
-router.put('/:id', uploadMultiple.fields([
-  { name: 'mou_document', maxCount: 1 },
-  { name: 'insurance_doc', maxCount: 1 }
-]), FacilityController.update);
+router.put('/:id', uploadMultiple.any(), FacilityController.update);
 
 /**
  * @swagger

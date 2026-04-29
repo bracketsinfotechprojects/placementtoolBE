@@ -36,6 +36,8 @@ export default class StudentController extends BaseController {
         nationality: req.body.nationality,
         student_type: req.body.student_type || 'domestic',
         status: req.body.status || 'active',
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
         email: email,
         password: password,
         
@@ -77,6 +79,8 @@ export default class StudentController extends BaseController {
         nationality: req.body.nationality,
         student_type: req.body.student_type || 'external',
         status: req.body.status || 'active',
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
 
         // Only these 3 related entities for external students
         contact_details: req.body.contact_details,
@@ -132,6 +136,8 @@ export default class StudentController extends BaseController {
         nationality: req.body.nationality,
         student_type: req.body.student_type,
         status: req.body.status,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
 
         // Pass all related entities if provided
         contact_details: req.body.contact_details,
@@ -211,6 +217,65 @@ export default class StudentController extends BaseController {
       const result = await StudentService.bulkUpdateStatus(student_ids, status);
       ApiResponseUtility.success(res, result, 'Student statuses updated successfully');
     }, 'Failed to bulk update student statuses');
+  }
+
+  // Bulk upload students from Excel
+  static async bulkUpload(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      if (!req.file) {
+        throw new StringError('No file uploaded. Please upload an Excel file.');
+      }
+
+      console.log(`📁 Received file: ${req.file.originalname}`);
+      console.log(`📂 File path: ${req.file.path}`);
+      console.log(`📊 File size: ${req.file.size} bytes`);
+
+      // Validate file type
+      const allowedExtensions = ['.xlsx', '.xls'];
+      const fileExtension = req.file.originalname.toLowerCase().slice(req.file.originalname.lastIndexOf('.'));
+      
+      if (!allowedExtensions.includes(fileExtension)) {
+        throw new StringError('Invalid file type. Please upload an Excel file (.xlsx or .xls)');
+      }
+
+      try {
+        const result = await StudentService.bulkUpload(req.file.path);
+        
+        console.log(`✅ Bulk upload result:`, {
+          success: result.success,
+          totalRows: result.totalRows,
+          successCount: result.successCount,
+          failureCount: result.failureCount
+        });
+
+        if (result.success) {
+          ApiResponseUtility.success(res, result, 'Bulk upload completed successfully');
+        } else {
+          // For failures, still return 200 with the result data but log the errors
+          console.error('❌ Bulk upload failed with errors:', result.errors);
+          res.status(200).json({
+            success: false,
+            message: 'Bulk upload failed - see errors for details',
+            data: result
+          });
+        }
+      } catch (error) {
+        console.error('❌ Bulk upload exception:', error.message);
+        console.error('❌ Full error:', error);
+        throw error;
+      }
+    }, 'Bulk upload students');
+  }
+
+  // Download Excel template for bulk upload
+  static async downloadTemplate(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const buffer = StudentService.generateTemplate();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=student_bulk_upload_template.xlsx');
+      res.send(buffer);
+    }, 'Download template');
   }
 
   // Advanced search for students

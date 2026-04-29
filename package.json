@@ -21,7 +21,9 @@
     "db:table": "ts-node scripts/db-setup.ts table",
     "db:size": "ts-node scripts/db-setup.ts size",
     "db:drop": "ts-node scripts/db-setup.ts drop",
-    "db:help": "ts-node scripts/db-setup.ts help"
+    "db:help": "ts-node scripts/db-setup.ts help",
+    "location:update": "ts-node scripts/update-locations.ts",
+    "location:bulk": "ts-node scripts/bulk-update-locations-from-csv.ts"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",

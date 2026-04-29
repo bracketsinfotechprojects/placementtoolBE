@@ -163,4 +163,34 @@ export default class PlacementExecutiveController extends BaseController {
       ApiResponseUtility.success(res, null, 'Placement Executive permanently deleted');
     }, 'Permanently delete placement executive');
   }
+
+  static async bulkUpload(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      if (!req.file) {
+        throw new Error('Excel file is required');
+      }
+
+      const result = await PlacementExecutiveService.bulkUpload(req.file.path);
+
+      if (result.success) {
+        ApiResponseUtility.success(res, result, 'Bulk upload completed successfully');
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Bulk upload failed - see errors for details',
+          data: result
+        });
+      }
+    }, 'Bulk upload placement executives');
+  }
+
+  static async downloadTemplate(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const buffer = PlacementExecutiveService.generateTemplate();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=placement_executives_template.xlsx');
+      res.send(buffer);
+    }, 'Download placement executives template');
+  }
 }

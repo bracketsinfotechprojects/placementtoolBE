@@ -238,6 +238,14 @@ const router = express.Router();
  *                 type: string
  *                 format: binary
  *                 description: Photograph file (JPEG, PNG, GIF, WebP, max 25MB)
+ *               wwcDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Working With Children Check document (PDF, Images, Word, max 25MB)
+ *               policeCheckDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Police Check document (PDF, Images, Word, max 25MB)
  *               login:
  *                 type: object
  *                 required:
@@ -306,7 +314,11 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.post('/', upload.single('photograph'), TrainerController.create);
+router.post('/', upload.fields([
+  { name: 'photograph', maxCount: 1 },
+  { name: 'wwcDocument', maxCount: 1 },
+  { name: 'policeCheckDocument', maxCount: 1 }
+]), TrainerController.create);
 
 /**
  * @swagger
@@ -830,6 +842,14 @@ router.get('/:id', TrainerController.getById);
  *                 type: string
  *                 format: binary
  *                 description: New photograph file (JPEG, PNG, GIF, WebP, max 25MB). Old photograph will be deactivated.
+ *               wwcDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: New Working With Children Check document (PDF, Images, Word, max 25MB). Old document will be deactivated.
+ *               policeCheckDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: New Police Check document (PDF, Images, Word, max 25MB). Old document will be deactivated.
  *     responses:
  *       200:
  *         description: Trainer updated successfully
@@ -904,7 +924,11 @@ router.get('/:id', TrainerController.getById);
  *       401:
  *         description: Unauthorized - Invalid or missing JWT token
  */
-router.put('/:id', upload.single('photograph'), TrainerController.update);
+router.put('/:id', upload.fields([
+  { name: 'photograph', maxCount: 1 },
+  { name: 'wwcDocument', maxCount: 1 },
+  { name: 'policeCheckDocument', maxCount: 1 }
+]), TrainerController.update);
 
 /**
  * @swagger

@@ -7,7 +7,10 @@ import { ITrainerQueryParams } from '../../repositories/trainer.repository';
 export default class TrainerController extends BaseController {
   static async create(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
-      const photographFile = req.file;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const photographFile = files?.photograph?.[0];
+      const wwcDocumentFile = files?.wwcDocument?.[0];
+      const policeCheckDocumentFile = files?.policeCheckDocument?.[0];
       
       // Parse login object from JSON string if received as multipart/form-data
       let bodyData = req.body;
@@ -36,7 +39,7 @@ export default class TrainerController extends BaseController {
       if (bodyData.suprise_visit === 'yes' || bodyData.suprise_visit === 'true') bodyData.suprise_visit = true;
       if (bodyData.suprise_visit === 'no' || bodyData.suprise_visit === 'false') bodyData.suprise_visit = false;
       
-      const trainer = await TrainerService.create(bodyData, photographFile);
+      const trainer = await TrainerService.create(bodyData, photographFile, wwcDocumentFile, policeCheckDocumentFile);
       ApiResponseUtility.createdSuccess(res, trainer, 'Trainer created successfully');
     }, 'Create trainer');
   }
@@ -112,7 +115,10 @@ export default class TrainerController extends BaseController {
   static async update(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const id = BaseController.parseId(req, 'id');
-      const photographFile = req.file;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const photographFile = files?.photograph?.[0];
+      const wwcDocumentFile = files?.wwcDocument?.[0];
+      const policeCheckDocumentFile = files?.policeCheckDocument?.[0];
       
       // Parse array fields from JSON strings if received as multipart/form-data
       let bodyData = req.body;
@@ -132,7 +138,7 @@ export default class TrainerController extends BaseController {
       if (bodyData.suprise_visit === 'yes' || bodyData.suprise_visit === 'true') bodyData.suprise_visit = true;
       if (bodyData.suprise_visit === 'no' || bodyData.suprise_visit === 'false') bodyData.suprise_visit = false;
       
-      const trainer = await TrainerService.update({ id, ...bodyData }, photographFile);
+      const trainer = await TrainerService.update({ id, ...bodyData }, photographFile, wwcDocumentFile, policeCheckDocumentFile);
       ApiResponseUtility.success(res, trainer, 'Trainer updated successfully');
     }, 'Update trainer');
   }

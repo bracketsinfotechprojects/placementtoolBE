@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
+import path from 'path';
 
 import authenticate from '../middlewares/authenticate.middleware';
 import constants from '../constants';
@@ -42,6 +43,9 @@ app.use(morgan('dev') as any);
 
 // Response time tracking middleware
 app.use(responseTimeMiddleware);
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

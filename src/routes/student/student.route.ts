@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import StudentController from '../../controllers/student/student.controller';
 import EligibilityCredentialController from '../../controllers/student/eligibility-credential.controller';
+import { upload } from '../../configs/multer.config';
 
 const router = Router();
 
@@ -57,6 +58,16 @@ const router = Router();
  *                 type: string
  *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 12.9716
+ *                 description: "Latitude coordinate (optional, can be added later)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 77.5946
+ *                 description: "Longitude coordinate (optional, can be added later)"
  *               email:
  *                 type: string
  *                 format: email
@@ -368,6 +379,16 @@ router.post('/', StudentController.create);
  *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 default: "active"
  *                 example: "active"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 12.9716
+ *                 description: "Latitude coordinate (optional, can be added later)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 77.5946
+ *                 description: "Longitude coordinate (optional, can be added later)"
  *               contact_details:
  *                 type: object
  *                 properties:
@@ -820,6 +841,209 @@ router.get('/advanced-search', StudentController.advancedSearch);
  *         description: Status updated successfully
  */
 router.post('/bulk-update-status', StudentController.bulkUpdateStatus);
+
+/**
+ * @swagger
+ * /api/students/bulk-upload:
+ *   post:
+ *     summary: Bulk upload students from Excel file (Up to 2,000 records)
+ *     description: |
+ *       Upload multiple students at once using an Excel file. The system processes records in a single transaction.
+ *       
+ *       **Key Features:**
+ *       - Process up to 2,000 students per upload
+ *       - All-or-nothing transaction (if one fails, all rollback)
+ *       - Duplicate email detection (within file and database)
+ *       - Detailed error reporting per row
+ *       - Automatic password hashing
+ *       - Creates student records with all related entities
+ *       
+ *       **Excel File Requirements:**
+ *       - Format: .xlsx or .xls
+ *       - Required columns: first_name, last_name, dob
+ *       - Optional columns: All other student fields (contact, visa, address, etc.)
+ *       - Download template from /api/students/template endpoint
+ *       
+ *       **Tables Populated:**
+ *       - students (main record)
+ *       - contact_details (if contact fields provided)
+ *       - visa_details (if visa fields provided)
+ *       - addresses (if address fields provided)
+ *       - eligibility_status (if eligibility fields provided)
+ *       - student_lifestyle (if lifestyle fields provided)
+ *       - placement_preferences (if preference fields provided)
+ *       - users (if email + password provided)
+ *       
+ *       **Transaction Behavior:**
+ *       - Each student row is processed as a mini-transaction
+ *       - If any table insert fails for a student, that entire student row is rolled back
+ *       - If validation fails for any row, the entire upload is rejected
+ *       - All students are created in a single database transaction
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file (.xlsx or .xls) containing student data
+ *     responses:
+ *       200:
+ *         description: Bulk upload completed (may include partial failures)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload completed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *                     totalRows:
+ *                       type: integer
+ *                       example: 150
+ *                     successCount:
+ *                       type: integer
+ *                       example: 148
+ *                     failureCount:
+ *                       type: integer
+ *                       example: 2
+ *                     errors:
+ *                       type: array
+ *                       description: Detailed error information for failed rows
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 5
+ *                           email:
+ *                             type: string
+ *                             example: "john.doe@example.com"
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             example: ["email must be a valid email address", "dob is required"]
+ *                     createdStudents:
+ *                       type: array
+ *                       description: List of successfully created students
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           student_id:
+ *                             type: integer
+ *                             example: 1001
+ *                           email:
+ *                             type: string
+ *                             example: "jane.smith@example.com"
+ *                           full_name:
+ *                             type: string
+ *                             example: "Jane Smith"
+ *       400:
+ *         description: Validation error or file format error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload failed - see errors for details"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                           errors:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bulk upload failed: Database connection timeout"
+ */
+router.post('/bulk-upload', upload.single('file'), StudentController.bulkUpload);
+
+/**
+ * @swagger
+ * /api/students/template:
+ *   get:
+ *     summary: Download Excel template for bulk student upload
+ *     description: |
+ *       Downloads a pre-formatted Excel template with proper column headers, sample data, and detailed instructions.
+ *       
+ *       **Template Includes:**
+ *       - All required and optional column headers
+ *       - Sample data row showing correct format
+ *       - Instructions sheet with field descriptions
+ *       - Data validation rules
+ *       
+ *       **Column Categories:**
+ *       - Basic Info: first_name, last_name, dob, gender, nationality, student_type, status
+ *       - Login: email, password, login_status
+ *       - Contact: primary_mobile, alternate_contact, emergency_contact, etc.
+ *       - Visa: visa_type, visa_number, visa_start_date, visa_expiry_date, etc.
+ *       - Address: address_line1, city, state, country, postal_code, etc.
+ *       - Eligibility: classes_completed, fees_paid, overall_status, etc.
+ *       - Lifestyle: currently_working, married, driving_license, etc.
+ *       - Preferences: preferred_states, preferred_cities, urgency_level, etc.
+ *       - Location: latitude, longitude (optional, for geolocation features)
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Excel template file
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/template', StudentController.downloadTemplate);
 
 /**
  * @swagger
@@ -1357,6 +1581,16 @@ router.get('/:id', StudentController.detail);
  *                 type: string
  *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 12.9716
+ *                 description: "Latitude coordinate (optional)"
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 example: 77.5946
+ *                 description: "Longitude coordinate (optional)"
  *               contact_details:
  *                 type: object
  *                 description: If provided, replaces existing contact details
