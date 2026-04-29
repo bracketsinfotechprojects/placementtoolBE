@@ -136,6 +136,8 @@ export default class StudentController extends BaseController {
         nationality: req.body.nationality,
         student_type: req.body.student_type,
         status: req.body.status,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
 
         // Pass all related entities if provided
         contact_details: req.body.contact_details,

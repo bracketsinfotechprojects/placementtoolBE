@@ -113,6 +113,14 @@ export default class FacilityController extends BaseController {
         }
       }
       
+      // Parse numeric fields (latitude, longitude) if they come as strings
+      if (bodyData.latitude !== undefined) {
+        bodyData.latitude = parseFloat(bodyData.latitude);
+      }
+      if (bodyData.longitude !== undefined) {
+        bodyData.longitude = parseFloat(bodyData.longitude);
+      }
+      
       // Prepare agreement files mapping
       const agreementFiles: Map<number, { mou_document?: Express.Multer.File; insurance_doc?: Express.Multer.File }> = new Map();
       
