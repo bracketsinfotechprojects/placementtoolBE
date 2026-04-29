@@ -116,9 +116,11 @@ export default class FacilityController extends BaseController {
       // Parse numeric fields (latitude, longitude) if they come as strings
       if (bodyData.latitude !== undefined) {
         bodyData.latitude = parseFloat(bodyData.latitude);
+        console.log('📍 Parsed latitude:', bodyData.latitude, typeof bodyData.latitude);
       }
       if (bodyData.longitude !== undefined) {
         bodyData.longitude = parseFloat(bodyData.longitude);
+        console.log('📍 Parsed longitude:', bodyData.longitude, typeof bodyData.longitude);
       }
       
       // Prepare agreement files mapping

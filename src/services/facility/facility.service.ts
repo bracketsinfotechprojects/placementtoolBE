@@ -679,6 +679,23 @@ const update = async (params: IUpdateFacility, agreementFiles?: Map<number, IAgr
       }
     }
 
+    // Update location if latitude and longitude provided
+    if (params.latitude !== undefined && params.longitude !== undefined) {
+      console.log('📍 Updating facility location:', { latitude: params.latitude, longitude: params.longitude, facilityId });
+      await queryRunner.manager.query(
+        `UPDATE facility SET location = POINT(?, ?) WHERE facility_id = ?`,
+        [params.longitude, params.latitude, facilityId]
+      );
+      console.log('✅ Facility location updated successfully');
+    } else {
+      console.log('⚠️ Location not updated - latitude or longitude missing:', { 
+        latitude: params.latitude, 
+        longitude: params.longitude,
+        hasLatitude: params.latitude !== undefined,
+        hasLongitude: params.longitude !== undefined
+      });
+    }
+
     await queryRunner.commitTransaction();
 
     return await detail(facilityId);
@@ -726,10 +743,19 @@ const updateComplete = async (params: IUpdateCompleteFacility) => {
 
     // Update location if latitude and longitude provided
     if (params.latitude !== undefined && params.longitude !== undefined) {
+      console.log('📍 Updating facility location:', { latitude: params.latitude, longitude: params.longitude, facilityId });
       await queryRunner.manager.query(
         `UPDATE facility SET location = POINT(?, ?) WHERE facility_id = ?`,
         [params.longitude, params.latitude, facilityId]
       );
+      console.log('✅ Facility location updated successfully');
+    } else {
+      console.log('⚠️ Location not updated - latitude or longitude missing:', { 
+        latitude: params.latitude, 
+        longitude: params.longitude,
+        hasLatitude: params.latitude !== undefined,
+        hasLongitude: params.longitude !== undefined
+      });
     }
 
     // Update attributes - replace all
