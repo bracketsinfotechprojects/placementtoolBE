@@ -80,4 +80,95 @@ export default class PlacementAssignmentController extends BaseController {
       ApiResponseUtility.success(res, assignments, 'Assignments for student retrieved successfully');
     }, 'Get assignments by student ID');
   }
+
+  static async confirm(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const placementslotId = BaseController.parseId(req, 'id');
+      const result = await PlacementAssignmentService.confirm(placementslotId);
+      ApiResponseUtility.success(res, result.data, result.message);
+    }, 'Confirm placement assignments');
+  }
+
+  static async confirmByFacility(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const assignmentId = BaseController.parseId(req, 'id');
+      const assignment = await PlacementAssignmentService.confirmByFacility(assignmentId);
+      ApiResponseUtility.success(res, assignment, 'Placement assignment confirmed by facility');
+    }, 'Confirm placement by facility');
+  }
+
+  static async rejectByFacility(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const assignmentId = BaseController.parseId(req, 'id');
+      const { reason } = req.body;
+      const assignment = await PlacementAssignmentService.rejectByFacility(assignmentId, reason);
+      ApiResponseUtility.success(res, assignment, 'Placement assignment rejected by facility');
+    }, 'Reject placement by facility');
+  }
+
+  static async updateFacilityStatus(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const assignmentId = BaseController.parseId(req, 'id');
+      const { facility_confirmation_status } = req.body;
+      
+      if (!facility_confirmation_status) {
+        throw new Error('facility_confirmation_status is required');
+      }
+      
+      const assignment = await PlacementAssignmentService.updateFacilityStatus(
+        assignmentId, 
+        facility_confirmation_status
+      );
+      ApiResponseUtility.success(res, assignment, 'Facility confirmation status updated successfully');
+    }, 'Update facility confirmation status');
+  }
+
+  static async updateAssignmentStatus(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const assignmentId = BaseController.parseId(req, 'id');
+      const { status } = req.body;
+      
+      if (!status) {
+        throw new Error('status is required');
+      }
+      
+      const assignment = await PlacementAssignmentService.updateStatus(assignmentId, status);
+      ApiResponseUtility.success(res, assignment, 'Assignment status updated successfully');
+    }, 'Update assignment status');
+  }
+
+  static async updateStatusByStudentAndSlot(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const { student_id, placementslot_id } = req.body;
+      const { status } = req.body;
+      
+      if (!student_id || !placementslot_id || !status) {
+        throw new Error('student_id, placementslot_id, and status are required');
+      }
+      
+      const assignment = await PlacementAssignmentService.updateStatusByStudentAndSlot(
+        student_id,
+        placementslot_id,
+        status
+      );
+      ApiResponseUtility.success(res, assignment, 'Assignment status updated successfully');
+    }, 'Update assignment status by student and slot');
+  }
+
+  static async updateFacilityStatusByStudentAndSlot(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const { student_id, placementslot_id, facility_confirmation_status } = req.body;
+      
+      if (!student_id || !placementslot_id || !facility_confirmation_status) {
+        throw new Error('student_id, placementslot_id, and facility_confirmation_status are required');
+      }
+      
+      const assignment = await PlacementAssignmentService.updateFacilityStatusByStudentAndSlot(
+        student_id,
+        placementslot_id,
+        facility_confirmation_status
+      );
+      ApiResponseUtility.success(res, assignment, 'Facility confirmation status updated successfully');
+    }, 'Update facility status by student and slot');
+  }
 }

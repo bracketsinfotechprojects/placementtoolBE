@@ -17,6 +17,9 @@ import { User } from '../../entities/user/user.entity';
 // Services
 import RoleService from '../role/role.service';
 
+// Repositories
+import PlacementAssignmentRepository from '../../repositories/placement-assignment.repository';
+
 // Utilities
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
@@ -2800,6 +2803,76 @@ const generateTemplate = (): Buffer => {
   return ExcelUtility.generateTemplate(headers, sampleData);
 };
 
+const getStudentPlacements = async (studentId: number, filters?: { status?: string; facility_confirmation_status?: string }) => {
+  try {
+    console.log(`🔍 Fetching placements for student ID: ${studentId}`);
+    
+    const placements = await PlacementAssignmentRepository.findByStudentId(studentId);
+    console.log(`📊 Found ${placements?.length || 0} placements for student ${studentId}`);
+
+    if (!placements || placements.length === 0) {
+      console.log(`⚠️ No placements found for student ${studentId}`);
+      return {
+        success: true,
+        message: 'No placements found for this student',
+        data: []
+      };
+    }
+
+    // Apply filters if provided
+    let filteredPlacements = placements;
+
+    if (filters?.status) {
+      console.log(`🔎 Filtering by status: ${filters.status}`);
+      filteredPlacements = filteredPlacements.filter(p => p.status === filters.status);
+    }
+
+    if (filters?.facility_confirmation_status) {
+      console.log(`🔎 Filtering by facility_confirmation_status: ${filters.facility_confirmation_status}`);
+      filteredPlacements = filteredPlacements.filter(p => p.facility_confirmation_status === filters.facility_confirmation_status);
+    }
+
+    console.log(`✅ Returning ${filteredPlacements.length} placements after filtering`);
+
+    // Format response with placement slot details
+    const formattedData = filteredPlacements.map(placement => ({
+      assignment_id: placement.assignment_id,
+      student_id: placement.student_id,
+      placementslot_id: placement.placementslot_id,
+      status: placement.status,
+      facility_confirmation_status: placement.facility_confirmation_status,
+      start_date: placement.start_date,
+      end_date: placement.end_date,
+      notes: placement.notes,
+      created_at: placement.created_at,
+      updated_at: placement.updated_at,
+      placementSlot: placement.placementSlot ? {
+        placementslot_id: placement.placementSlot.placementslot_id,
+        facility_id: placement.placementSlot.facility_id,
+        placementslot_type: placement.placementSlot.placementslot_type,
+        course_applicable: placement.placementSlot.course_applicable,
+        total_slots_offered: placement.placementSlot.total_slots_offered,
+        remaining_seats: placement.placementSlot.remaining_seats,
+        placement_start_date: placement.placementSlot.placement_start_date,
+        placement_end_date: placement.placementSlot.placement_end_date,
+        total_hours_required: placement.placementSlot.total_hours_required,
+        shift_type: placement.placementSlot.shift_type,
+        shift_timings: placement.placementSlot.shift_timings,
+        working_days: placement.placementSlot.working_days
+      } : null
+    }));
+
+    return {
+      success: true,
+      message: 'Student placements retrieved successfully',
+      data: formattedData
+    };
+  } catch (error) {
+    console.error(`❌ Error fetching placements for student ${studentId}:`, error);
+    throw error;
+  }
+};
+
 export default {
   create,
   createExternalStudent,
@@ -2823,7 +2896,8 @@ export default {
   updateJobStatusUpdate,
   updateSelfPlacement,
   bulkUpload,
-  generateTemplate
+  generateTemplate,
+  getStudentPlacements
   // activate and deactivate removed - use generic activation API instead:
   // PATCH /api/students/{id}/activate?activate={true|false}
 };

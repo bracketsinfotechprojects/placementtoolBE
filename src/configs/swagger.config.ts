@@ -687,9 +687,16 @@ const options = {
             student_id: { type: 'integer', description: 'Foreign key to students table', example: 1 },
             status: {
               type: 'string',
-              enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
+              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
               description: 'Status of the assignment',
-              example: 'Assigned'
+              example: 'Allocated'
+            },
+            facility_confirmation_status: {
+              type: 'string',
+              enum: ['Approved', 'Rejected'],
+              description: 'Facility confirmation status: Approved, Rejected',
+              example: 'Approved',
+              nullable: true
             },
             start_date: { type: 'string', format: 'date', description: 'Actual start date for this student', example: '2026-03-15' },
             end_date: { type: 'string', format: 'date', description: 'Actual end date for this student', example: '2026-04-15' },
@@ -716,9 +723,9 @@ const options = {
             },
             status: {
               type: 'string',
-              enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
-              description: 'Status of the assignment (optional, defaults to Assigned)',
-              example: 'Assigned'
+              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
+              description: 'Status of the assignment (optional, defaults to Allocated)',
+              example: 'Allocated'
             },
             notes: {
               type: 'string',
@@ -732,9 +739,15 @@ const options = {
           properties: {
             status: {
               type: 'string',
-              enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
+              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
               description: 'Status of the assignment',
-              example: 'Active'
+              example: 'Started'
+            },
+            facility_confirmation_status: {
+              type: 'string',
+              enum: ['Approved', 'Rejected'],
+              description: 'Facility confirmation status',
+              example: 'Approved'
             },
             start_date: {
               type: 'string',
@@ -752,6 +765,138 @@ const options = {
               type: 'string',
               description: 'Notes about this assignment',
               example: 'Student making good progress'
+            }
+          }
+        },
+        PlacementAssignmentStatusUpdateByStudentSlot: {
+          type: 'object',
+          required: ['student_id', 'placementslot_id', 'status'],
+          properties: {
+            student_id: {
+              type: 'integer',
+              description: 'Student ID',
+              example: 1
+            },
+            placementslot_id: {
+              type: 'integer',
+              description: 'Placement Slot ID',
+              example: 5
+            },
+            status: {
+              type: 'string',
+              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
+              description: 'New assignment status',
+              example: 'Started'
+            }
+          }
+        },
+        PlacementAssignmentFacilityStatusUpdateByStudentSlot: {
+          type: 'object',
+          required: ['student_id', 'placementslot_id', 'facility_confirmation_status'],
+          properties: {
+            student_id: {
+              type: 'integer',
+              description: 'Student ID',
+              example: 1
+            },
+            placementslot_id: {
+              type: 'integer',
+              description: 'Placement Slot ID',
+              example: 5
+            },
+            facility_confirmation_status: {
+              type: 'string',
+              enum: ['Approved', 'Rejected'],
+              description: 'New facility confirmation status',
+              example: 'Approved'
+            }
+          }
+        },
+        AvailablePlacementSlot: {
+          type: 'object',
+          description: 'Available placement slot with remaining seats',
+          properties: {
+            placementslot_id: {
+              type: 'integer',
+              description: 'Unique identifier for the placement slot',
+              example: 5
+            },
+            facility_id: {
+              type: 'string',
+              description: 'Facility ID where placement is offered',
+              example: 'FAC001'
+            },
+            placementslot_type: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Type of placement slot',
+              example: ['Clinical Placement']
+            },
+            course_applicable: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Courses applicable for this slot',
+              example: ['CHC33015']
+            },
+            total_slots_offered: {
+              type: 'integer',
+              description: 'Total number of slots offered',
+              example: 5
+            },
+            remaining_seats: {
+              type: 'integer',
+              description: 'Number of remaining available seats',
+              example: 2
+            },
+            placement_start_date: {
+              type: 'string',
+              format: 'date',
+              description: 'Placement slot start date',
+              example: '2026-05-05'
+            },
+            placement_end_date: {
+              type: 'string',
+              format: 'date',
+              description: 'Placement slot end date',
+              example: '2026-06-05'
+            },
+            total_hours_required: {
+              type: 'integer',
+              description: 'Total hours required for this placement',
+              example: 120
+            },
+            shift_type: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Type of shift (Morning, Evening, Night, etc.)',
+              example: ['Morning']
+            },
+            shift_timings: {
+              type: 'string',
+              description: 'Specific shift timings',
+              example: '07:00 - 15:00'
+            },
+            working_days: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Working days pattern',
+              example: ['Weekdays']
+            },
+            gender_preference: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Gender preference for placement',
+              example: ['Any']
+            },
+            urgent_requirement: {
+              type: 'boolean',
+              description: 'Whether this is an urgent requirement',
+              example: false
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Record creation timestamp'
             }
           }
         }

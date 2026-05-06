@@ -202,6 +202,96 @@ const permanentlyDelete = async (id: number) => {
   return { message: 'Placement slot permanently deleted' };
 };
 
+const getAvailableSlots = async (params: {
+  period: 'today' | 'week' | 'month';
+  studentId?: number;
+  limit?: number;
+  page?: number;
+}) => {
+  const { period, studentId, limit = 20, page = 1 } = params;
+
+  // Calculate date range based on period
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  let startDate = new Date(today);
+  let endDate = new Date(today);
+
+  if (period === 'today') {
+    endDate.setHours(23, 59, 59, 999);
+  } else if (period === 'week') {
+    // Get start of week (Monday)
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    startDate = new Date(today.setDate(diff));
+    startDate.setHours(0, 0, 0, 0);
+    
+    // Get end of week (Sunday)
+    endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    endDate.setHours(23, 59, 59, 999);
+  } else if (period === 'month') {
+    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    startDate.setHours(0, 0, 0, 0);
+    
+    endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+  }
+
+  console.log(`🔍 Fetching available slots for period: ${period}`);
+  console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  if (studentId) {
+    console.log(`👤 Filtering for student ID: ${studentId}`);
+  }
+
+  // Build query for available slots
+  const query = getRepository(PlacementSlot)
+    .createQueryBuilder('slot')
+    .where('slot.is_deleted = :isDeleted', { isDeleted: false })
+    .andWhere('slot.placement_start_date >= :startDate', { startDate })
+    .andWhere('slot.placement_start_date <= :endDate', { endDate })
+    .andWhere('slot.remaining_seats > :remainingSeats', { remainingSeats: 0 });
+
+  console.log(`🔎 Query conditions: is_deleted=false, placement_start_date between ${startDate.toISOString()} and ${endDate.toISOString()}, remaining_seats > 0`);
+
+  // If studentId is provided, exclude slots where student is already assigned
+  if (studentId) {
+    query.andWhere(
+      `slot.placementslot_id NOT IN (
+        SELECT pa.placementslot_id 
+        FROM placement_assignments pa 
+        WHERE pa.student_id = :studentId 
+        AND pa.status IN ('Allocated', 'Started')
+      )`,
+      { studentId }
+    );
+  }
+
+  // Get total count
+  const total = await query.getCount();
+  console.log(`📊 Total slots matching criteria: ${total}`);
+
+  // Apply pagination and sorting
+  const offset = (page - 1) * limit;
+  const slots = await query
+    .orderBy('slot.placement_start_date', 'ASC')
+    .addOrderBy('slot.placementslot_id', 'DESC')
+    .skip(offset)
+    .take(limit)
+    .getMany();
+
+  console.log(`✅ Returning ${slots.length} slots after pagination (limit: ${limit}, page: ${page})`);
+  
+  if (slots.length > 0) {
+    console.log(`📍 First slot: ID=${slots[0].placementslot_id}, start_date=${slots[0].placement_start_date}, remaining_seats=${slots[0].remaining_seats}`);
+  }
+
+  return {
+    slots,
+    total
+  };
+};
+
 export interface ICreatePlacementSlot {
   facility_id: string;
   placementslot_type?: string[];
@@ -274,5 +364,6 @@ export default {
   list,
   update,
   remove,
-  permanentlyDelete
+  permanentlyDelete,
+  getAvailableSlots
 };

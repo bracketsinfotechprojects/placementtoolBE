@@ -320,4 +320,48 @@ export default class FacilityController extends BaseController {
       }
     }, 'Bulk upload facilities');
   }
+
+  static async getSlots(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const facilityId = BaseController.parseId(req, 'id');
+
+      const params = {
+        facility_id: facilityId,
+        status: req.query.status as 'active' | 'inactive' | 'all',
+        placementslot_type: req.query.slot_type as string,
+        course_applicable: req.query.course_applicable as string,
+        shift_type: req.query.shift_type as string,
+        working_days: req.query.working_days as string,
+        gender_preference: req.query.gender_preference as string,
+        urgent_requirement: req.query.urgent_requirement !== undefined
+          ? req.query.urgent_requirement === 'true'
+          : undefined,
+        placement_start_date_from: req.query.placement_start_date_from as string,
+        placement_start_date_to: req.query.placement_start_date_to as string,
+        placement_end_date_from: req.query.placement_end_date_from as string,
+        placement_end_date_to: req.query.placement_end_date_to as string,
+        has_available_seats: req.query.has_available_seats !== undefined
+          ? req.query.has_available_seats === 'true'
+          : undefined,
+        sort_by: (req.query.sort_by as string) || 'placement_start_date',
+        sort_order: (req.query.sort_order as string) || 'ASC',
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
+        page: req.query.page ? parseInt(req.query.page as string, 10) : 1
+      };
+
+      const result = await FacilityService.getSlots(params);
+      const limit = params.limit || 20;
+      const page = params.page || 1;
+      const totalPages = Math.ceil(result.total / limit);
+      const pagination = {
+        totalPages,
+        previousPage: page > 1 ? page - 1 : null,
+        currentPage: page,
+        nextPage: page < totalPages ? page + 1 : null,
+        totalItems: result.total
+      };
+      ApiResponseUtility.success(res, result.slots, 'Facility slots retrieved successfully', pagination);
+    }, 'Get facility slots');
+  }
 }
+

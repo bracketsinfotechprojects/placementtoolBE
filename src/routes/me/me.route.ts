@@ -21,9 +21,7 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.get('/', (req, res) => {
-  res.json({ message: 'Me endpoint - authentication not implemented' });
-});
+router.get('/', userController.getMe);
 
 /**
  * @swagger
@@ -41,9 +39,7 @@ router.get('/', (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.put('/', (req, res) => {
-  res.json({ message: 'Update me endpoint - authentication not implemented' });
-});
+router.put('/', userController.updateMe);
 
 /**
  * @swagger

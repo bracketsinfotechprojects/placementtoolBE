@@ -706,6 +706,224 @@ router.get('/', TrainerController.list);
  *       401:
  *         description: Unauthorized - Invalid or missing JWT token
  */
+
+/**
+ * @swagger
+ * /api/trainers/{id}/classes/today:
+ *   get:
+ *     summary: Get today's courses for a specific trainer
+ *     description: |
+ *       Retrieve all courses scheduled for today assigned to a specific trainer.
+ *       Returns courses sorted by reporting time in ascending order.
+ *     tags:
+ *       - Trainers
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Trainer ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Today's courses retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Success"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       course_id:
+ *                         type: integer
+ *                         example: 1
+ *                       course_name:
+ *                         type: string
+ *                         example: "Manual Handling Training"
+ *                       course_category:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           enum: ["Manual Handling", "First Aid"]
+ *                         example: ["Manual Handling"]
+ *                       course_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           enum: ["Accredited", "Non-Accredited", "Refresher"]
+ *                         example: ["Accredited"]
+ *                       course_scope:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           enum: ["Aged Care", "Disability", "Healthcare Students"]
+ *                         example: ["Aged Care"]
+ *                       course_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-05-06"
+ *                       reporting_time:
+ *                         type: string
+ *                         format: time
+ *                         example: "09:00:00"
+ *                       expected_end_time:
+ *                         type: string
+ *                         format: time
+ *                         example: "13:00:00"
+ *                       total_duration:
+ *                         type: string
+ *                         example: "4 hours"
+ *                       mode:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           enum: ["Onsite", "Online", "Hybrid"]
+ *                         example: ["Onsite"]
+ *                       training_location:
+ *                         type: string
+ *                         example: "ABC Training Center"
+ *                       address:
+ *                         type: string
+ *                         example: "123 Training Street, Sydney NSW 2000"
+ *                       city:
+ *                         type: string
+ *                         example: "Sydney"
+ *                       total_seats:
+ *                         type: integer
+ *                         example: 20
+ *                       seats_remaining:
+ *                         type: integer
+ *                         example: 15
+ *                       seat_status:
+ *                         type: string
+ *                         enum: ["Available", "Filling Fast", "Full"]
+ *                         example: "Available"
+ *                       trainer:
+ *                         type: object
+ *                         properties:
+ *                           trainer_id:
+ *                             type: integer
+ *                             example: 1
+ *                           first_name:
+ *                             type: string
+ *                             example: "John"
+ *                           last_name:
+ *                             type: string
+ *                             example: "Doe"
+ *                           email:
+ *                             type: string
+ *                             example: "john.doe@example.com"
+ *       401:
+ *         description: Unauthorized - Invalid or missing JWT token
+ *       404:
+ *         description: Trainer not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/:id/classes/today', TrainerController.getTodayClasses);
+
+/**
+ * @swagger
+ * /api/trainers/{id}:
+ *   get:
+ *     summary: Get trainer by ID with photograph information
+ *     description: |
+ *       Retrieve a specific trainer's details including photograph file information from the files table.
+ *       
+ *       **Photograph Information:**
+ *       - photograph_url: File path to the trainer's photograph (null if no photograph)
+ *       - photograph_filename: Original filename of the photograph (null if no photograph)
+ *       
+ *       The system automatically fetches the latest photograph file where:
+ *       - entity_type = 'trainer'
+ *       - entity_id = trainer ID
+ *       - doc_type = 'PHOTOGRAPH' (case-insensitive: matches 'PHOTOGRAPH', 'photograph', 'Photograph', etc.)
+ *       - is_active = true
+ *     tags:
+ *       - Trainers
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Trainer ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Trainer details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Success"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     trainer_id:
+ *                       type: integer
+ *                       example: 1
+ *                     first_name:
+ *                       type: string
+ *                       example: "John"
+ *                     last_name:
+ *                       type: string
+ *                       example: "Doe"
+ *                     email:
+ *                       type: string
+ *                       example: "john.doe@example.com"
+ *                     mobile_number:
+ *                       type: string
+ *                       example: "0912345678"
+ *                     photograph_url:
+ *                       type: string
+ *                       nullable: true
+ *                       description: File path to trainer's photograph (null if no photograph uploaded)
+ *                       example: "uploads/trainers/1/PHOTOGRAPH_20240315_143022.jpg"
+ *                     photograph_filename:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Original filename of the photograph (null if no photograph uploaded)
+ *                       example: "trainer_photo.jpg"
+ *       404:
+ *         description: Trainer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Trainer does not exist"
+ *       401:
+ *         description: Unauthorized - Invalid or missing JWT token
+ */
 router.get('/:id', TrainerController.getById);
 
 /**
