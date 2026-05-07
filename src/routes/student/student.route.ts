@@ -2985,4 +2985,182 @@ router.post('/:studentId/notify-eligibility', EligibilityCredentialController.no
 // Old activate/deactivate routes removed
 // Use generic activation API instead: PATCH /api/students/{id}/activate?activate={true|false}
 
+/**
+ * @swagger
+ * /api/students/{id}/placements:
+ *   get:
+ *     summary: Get all placements/slots for a student
+ *     description: |
+ *       Retrieve all placement assignments for a specific student with related placement slot details.
+ *       
+ *       Supports filtering by:
+ *       - Assignment status (Allocated, Started, Completed, Cancelled)
+ *       - Facility confirmation status (Approved, Rejected)
+ *       
+ *       Returns comprehensive placement information including:
+ *       - Assignment details (status, dates, notes)
+ *       - Facility confirmation status
+ *       - Related placement slot information (facility, dates, seats, shift details)
+ *     tags:
+ *       - Students
+ *       - Placements
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 1
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: ['Allocated', 'Started', 'Completed', 'Cancelled']
+ *         description: Filter by assignment status
+ *         example: "Allocated"
+ *       - in: query
+ *         name: facility_confirmation_status
+ *         schema:
+ *           type: string
+ *           enum: ['Approved', 'Rejected']
+ *         description: Filter by facility confirmation status
+ *         example: "Approved"
+ *     responses:
+ *       200:
+ *         description: Placements retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Student placements retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       assignment_id:
+ *                         type: integer
+ *                         description: Unique identifier for the placement assignment
+ *                         example: 1
+ *                       student_id:
+ *                         type: integer
+ *                         description: Student ID
+ *                         example: 1
+ *                       placementslot_id:
+ *                         type: integer
+ *                         description: Placement slot ID
+ *                         example: 5
+ *                       status:
+ *                         type: string
+ *                         enum: ['Allocated', 'Started', 'Completed', 'Cancelled']
+ *                         description: Current status of the assignment
+ *                         example: "Allocated"
+ *                       facility_confirmation_status:
+ *                         type: string
+ *                         enum: ['Approved', 'Rejected']
+ *                         description: Facility confirmation status for this placement
+ *                         example: "Approved"
+ *                         nullable: true
+ *                       start_date:
+ *                         type: string
+ *                         format: date
+ *                         description: Actual start date for this student's placement
+ *                         example: "2026-03-15"
+ *                       end_date:
+ *                         type: string
+ *                         format: date
+ *                         description: Actual end date for this student's placement
+ *                         example: "2026-04-15"
+ *                       notes:
+ *                         type: string
+ *                         description: Additional notes about this assignment
+ *                         example: "Student requires additional supervision"
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Record creation timestamp
+ *                       updated_at:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Record last update timestamp
+ *                       placementSlot:
+ *                         type: object
+ *                         description: Related placement slot details
+ *                         properties:
+ *                           placementslot_id:
+ *                             type: integer
+ *                             description: Unique identifier for the placement slot
+ *                             example: 5
+ *                           facility_id:
+ *                             type: string
+ *                             description: Facility ID where placement is offered
+ *                             example: "FAC001"
+ *                           placementslot_type:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Type of placement slot
+ *                             example: ["Clinical Placement"]
+ *                           course_applicable:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Courses applicable for this slot
+ *                             example: ["CHC33015"]
+ *                           total_slots_offered:
+ *                             type: integer
+ *                             description: Total number of slots offered
+ *                             example: 5
+ *                           remaining_seats:
+ *                             type: integer
+ *                             description: Number of remaining available seats
+ *                             example: 2
+ *                           placement_start_date:
+ *                             type: string
+ *                             format: date
+ *                             description: Placement slot start date
+ *                             example: "2026-03-15"
+ *                           placement_end_date:
+ *                             type: string
+ *                             format: date
+ *                             description: Placement slot end date
+ *                             example: "2026-04-15"
+ *                           total_hours_required:
+ *                             type: integer
+ *                             description: Total hours required for this placement
+ *                             example: 120
+ *                           shift_type:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Type of shift (Morning, Evening, Night, etc.)
+ *                             example: ["Morning"]
+ *                           shift_timings:
+ *                             type: string
+ *                             description: Specific shift timings
+ *                             example: "07:00 - 15:00"
+ *                           working_days:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Working days pattern
+ *                             example: ["Weekdays"]
+ *       401:
+ *         description: Unauthorized - Invalid or missing authentication token
+ *       404:
+ *         description: Student not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/:id/placements', StudentController.getStudentPlacements);
+
 export default router;

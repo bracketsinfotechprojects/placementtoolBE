@@ -173,4 +173,13 @@ export default class TrainerController extends BaseController {
       ApiResponseUtility.success(res, null, 'Trainer permanently deleted');
     }, 'Permanently delete trainer');
   }
+
+  static async getTodayClasses(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const trainerId = BaseController.parseId(req, 'id');
+      
+      const courses = await TrainerService.getTodayClasses(trainerId);
+      ApiResponseUtility.success(res, courses, 'Today\'s courses retrieved successfully');
+    }, 'Get today\'s courses for trainer');
+  }
 }

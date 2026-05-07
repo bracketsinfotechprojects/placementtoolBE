@@ -587,6 +587,32 @@ export default class StudentController extends BaseController {
     }, 'Failed to update self placement');
   }
 
+  // Get Student Placements
+  static async getStudentPlacements(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = parseInt(req.params.id);
+
+      if (isNaN(studentId)) {
+        throw new StringError('Invalid student ID');
+      }
+
+      // Check if student exists
+      const student = await StudentService.getById({ id: studentId });
+      if (!student) {
+        throw new StringError('Student not found');
+      }
+
+      // Get query parameters for filtering
+      const filters = {
+        status: req.query.status as string | undefined,
+        facility_confirmation_status: req.query.facility_confirmation_status as string | undefined
+      };
+
+      const result = await StudentService.getStudentPlacements(studentId, filters);
+      ApiResponseUtility.success(res, result.data, result.message);
+    }, 'Failed to retrieve student placements');
+  }
+
   // Old activate/deactivate methods removed
   // Use generic activation API instead: PATCH /api/students/{id}/activate?activate={true|false}
 }

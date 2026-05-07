@@ -114,4 +114,37 @@ export default class PlacementSlotController extends BaseController {
       ApiResponseUtility.success(res, result);
     }, 'Permanently delete placement slot');
   }
+
+  static async getAvailableSlots(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const period = (req.query.period as string) || 'today'; // today, week, month
+      const studentId = req.query.student_id ? parseInt(req.query.student_id as string, 10) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+
+      // Validate period
+      const validPeriods = ['today', 'week', 'month'];
+      if (!validPeriods.includes(period)) {
+        throw new Error('Invalid period. Must be one of: today, week, month');
+      }
+
+      const result = await PlacementSlotService.getAvailableSlots({
+        period: period as 'today' | 'week' | 'month',
+        studentId,
+        limit,
+        page
+      });
+
+      const totalPages = Math.ceil(result.total / limit);
+      const pagination = {
+        totalPages,
+        previousPage: page > 1 ? page - 1 : null,
+        currentPage: page,
+        nextPage: page < totalPages ? page + 1 : null,
+        totalItems: result.total
+      };
+
+      ApiResponseUtility.success(res, result.slots, 'Available placement slots retrieved successfully', pagination);
+    }, 'Get available placement slots');
+  }
 }

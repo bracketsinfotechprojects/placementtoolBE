@@ -1138,6 +1138,27 @@ const generateTemplate = (): Buffer => {
   return ExcelUtility.generateTemplate(headers, sampleData);
 };
 
+const getTodayClasses = async (trainerId: number) => {
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date();
+  const todayDate = today.toISOString().split('T')[0];
+
+  // Import CourseSlots repository dynamically to avoid circular dependencies
+  const { getRepository } = require('typeorm');
+  const courseRepository = getRepository('CourseSlots');
+
+  // Query for courses scheduled for today with this trainer, including trainer details
+  const courses = await courseRepository
+    .createQueryBuilder('course')
+    .leftJoinAndSelect('course.trainer', 'trainer')
+    .where('course.course_date = :date', { date: todayDate })
+    .andWhere('course.trainer_id = :trainerId', { trainerId })
+    .orderBy('course.reporting_time', 'ASC')
+    .getMany();
+
+  return courses;
+};
+
 export default {
   create,
   getById,
@@ -1146,5 +1167,6 @@ export default {
   remove,
   permanentlyDelete,
   bulkUpload,
-  generateTemplate
+  generateTemplate,
+  getTodayClasses
 };

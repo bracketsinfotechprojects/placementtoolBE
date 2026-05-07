@@ -346,6 +346,345 @@ router.delete('/:id', PlacementAssignmentController.delete);
 
 /**
  * @swagger
+ * /api/placements/{id}/confirm:
+ *   post:
+ *     summary: Confirm placement slot assignments
+ *     description: Confirms all 'Assigned' status assignments for a placement slot by changing their status to 'Active'
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Placement Slot ID
+ *     responses:
+ *       200:
+ *         description: Placement assignments confirmed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "3 placement assignment(s) confirmed successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PlacementAssignment'
+ *       400:
+ *         description: Bad request - no assignments to confirm
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Placement slot not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/placements/:id/confirm', PlacementAssignmentController.confirm);
+
+/**
+ * @swagger
+ * /api/placement-assignments/{id}/facility-confirm:
+ *   post:
+ *     summary: Facility confirms a placement assignment
+ *     description: Facility confirms/allocates a placement assignment by setting facility_confirmation_status to 'Allocated'
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Assignment ID
+ *     responses:
+ *       200:
+ *         description: Placement assignment confirmed by facility
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Placement assignment confirmed by facility"
+ *                 data:
+ *                   $ref: '#/components/schemas/PlacementAssignment'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Assignment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/:id/facility-confirm', PlacementAssignmentController.confirmByFacility);
+
+/**
+ * @swagger
+ * /api/placement-assignments/{id}/facility-reject:
+ *   post:
+ *     summary: Facility rejects a placement assignment
+ *     description: Facility rejects a placement assignment by setting facility_confirmation_status to 'Cancelled'
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Assignment ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for rejection
+ *                 example: "Student does not meet requirements"
+ *     responses:
+ *       200:
+ *         description: Placement assignment rejected by facility
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Placement assignment rejected by facility"
+ *                 data:
+ *                   $ref: '#/components/schemas/PlacementAssignment'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Assignment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/:id/facility-reject', PlacementAssignmentController.rejectByFacility);
+
+/**
+ * @swagger
+ * /api/placement-assignments/{id}/facility-status:
+ *   put:
+ *     summary: Update facility confirmation status
+ *     description: Update the facility confirmation status of a placement assignment (Allocated, Started, Completed, Cancelled)
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Assignment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               facility_confirmation_status:
+ *                 type: string
+ *                 enum: ['Allocated', 'Started', 'Completed', 'Cancelled']
+ *                 description: New facility confirmation status
+ *                 example: "Started"
+ *     responses:
+ *       200:
+ *         description: Facility confirmation status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facility confirmation status updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/PlacementAssignment'
+ *       400:
+ *         description: Bad request - invalid status
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Assignment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/:id/facility-status', PlacementAssignmentController.updateFacilityStatus);
+
+/**
+ * @swagger
+ * /api/placement-assignments/{id}/status:
+ *   put:
+ *     summary: Update assignment status
+ *     description: Update the assignment status of a placement assignment (Assigned, Active, Completed, Cancelled, Dropped). Updates remaining seats if status changes between active and inactive states.
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Assignment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
+ *                 description: New assignment status
+ *                 example: "Active"
+ *     responses:
+ *       200:
+ *         description: Assignment status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Assignment status updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/PlacementAssignment'
+ *       400:
+ *         description: Bad request - invalid status or no remaining seats
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Assignment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/:id/status', PlacementAssignmentController.updateAssignmentStatus);
+
+/**
+ * @swagger
+ * /api/placement-assignments/by-student-slot/status:
+ *   put:
+ *     summary: Update assignment status by student and placement slot
+ *     description: Update the assignment status using student_id and placementslot_id instead of assignment_id. Updates remaining seats if status changes between active and inactive states.
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PlacementAssignmentStatusUpdateByStudentSlot'
+ *     responses:
+ *       200:
+ *         description: Assignment status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Assignment status updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/PlacementAssignment'
+ *       400:
+ *         description: Bad request - missing required fields or invalid status
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Assignment not found for this student and placement slot
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/by-student-slot/status', PlacementAssignmentController.updateStatusByStudentAndSlot);
+
+/**
+ * @swagger
+ * /api/placement-assignments/by-student-slot/facility-status:
+ *   put:
+ *     summary: Update facility confirmation status by student and placement slot
+ *     description: Update the facility confirmation status using student_id and placementslot_id instead of assignment_id
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PlacementAssignmentFacilityStatusUpdateByStudentSlot'
+ *     responses:
+ *       200:
+ *         description: Facility confirmation status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facility confirmation status updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/PlacementAssignment'
+ *       400:
+ *         description: Bad request - missing required fields or invalid status
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Assignment not found for this student and placement slot
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/by-student-slot/facility-status', PlacementAssignmentController.updateFacilityStatusByStudentAndSlot);
+
+/**
+ * @swagger
  * /api/placement-assignments/placement-slots/{placementSlotId}/students:
  *   get:
  *     summary: Get all students assigned to a specific placement slot

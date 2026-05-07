@@ -15,6 +15,7 @@ import { Student } from '../student/student.entity';
 @Index(['placementslot_id'])
 @Index(['student_id'])
 @Index(['status'])
+@Index(['facility_confirmation_status'])
 export class PlacementAssignment {
 
   @PrimaryGeneratedColumn({ type: 'int', name: 'assignment_id' })
@@ -40,13 +41,24 @@ export class PlacementAssignment {
   // Assignment Status
   @Column({
     type: 'enum',
-    enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
+    enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
     nullable: false,
-    default: 'Assigned',
+    default: 'Allocated',
     name: 'status',
     comment: 'Status of the assignment'
   })
-  status: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped';
+  status: 'Allocated' | 'Started' | 'Completed' | 'Cancelled';
+
+  // Facility Confirmation Status
+  @Column({
+    type: 'enum',
+    enum: ['Approved', 'Rejected'],
+    nullable: true,
+    default: null,
+    name: 'facility_confirmation_status',
+    comment: 'Facility confirmation status: Approved, Rejected'
+  })
+  facility_confirmation_status: 'Approved' | 'Rejected' | null;
 
   // Assignment Dates
   @Column({
