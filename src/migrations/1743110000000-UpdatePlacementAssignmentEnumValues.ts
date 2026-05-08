@@ -13,14 +13,7 @@ export class UpdatePlacementAssignmentEnumValues1743110000000 implements Migrati
       MODIFY COLUMN \`status\` VARCHAR(50) NOT NULL DEFAULT 'Allocated'
     `);
 
-    // Step 2: Convert facility_confirmation_status to VARCHAR temporarily
-    console.log('📝 Converting facility_confirmation_status column to VARCHAR...');
-    await queryRunner.query(`
-      ALTER TABLE \`placement_assignments\` 
-      MODIFY COLUMN \`facility_confirmation_status\` VARCHAR(50) NULL DEFAULT NULL
-    `);
-
-    // Step 3: Update status values
+    // Step 2: Update status values
     console.log('📝 Updating status values...');
     await queryRunner.query(`
       UPDATE \`placement_assignments\` 
@@ -28,15 +21,7 @@ export class UpdatePlacementAssignmentEnumValues1743110000000 implements Migrati
       WHERE \`status\` IN ('Assigned', 'Active', 'Dropped')
     `);
 
-    // Step 4: Update facility_confirmation_status values
-    console.log('📝 Updating facility_confirmation_status values...');
-    await queryRunner.query(`
-      UPDATE \`placement_assignments\` 
-      SET \`facility_confirmation_status\` = 'Approved' 
-      WHERE \`facility_confirmation_status\` IN ('Allocated', 'Started', 'Completed', 'Cancelled')
-    `);
-
-    // Step 5: Convert status back to ENUM with new values
+    // Step 3: Convert status back to ENUM with new values
     console.log('📝 Converting status column back to ENUM...');
     await queryRunner.query(`
       ALTER TABLE \`placement_assignments\` 
@@ -44,13 +29,34 @@ export class UpdatePlacementAssignmentEnumValues1743110000000 implements Migrati
       COMMENT 'Status of the assignment'
     `);
 
-    // Step 6: Convert facility_confirmation_status back to ENUM with new values
-    console.log('📝 Converting facility_confirmation_status column back to ENUM...');
-    await queryRunner.query(`
-      ALTER TABLE \`placement_assignments\` 
-      MODIFY COLUMN \`facility_confirmation_status\` enum ('Approved', 'Rejected') NULL DEFAULT NULL 
-      COMMENT 'Facility confirmation status: Approved, Rejected'
-    `);
+    // Step 4: Add facility_confirmation_status column if it doesn't exist
+    console.log('📝 Adding facility_confirmation_status column...');
+    const hasColumn = await queryRunner.hasColumn('placement_assignments', 'facility_confirmation_status');
+    if (!hasColumn) {
+      await queryRunner.query(`
+        ALTER TABLE \`placement_assignments\` 
+        ADD COLUMN \`facility_confirmation_status\` enum ('Approved', 'Rejected') NULL DEFAULT NULL 
+        COMMENT 'Facility confirmation status: Approved, Rejected'
+      `);
+    } else {
+      // If column exists, just update the enum values
+      await queryRunner.query(`
+        ALTER TABLE \`placement_assignments\` 
+        MODIFY COLUMN \`facility_confirmation_status\` enum ('Approved', 'Rejected') NULL DEFAULT NULL 
+        COMMENT 'Facility confirmation status: Approved, Rejected'
+      `);
+    }
+
+    // Step 5: Add index for facility_confirmation_status
+    try {
+      await queryRunner.query(`
+        ALTER TABLE \`placement_assignments\` 
+        ADD INDEX \`IDX_placement_assignments_facility_confirmation_status\` (\`facility_confirmation_status\`)
+      `);
+    } catch (error) {
+      // Index might already exist, ignore error
+      console.log('📝 Index already exists or could not be created');
+    }
 
     console.log('✅ Enum values updated successfully!');
   }
@@ -65,12 +71,14 @@ export class UpdatePlacementAssignmentEnumValues1743110000000 implements Migrati
       COMMENT 'Status of the assignment'
     `);
 
-    // Revert facility_confirmation_status column enum values
-    await queryRunner.query(`
-      ALTER TABLE \`placement_assignments\` 
-      MODIFY COLUMN \`facility_confirmation_status\` enum ('Allocated', 'Started', 'Completed', 'Cancelled') NULL DEFAULT NULL 
-      COMMENT 'Facility confirmation status: Allocated, Started, Completed, Cancelled'
-    `);
+    // Drop facility_confirmation_status column if it was added by this migration
+    const hasColumn = await queryRunner.hasColumn('placement_assignments', 'facility_confirmation_status');
+    if (hasColumn) {
+      await queryRunner.query(`
+        ALTER TABLE \`placement_assignments\` 
+        DROP COLUMN \`facility_confirmation_status\`
+      `);
+    }
     
     console.log('✅ Enum values reverted successfully');
   }
