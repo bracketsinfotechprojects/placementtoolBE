@@ -2,6 +2,9 @@ import { getRepository } from 'typeorm';
 
 // Entities
 import { User } from '../../entities/user/user.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
+import { FacilityRecords } from '../../entities/student/facility-records.entity';
+import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
 
 // Utilities
 import PasswordUtility from '../../utilities/password.utility';
@@ -34,6 +37,7 @@ export interface ILoginResponse {
     supervisorID?: number;
     placementExecutiveID?: number;
     trainerID?: number;
+    facilityIDs?: number[]; // For students: array of facility IDs
   };
   accessToken: string;
   refreshToken: string;
@@ -107,8 +111,60 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
       throw new StringError('Invalid email or password');
     }
 
+    // Get facility ID for facility and supervisor users
+    let facilityIdToInclude: number | undefined;
+    let facilityIdsToInclude: number[] | undefined;
+    
+    if (user.roleID === 2 && user.facilityID) {
+      // Facility user
+      facilityIdToInclude = user.facilityID;
+    } else if (user.roleID === 3 && user.supervisorID) {
+      // Supervisor user - get facility_id from supervisor record
+      const supervisor = await getRepository(FacilitySupervisor).findOne({
+        where: { supervisor_id: user.supervisorID, isDeleted: false },
+        select: ['facility_id']
+      });
+      if (supervisor) {
+        facilityIdToInclude = supervisor.facility_id;
+      }
+    } else if (user.roleID === 6) {
+      // Student user - get all associated facility IDs from both facility_records and placement assignments
+      const facilityRecordRepo = getRepository(FacilityRecords);
+      const placementAssignmentRepo = getRepository(PlacementAssignment);
+      
+      // Get facility IDs from facility_records
+      const facilityRecords = await facilityRecordRepo.find({
+        where: { student_id: user.studentID },
+        select: ['facility_id']
+      });
+      
+      // Get facility IDs from placement assignments (through placement_slot -> facility)
+      const placementAssignments = await placementAssignmentRepo.find({
+        where: { student_id: user.studentID },
+        relations: ['placementSlot', 'placementSlot.facility']
+      });
+      
+      // Combine facility IDs from both sources
+      const facilityIdsFromRecords = facilityRecords.map(record => record.facility_id);
+      const facilityIdsFromAssignments = placementAssignments
+        .map(assignment => assignment.placementSlot?.facility?.facility_id)
+        .filter((id): id is number => id !== undefined && id !== null);
+      
+      // Merge and deduplicate
+      const allFacilityIds = [...new Set([...facilityIdsFromRecords, ...facilityIdsFromAssignments])];
+      
+      if (allFacilityIds.length > 0) {
+        facilityIdsToInclude = allFacilityIds;
+      }
+    }
+
     // Generate JWT tokens
-    const tokenPayload = JwtUtility.createLoginPayload(user.id, user.loginID, user.roleID);
+    const tokenPayload = JwtUtility.createLoginPayload(
+      user.id, 
+      user.loginID, 
+      user.roleID, 
+      facilityIdToInclude // For backward compatibility, using single facility ID
+    );
     const accessToken = JwtUtility.generateAccessToken(tokenPayload);
     const refreshToken = JwtUtility.generateRefreshToken(tokenPayload);
 
@@ -127,6 +183,8 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
     switch (user.roleID) {
       case 6: // Student
         if (user.studentID) userResponse.studentID = user.studentID;
+        // Add facility IDs array for students (always include for students, even if empty)
+        userResponse.facilityIDs = facilityIdsToInclude || [];
         break;
       case 2: // Facility
         if (user.facilityID) userResponse.facilityID = user.facilityID;

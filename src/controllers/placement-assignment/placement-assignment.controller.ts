@@ -3,6 +3,8 @@ import BaseController from '../base.controller';
 import PlacementAssignmentService from '../../services/placement-assignment/placement-assignment.service';
 import ApiResponseUtility from '../../utilities/api-response.utility';
 import { IPlacementAssignmentQueryParams } from '../../repositories/placement-assignment.repository';
+import IRequest from '../../interfaces/IRequest';
+import { StringError } from '../../errors/string.error';
 
 export default class PlacementAssignmentController extends BaseController {
   static async create(req: Request, res: Response) {
@@ -170,5 +172,43 @@ export default class PlacementAssignmentController extends BaseController {
       );
       ApiResponseUtility.success(res, assignment, 'Facility confirmation status updated successfully');
     }, 'Update facility status by student and slot');
+  }
+
+  // NEW: Get students assigned to the logged-in facility/supervisor's placement slots
+  static async getStudentsByFacility(req: IRequest, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const facilityId = req.query.facilityid ? parseInt(req.query.facilityid as string, 10) : undefined;
+
+      const filters = {
+        status: req.query.status as string,
+        assignment_status: req.query.assignment_status as string,
+        student_type: req.query.student_type as string,
+        search: req.query.search as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
+        page: req.query.page ? parseInt(req.query.page as string, 10) : 1
+      };
+
+      const result = await PlacementAssignmentService.getStudentsByFacilityId(facilityId, filters);
+
+      ApiResponseUtility.success(res, result.data, result.message, result.pagination);
+    }, 'Get students by facility');
+  }
+
+  // NEW: Get all students without pagination
+  static async getAllStudentsByFacility(req: IRequest, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      // Access user from request (set by jwtAuth middleware)
+      const user = req.user;
+      if (!user) {
+        throw new StringError('Unauthorized');
+      }
+
+      if (user.roleID !== 2 && user.roleID !== 3) {
+        throw new StringError('Only Facility or Supervisor users can access this endpoint');
+      }
+
+      const result = await PlacementAssignmentService.getAllStudentsByFacility(user.id, user.roleID);
+      ApiResponseUtility.success(res, result.data, result.message);
+    }, 'Get all students by facility');
   }
 }

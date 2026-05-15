@@ -1,9 +1,7 @@
 import express from 'express';
 import PlacementAssignmentController from '../../controllers/placement-assignment/placement-assignment.controller';
-import { getRepository } from 'typeorm';
-import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
-import PlacementAssignmentService from '../../services/assignment/placement-assignment.service';
-import AssignmentService from '../../services/assignment/assignment.service';
+import jwtAuth from '../../middlewares/jwt-auth.middleware';
+import { authorizeRoles } from '../../middlewares/permission-handler.middleware';
 
 const router = express.Router();
 
@@ -57,7 +55,7 @@ const router = express.Router();
  *       404:
  *         description: Slot or student not found
  */
-router.post('/', PlacementAssignmentController.create);
+router.post('/', jwtAuth, authorizeRoles(2, 3, 4, 5, 6), PlacementAssignmentController.create);
 
 /**
  * @swagger
@@ -155,7 +153,7 @@ router.post('/', PlacementAssignmentController.create);
  *       401:
  *         description: Unauthorized
  */
-router.get('/', PlacementAssignmentController.list);
+router.get('/', jwtAuth, PlacementAssignmentController.list);
 
 /**
  * @swagger
@@ -192,7 +190,7 @@ router.get('/', PlacementAssignmentController.list);
  *       404:
  *         description: Not found
  */
-router.get('/slot/:slotId', PlacementAssignmentController.getBySlotId);
+router.get('/slot/:slotId', jwtAuth, PlacementAssignmentController.getBySlotId);
 
 /**
  * @swagger
@@ -229,7 +227,160 @@ router.get('/slot/:slotId', PlacementAssignmentController.getBySlotId);
  *       404:
  *         description: Not found
  */
-router.get('/student/:studentId', PlacementAssignmentController.getByStudentId);
+router.get('/student/:studentId', jwtAuth, PlacementAssignmentController.getByStudentId);
+
+/**
+ * @swagger
+ * /api/placement-assignments/facility-students:
+ *   get:
+ *     summary: Get students linked to facility's placement slots
+ *     description: |
+ *       Fetches all students assigned to placement slots belonging to the logged-in facility or supervisor.
+ *       
+ *       **Access Control:**
+ *       - Facility users (roleID=2): Returns students for their linked facility
+ *       - Supervisor users (roleID=3): Returns students for their assigned facility
+ *       
+ *       **Response includes:** student details, assignment status, placement slot info, and contact details.
+ *       
+ *       **Filters (optional):**
+ *       - `status`: Filter by student status (active, inactive, graduated, etc.)
+ *       - `assignment_status`: Filter by assignment status (Allocated, Started, Completed, Cancelled, Dropped)
+ *       - `student_type`: Filter by student type (domestic, international)
+ *       - `search`: Search in student first name, last name, or email
+ *       - `limit`: Results per page (default: 20)
+ *       - `page`: Page number (default: 1)
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: facilityid
+ *         schema:
+ *           type: integer
+ *         description: Filter by facility ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *         description: Filter by student status
+ *       - in: query
+ *         name: assignment_status
+ *         schema:
+ *           type: string
+ *           enum: [Allocated, Started, Completed, Cancelled, Dropped]
+ *         description: Filter by assignment status
+ *       - in: query
+ *         name: student_type
+ *         schema:
+ *           type: string
+ *           enum: [domestic, international]
+ *         description: Filter by student type
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search in student first name, last name, or email
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of results per page
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Students retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PlacementAssignmentStudentDetail'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - only Facility or Supervisor users can access
+ *       404:
+ *         description: No students found
+ */
+router.get(
+  '/facility-students',
+  jwtAuth,
+  authorizeRoles(2, 3), // Facility and Supervisor only
+  PlacementAssignmentController.getStudentsByFacility
+);
+
+/**
+ * @swagger
+ * /api/placement-assignments/facility-students/all:
+ *   get:
+ *     summary: Get all students linked to facility's placement slots (no pagination)
+ *     description: |
+ *       Fetches ALL students assigned to placement slots belonging to the logged-in facility or supervisor.
+ *       Use this endpoint when you need the complete list without pagination.
+ *       
+ *       **Access Control:**
+ *       - Facility users (roleID=2): Returns students for their linked facility
+ *       - Supervisor users (roleID=3): Returns students for their assigned facility
+ *       
+ *       **Note:** For large datasets, use `/facility-students` with pagination instead.
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All students retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PlacementAssignmentStudentDetail'
+ *                 total:
+ *                   type: integer
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - only Facility or Supervisor users can access
+ */
+router.get(
+  '/facility-students/all',
+  jwtAuth,
+  authorizeRoles(2, 3),
+  PlacementAssignmentController.getAllStudentsByFacility
+);
 
 /**
  * @swagger
@@ -264,7 +415,7 @@ router.get('/student/:studentId', PlacementAssignmentController.getByStudentId);
  *       404:
  *         description: Not found
  */
-router.get('/:id', PlacementAssignmentController.getById);
+router.get('/:id', jwtAuth, PlacementAssignmentController.getById);
 
 /**
  * @swagger
@@ -307,7 +458,7 @@ router.get('/:id', PlacementAssignmentController.getById);
  *       404:
  *         description: Not found
  */
-router.put('/:id', PlacementAssignmentController.update);
+router.put('/:id', jwtAuth, authorizeRoles(2, 3, 4, 5, 6), PlacementAssignmentController.update);
 
 /**
  * @swagger
@@ -342,14 +493,14 @@ router.put('/:id', PlacementAssignmentController.update);
  *       404:
  *         description: Not found
  */
-router.delete('/:id', PlacementAssignmentController.delete);
+router.delete('/:id', jwtAuth, authorizeRoles(2, 3, 4, 5, 6), PlacementAssignmentController.delete);
 
 /**
  * @swagger
- * /api/placements/{id}/confirm:
+ * /api/placement-assignments/placements/{id}/confirm:
  *   post:
  *     summary: Confirm placement slot assignments
- *     description: Confirms all 'Assigned' status assignments for a placement slot by changing their status to 'Active'
+ *     description: Confirms all 'Assigned' status assignments for a placement slot by changing their status to 'Started'
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -388,14 +539,14 @@ router.delete('/:id', PlacementAssignmentController.delete);
  *       500:
  *         description: Internal server error
  */
-router.post('/placements/:id/confirm', PlacementAssignmentController.confirm);
+router.post('/placements/:id/confirm', jwtAuth, PlacementAssignmentController.confirm);
 
 /**
  * @swagger
  * /api/placement-assignments/{id}/facility-confirm:
  *   post:
  *     summary: Facility confirms a placement assignment
- *     description: Facility confirms/allocates a placement assignment by setting facility_confirmation_status to 'Allocated'
+ *     description: Facility confirms/allocates a placement assignment by setting facility_confirmation_status to 'Approved'
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -430,14 +581,14 @@ router.post('/placements/:id/confirm', PlacementAssignmentController.confirm);
  *       500:
  *         description: Internal server error
  */
-router.post('/:id/facility-confirm', PlacementAssignmentController.confirmByFacility);
+router.post('/:id/facility-confirm', jwtAuth, authorizeRoles(2, 3), PlacementAssignmentController.confirmByFacility);
 
 /**
  * @swagger
  * /api/placement-assignments/{id}/facility-reject:
  *   post:
  *     summary: Facility rejects a placement assignment
- *     description: Facility rejects a placement assignment by setting facility_confirmation_status to 'Cancelled'
+ *     description: Facility rejects a placement assignment by setting facility_confirmation_status to 'Rejected'
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -483,14 +634,14 @@ router.post('/:id/facility-confirm', PlacementAssignmentController.confirmByFaci
  *       500:
  *         description: Internal server error
  */
-router.post('/:id/facility-reject', PlacementAssignmentController.rejectByFacility);
+router.post('/:id/facility-reject', jwtAuth, authorizeRoles(2, 3), PlacementAssignmentController.rejectByFacility);
 
 /**
  * @swagger
  * /api/placement-assignments/{id}/facility-status:
  *   put:
  *     summary: Update facility confirmation status
- *     description: Update the facility confirmation status of a placement assignment (Allocated, Started, Completed, Cancelled)
+ *     description: Update the facility confirmation status of a placement assignment (Approved, Rejected)
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -511,9 +662,9 @@ router.post('/:id/facility-reject', PlacementAssignmentController.rejectByFacili
  *             properties:
  *               facility_confirmation_status:
  *                 type: string
- *                 enum: ['Allocated', 'Started', 'Completed', 'Cancelled']
+ *                 enum: ['Approved', 'Rejected']
  *                 description: New facility confirmation status
- *                 example: "Started"
+ *                 example: "Approved"
  *     responses:
  *       200:
  *         description: Facility confirmation status updated successfully
@@ -539,14 +690,14 @@ router.post('/:id/facility-reject', PlacementAssignmentController.rejectByFacili
  *       500:
  *         description: Internal server error
  */
-router.put('/:id/facility-status', PlacementAssignmentController.updateFacilityStatus);
+router.put('/:id/facility-status', jwtAuth, authorizeRoles(2, 3), PlacementAssignmentController.updateFacilityStatus);
 
 /**
  * @swagger
  * /api/placement-assignments/{id}/status:
  *   put:
  *     summary: Update assignment status
- *     description: Update the assignment status of a placement assignment (Assigned, Active, Completed, Cancelled, Dropped). Updates remaining seats if status changes between active and inactive states.
+ *     description: Update the assignment status of a placement assignment (Allocated, Started, Completed, Cancelled). Updates remaining seats if status changes between active and inactive states.
  *     tags:
  *       - Placement Assignments
  *     security:
@@ -567,9 +718,9 @@ router.put('/:id/facility-status', PlacementAssignmentController.updateFacilityS
  *             properties:
  *               status:
  *                 type: string
- *                 enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
+ *                 enum: ['Allocated', 'Started', 'Completed', 'Cancelled']
  *                 description: New assignment status
- *                 example: "Active"
+ *                 example: "Started"
  *     responses:
  *       200:
  *         description: Assignment status updated successfully
@@ -595,7 +746,7 @@ router.put('/:id/facility-status', PlacementAssignmentController.updateFacilityS
  *       500:
  *         description: Internal server error
  */
-router.put('/:id/status', PlacementAssignmentController.updateAssignmentStatus);
+router.put('/:id/status', jwtAuth, authorizeRoles(2, 3, 4, 5, 6), PlacementAssignmentController.updateAssignmentStatus);
 
 /**
  * @swagger
@@ -638,7 +789,7 @@ router.put('/:id/status', PlacementAssignmentController.updateAssignmentStatus);
  *       500:
  *         description: Internal server error
  */
-router.put('/by-student-slot/status', PlacementAssignmentController.updateStatusByStudentAndSlot);
+router.put('/by-student-slot/status', jwtAuth, authorizeRoles(2, 3, 4, 5, 6), PlacementAssignmentController.updateStatusByStudentAndSlot);
 
 /**
  * @swagger
@@ -681,282 +832,6 @@ router.put('/by-student-slot/status', PlacementAssignmentController.updateStatus
  *       500:
  *         description: Internal server error
  */
-router.put('/by-student-slot/facility-status', PlacementAssignmentController.updateFacilityStatusByStudentAndSlot);
-
-/**
- * @swagger
- * /api/placement-assignments/placement-slots/{placementSlotId}/students:
- *   get:
- *     summary: Get all students assigned to a specific placement slot
- *     tags:
- *       - Placement Assignments
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: placementSlotId
- *         required: true
- *         schema:
- *           type: integer
- *         description: Placement Slot ID
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
- *         description: Filter by assignment status, defaults to Assigned
- *     responses:
- *       200:
- *         description: Placement slot details with assigned students
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 placementslot_id:
- *                   type: integer
- *                   example: 1
- *                 total_students:
- *                   type: integer
- *                   example: 5
- *                 placement_slot:
- *                   type: object
- *                   properties:
- *                     placementslot_id:
- *                       type: integer
- *                     facility_id:
- *                       type: string
- *                     placementslot_type:
- *                       type: array
- *                       items:
- *                         type: string
- *                     placement_start_date:
- *                       type: string
- *                       format: date
- *                     placement_end_date:
- *                       type: string
- *                       format: date
- *                     total_slots_offered:
- *                       type: integer
- *                     shift_type:
- *                       type: array
- *                       items:
- *                         type: string
- *                     shift_timings:
- *                       type: string
- *                 students:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       assignment_id:
- *                         type: integer
- *                       start_date:
- *                         type: string
- *                         format: date
- *                         nullable: true
- *                       end_date:
- *                         type: string
- *                         format: date
- *                         nullable: true
- *                       status:
- *                         type: string
- *                         enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
- *                       notes:
- *                         type: string
- *                         nullable: true
- *                       student:
- *                         type: object
- *                         properties:
- *                           student_id:
- *                             type: integer
- *                           first_name:
- *                             type: string
- *                           last_name:
- *                             type: string
- *                           email:
- *                             type: string
- *                             nullable: true
- *                           phone:
- *                             type: string
- *                             nullable: true
- *                           status:
- *                             type: string
- *       404:
- *         description: Placement slot not found or no students assigned
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.get(
-  '/placement-slots/:placementSlotId/students',
-  async (req: any, res: any) => {
-    try {
-      const { placementSlotId } = req.params;
-      const { status } = req.query;
-      
-      const result = await PlacementAssignmentService.getStudentsForPlacementSlot(
-        parseInt(placementSlotId), 
-        { status }
-      );
-      
-      if (!result) {
-        return res.status(404).json(
-          AssignmentService.createErrorResponse('No students found for this placement slot')
-        );
-      }
-      
-      return res.status(200).json(result);
-      
-    } catch (error: any) {
-      console.error('Error fetching placement slot students:', error);
-      return res.status(500).json(
-        AssignmentService.createErrorResponse(
-          error.message || 'Failed to fetch placement slot students'
-        )
-      );
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/placement-assignments/facilities/{facilityId}/placement-slots:
- *   get:
- *     summary: Get all placement slots for a facility with their assigned students
- *     tags:
- *       - Placement Assignments
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: facilityId
- *         required: true
- *         schema:
- *           type: string
- *         description: Facility ID
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
- *         description: Filter by assignment status, defaults to Assigned
- *     responses:
- *       200:
- *         description: List of placement slots with their assigned students
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 facility_id:
- *                   type: string
- *                   example: "1"
- *                 total_students:
- *                   type: integer
- *                   example: 15
- *                 placement_slots_count:
- *                   type: integer
- *                   example: 3
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       placement_slot:
- *                         type: object
- *                         properties:
- *                           placementslot_id:
- *                             type: integer
- *                           facility_id:
- *                             type: string
- *                           placementslot_type:
- *                             type: array
- *                             items:
- *                               type: string
- *                           placement_start_date:
- *                             type: string
- *                             format: date
- *                           placement_end_date:
- *                             type: string
- *                             format: date
- *                           total_slots_offered:
- *                             type: integer
- *                       students:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             assignment_id:
- *                               type: integer
- *                             start_date:
- *                               type: string
- *                               format: date
- *                               nullable: true
- *                             end_date:
- *                               type: string
- *                               format: date
- *                               nullable: true
- *                             status:
- *                               type: string
- *                             student:
- *                               type: object
- *                               properties:
- *                                 student_id:
- *                                   type: integer
- *                                 first_name:
- *                                   type: string
- *                                 last_name:
- *                                   type: string
- *                                 email:
- *                                   type: string
- *                                   nullable: true
- *                                 phone:
- *                                   type: string
- *                                   nullable: true
- *       404:
- *         description: No placement slots found for this facility
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.get(
-  '/facilities/:facilityId/placement-slots',
-  async (req: any, res: any) => {
-    try {
-      const { facilityId } = req.params;
-      const { status } = req.query;
-      
-      const result = await PlacementAssignmentService.getPlacementSlotsForFacility(
-        facilityId, 
-        { status }
-      );
-      
-      if (!result) {
-        return res.status(404).json(
-          AssignmentService.createErrorResponse('No placement slots found for this facility')
-        );
-      }
-      
-      return res.status(200).json(result);
-      
-    } catch (error: any) {
-      console.error('Error fetching facility placement slots:', error);
-      return res.status(500).json(
-        AssignmentService.createErrorResponse(
-          error.message || 'Failed to fetch facility placement slots'
-        )
-      );
-    }
-  }
-);
+router.put('/by-student-slot/facility-status', jwtAuth, authorizeRoles(2, 3), PlacementAssignmentController.updateFacilityStatusByStudentAndSlot);
 
 export default router;

@@ -1,6 +1,30 @@
 import { getRepository, SelectQueryBuilder, In } from 'typeorm';
 import { PlacementAssignment } from '../entities/placement-assignment/placement-assignment.entity';
+import { PlacementSlot } from '../entities/placement-slot/placement-slot.entity';
+import { Student } from '../entities/student/student.entity';
+import { ContactDetails } from '../entities/student/contact-details.entity';
+import { FacilitySupervisor } from '../entities/facility-supervisor/facility-supervisor.entity';
 import ApiUtility from '../utilities/api.utility';
+
+export interface IPlacementAssignmentStudentDetail {
+  assignment_id: number;
+  student_id: number;
+  first_name: string;
+  last_name: string;
+  status: string;
+  assignment_status: 'Allocated' | 'Started' | 'Completed' | 'Cancelled' | 'Dropped';
+  student_type?: string;
+  email?: string;
+  primary_mobile?: string;
+  course_applicable?: string[];
+  placement_start_date?: Date;
+  placement_end_date?: Date;
+  start_date?: Date;
+  end_date?: Date;
+  placementslot_id: number;
+  remaining_seats?: number;
+  facility_id: string;
+}
 
 export default class PlacementAssignmentRepository {
   private static getBaseQuery(): SelectQueryBuilder<PlacementAssignment> {
@@ -135,6 +159,56 @@ export default class PlacementAssignmentRepository {
 
   static async delete(id: number): Promise<void> {
     await getRepository(PlacementAssignment).delete({ assignment_id: id });
+  }
+
+  // NEW: Get students assigned to placement slots for a facility
+  static async findStudentsByFacilityId(facilityId: number | string): Promise<IPlacementAssignmentStudentDetail[]> {
+    const query = getRepository(PlacementAssignment)
+      .createQueryBuilder('assignment')
+      .leftJoinAndSelect('assignment.placementSlot', 'placementSlot')
+      .leftJoinAndSelect('assignment.student', 'student')
+      .leftJoin('student.contact_details', 'contact', 'contact.is_primary = 1')
+      .where('placementSlot.is_deleted = :isDeleted', { isDeleted: false })
+      .andWhere('student.isDeleted = :studentDeleted', { studentDeleted: false });
+
+    // FIX: placementSlot.facility_id is VARCHAR, need to CAST for numeric comparison
+    query.andWhere('CAST(placementSlot.facility_id AS UNSIGNED) = :facilityId', { facilityId });
+
+    const assignments = await query.getMany();
+
+    return assignments.map(assignment => ({
+      assignment_id: assignment.assignment_id,
+      student_id: assignment.student.student_id,
+      first_name: assignment.student.first_name,
+      last_name: assignment.student.last_name,
+      status: assignment.student.status,
+      assignment_status: assignment.status,
+      student_type: assignment.student.student_type,
+      email: assignment.student.contact_details?.[0]?.email,
+      primary_mobile: assignment.student.contact_details?.[0]?.primary_mobile,
+      course_applicable: assignment.placementSlot?.course_applicable,
+      placement_start_date: assignment.placementSlot?.placement_start_date,
+      placement_end_date: assignment.placementSlot?.placement_end_date,
+      start_date: assignment.start_date,
+      end_date: assignment.end_date,
+      placementslot_id: assignment.placementslot_id,
+      remaining_seats: assignment.placementSlot?.remaining_seats,
+      facility_id: assignment.placementSlot?.facility_id
+    }));
+  }
+
+  // NEW: Get students for a supervisor (via their assigned facility)
+  static async findStudentsBySupervisorId(supervisorId: number): Promise<IPlacementAssignmentStudentDetail[]> {
+    const supervisor = await getRepository(FacilitySupervisor).findOne({
+      where: { supervisor_id: supervisorId, isDeleted: false },
+      select: ['facility_id']
+    });
+
+    if (!supervisor) {
+      return [];
+    }
+
+    return await this.findStudentsByFacilityId(supervisor.facility_id);
   }
 }
 
