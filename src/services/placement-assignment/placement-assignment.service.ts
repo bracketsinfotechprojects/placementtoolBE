@@ -3,6 +3,7 @@ import { PlacementAssignment } from '../../entities/placement-assignment/placeme
 import { PlacementSlot } from '../../entities/placement-slot/placement-slot.entity';
 import { Student } from '../../entities/student/student.entity';
 import { User } from '../../entities/user/user.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
 import PlacementAssignmentRepository, { IPlacementAssignmentQueryParams } from '../../repositories/placement-assignment.repository';
 import PlacementSlotRepository from '../../repositories/placement-slot.repository';
 import { StringError } from '../../errors/string.error';
@@ -596,13 +597,19 @@ const getStudentsByFacility = async (
     assignment_status?: string;
     student_type?: string;
     search?: string;
+    facility_id?: number | string;
     limit?: number;
     page?: number;
   }
 ): Promise<any> => {
   let students: IPlacementAssignmentStudentDetail[] = [];
+  let facilityId: number | string | null = null;
 
-  if (userRoleId === 2) {
+  // Determine facility_id based on role and query parameter
+  if (filters?.facility_id) {
+    // If facility_id is provided in query, use it
+    facilityId = filters.facility_id;
+  } else if (userRoleId === 2) {
     // Facility user - get their linked facilityID
     const user = await getRepository(User).findOne({
       where: { id: userId, isDeleted: false, roleID: 2 },
@@ -613,13 +620,28 @@ const getStudentsByFacility = async (
       throw new StringError('Facility user is not linked to any facility');
     }
 
-    students = await PlacementAssignmentRepository.findStudentsByFacilityId(user.facilityID);
+    facilityId = user.facilityID;
   } else if (userRoleId === 3) {
     // Supervisor user - get students from their assigned facility
-    students = await PlacementAssignmentRepository.findStudentsBySupervisorId(userId);
+    const supervisor = await getRepository(FacilitySupervisor).findOne({
+      where: { supervisor_id: userId, isDeleted: false },
+      select: ['facility_id']
+    });
+
+    if (!supervisor || supervisor.facility_id === null || supervisor.facility_id === undefined) {
+      throw new StringError('Supervisor user is not linked to any facility');
+    }
+
+    facilityId = supervisor.facility_id;
   } else {
     throw new StringError('Only Facility or Supervisor users can access this endpoint');
   }
+
+  if (!facilityId) {
+    throw new StringError('Unable to determine facility for this user');
+  }
+
+  students = await PlacementAssignmentRepository.findStudentsByFacilityId(facilityId);
 
   // Apply filters
   let filteredStudents = students;

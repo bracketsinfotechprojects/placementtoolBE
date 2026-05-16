@@ -6,10 +6,181 @@ const router = express.Router();
 
 /**
  * @swagger
- * tags:
- *   - name: Facility Supervisors
- *     description: Facility Supervisor management endpoints
+ * /api/facility-supervisors/students/booked:
+ *   get:
+ *     summary: Get all students who booked placement slots for facility/supervisor
+ *     description: |
+ *       Retrieve all students assigned to placement slots for the authenticated facility or supervisor.
+ *       
+ *       **Access Control:**
+ *       - Facility users (roleID: 2) - Can view students for their linked facility
+ *       - Facility Supervisors (roleID: 3) - Can view students for their assigned facility
+ *       - Optional: Pass facility_id to override and view students for a different facility (if authorized)
+ *       
+ *       **Response Fields:**
+ *       - assignment_id: Unique assignment identifier
+ *       - student_id: Student ID
+ *       - first_name: Student first name
+ *       - last_name: Student last name
+ *       - status: Student status
+ *       - assignment_status: Assignment status (Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started)
+ *       - student_type: Type of student
+ *       - email: Student email
+ *       - primary_mobile: Student mobile number
+ *       - course_applicable: Applicable courses (JSON array)
+ *       - placement_start_date: Placement slot start date
+ *       - placement_end_date: Placement slot end date
+ *       - start_date: Actual assignment start date
+ *       - end_date: Actual assignment end date
+ *       - placementslot_id: Placement slot ID
+ *       - remaining_seats: Remaining seats in the slot
+ *       - facility_id: Facility ID
+ *     tags:
+ *       - Facility Supervisors
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: facility_id
+ *         schema:
+ *           type: integer
+ *         description: Optional - Facility ID to filter students (if not provided, uses authenticated user's facility)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter by student status
+ *       - in: query
+ *         name: assignment_status
+ *         schema:
+ *           type: string
+ *           enum: [Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started]
+ *         description: Filter by assignment status
+ *       - in: query
+ *         name: student_type
+ *         schema:
+ *           type: string
+ *         description: Filter by student type
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by student name or email
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of records per page
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Success
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Students retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       assignment_id:
+ *                         type: integer
+ *                         example: 1
+ *                       student_id:
+ *                         type: integer
+ *                         example: 101
+ *                       first_name:
+ *                         type: string
+ *                         example: "John"
+ *                       last_name:
+ *                         type: string
+ *                         example: "Doe"
+ *                       status:
+ *                         type: string
+ *                         example: "Active"
+ *                       assignment_status:
+ *                         type: string
+ *                         example: "Allocated"
+ *                       student_type:
+ *                         type: string
+ *                         example: "Domestic"
+ *                       email:
+ *                         type: string
+ *                         example: "john@example.com"
+ *                       primary_mobile:
+ *                         type: string
+ *                         example: "0412345678"
+ *                       course_applicable:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["First Aid", "Manual Handling"]
+ *                       placement_start_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-06-01"
+ *                       placement_end_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-08-31"
+ *                       start_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-06-01"
+ *                       end_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-08-31"
+ *                       placementslot_id:
+ *                         type: integer
+ *                         example: 5
+ *                       remaining_seats:
+ *                         type: integer
+ *                         example: 3
+ *                       facility_id:
+ *                         type: string
+ *                         example: "1"
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalItems:
+ *                       type: integer
+ *                       example: 50
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
+ *                     currentPage:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 20
+ *                     hasNextPage:
+ *                       type: boolean
+ *                       example: true
+ *                     hasPrevPage:
+ *                       type: boolean
+ *                       example: false
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Only Facility or Supervisor users can access this endpoint
  */
+router.get('/students/booked', FacilitySupervisorController.getStudentsByFacility);
 
 /**
  * @swagger
