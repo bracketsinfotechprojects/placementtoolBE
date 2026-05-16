@@ -41,13 +41,13 @@ export class PlacementAssignment {
   // Assignment Status
   @Column({
     type: 'enum',
-    enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
+    enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped', 'Allocated', 'Started'],
     nullable: false,
-    default: 'Allocated',
+    default: 'Assigned',
     name: 'status',
     comment: 'Status of the assignment'
   })
-  status: 'Allocated' | 'Started' | 'Completed' | 'Cancelled';
+  status: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
 
   // Facility Confirmation Status
   @Column({

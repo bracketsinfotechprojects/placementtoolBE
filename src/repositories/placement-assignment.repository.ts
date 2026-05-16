@@ -12,7 +12,7 @@ export interface IPlacementAssignmentStudentDetail {
   first_name: string;
   last_name: string;
   status: string;
-  assignment_status: 'Allocated' | 'Started' | 'Completed' | 'Cancelled' | 'Dropped';
+  assignment_status: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
   student_type?: string;
   email?: string;
   primary_mobile?: string;
@@ -215,7 +215,7 @@ export default class PlacementAssignmentRepository {
 export interface IPlacementAssignmentFilters {
   placementslot_id?: number;
   student_id?: number;
-  status?: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped';
+  status?: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
   start_date_from?: string;
   start_date_to?: string;
 }

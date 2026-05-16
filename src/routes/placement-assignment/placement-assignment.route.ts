@@ -245,7 +245,7 @@ router.get('/student/:studentId', jwtAuth, PlacementAssignmentController.getBySt
  *       
  *       **Filters (optional):**
  *       - `status`: Filter by student status (active, inactive, graduated, etc.)
- *       - `assignment_status`: Filter by assignment status (Allocated, Started, Completed, Cancelled, Dropped)
+       *       - `assignment_status`: Filter by assignment status (Assigned, Active, Completed, Cancelled, Dropped)
  *       - `student_type`: Filter by student type (domestic, international)
  *       - `search`: Search in student first name, last name, or email
  *       - `limit`: Results per page (default: 20)
@@ -270,7 +270,7 @@ router.get('/student/:studentId', jwtAuth, PlacementAssignmentController.getBySt
  *         name: assignment_status
  *         schema:
  *           type: string
- *           enum: [Allocated, Started, Completed, Cancelled, Dropped]
+ *           enum: [Assigned, Active, Completed, Cancelled, Dropped]
  *         description: Filter by assignment status
  *       - in: query
  *         name: student_type

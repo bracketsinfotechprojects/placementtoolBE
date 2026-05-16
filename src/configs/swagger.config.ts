@@ -687,9 +687,9 @@ const options = {
             student_id: { type: 'integer', description: 'Foreign key to students table', example: 1 },
             status: {
               type: 'string',
-              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
+              enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
               description: 'Status of the assignment',
-              example: 'Allocated'
+              example: 'Assigned'
             },
             facility_confirmation_status: {
               type: 'string',
@@ -708,41 +708,53 @@ const options = {
           }
         },
         PlacementAssignmentInput: {
-          type: 'object',
-          required: ['placementslot_id', 'student_id'],
-          properties: {
-            placementslot_id: {
-              type: 'integer',
-              description: 'Placement slot ID to assign student to',
-              example: 1
-            },
-            student_id: {
-              type: 'integer',
-              description: 'Student ID to assign',
-              example: 1
-            },
-            status: {
-              type: 'string',
-              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
-              description: 'Status of the assignment (optional, defaults to Allocated)',
-              example: 'Allocated'
-            },
-            notes: {
-              type: 'string',
-              description: 'Notes about this assignment (optional)',
-              example: 'Student requires additional supervision'
-            }
-          }
-        },
+                  type: 'object',
+                  required: ['placementslot_id', 'student_id'],
+                  properties: {
+                    placementslot_id: {
+                      type: 'integer',
+                      description: 'Placement slot ID to assign student to',
+                      example: 1
+                    },
+                    student_id: {
+                      type: 'integer',
+                      description: 'Student ID to assign',
+                      example: 1
+                    },
+                   status: {
+                     type: 'string',
+                     enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
+                     description: 'Status of the assignment (optional, defaults to Assigned)',
+                     example: 'Assigned'
+                   },
+                    start_date: {
+                      type: 'string',
+                      format: 'date',
+                      description: 'Actual start date for this student (optional)',
+                      example: '2026-03-15'
+                    },
+                    end_date: {
+                      type: 'string',
+                      format: 'date',
+                      description: 'Actual end date for this student (optional)',
+                      example: '2026-06-15'
+                    },
+                    notes: {
+                      type: 'string',
+                      description: 'Notes about this assignment (optional)',
+                      example: 'Student requires additional supervision'
+                    }
+                  }
+                },
         PlacementAssignmentUpdateInput: {
           type: 'object',
           properties: {
-            status: {
-              type: 'string',
-              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
-              description: 'Status of the assignment',
-              example: 'Started'
-            },
+           status: {
+             type: 'string',
+             enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
+             description: 'Status of the assignment',
+             example: 'Active'
+           },
             facility_confirmation_status: {
               type: 'string',
               enum: ['Approved', 'Rejected'],
@@ -784,7 +796,7 @@ const options = {
             },
             status: {
               type: 'string',
-              enum: ['Allocated', 'Started', 'Completed', 'Cancelled'],
+               enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
               description: 'New assignment status',
               example: 'Started'
             }
@@ -820,12 +832,12 @@ const options = {
              first_name: { type: 'string', description: 'Student first name', example: 'John' },
              last_name: { type: 'string', description: 'Student last name', example: 'Doe' },
              status: { type: 'string', description: 'Student status', example: 'active' },
-             assignment_status: {
-               type: 'string',
-               enum: ['Allocated', 'Started', 'Completed', 'Cancelled', 'Dropped'],
-               description: 'Assignment status',
-               example: 'Allocated'
-             },
+              assignment_status: {
+                type: 'string',
+                enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
+                description: 'Assignment status',
+                example: 'Assigned'
+              },
              student_type: { type: 'string', description: 'Student type (domestic/international)', example: 'domestic' },
              email: { type: 'string', description: 'Student email', example: 'john@example.com' },
              primary_mobile: { type: 'string', description: 'Primary mobile number', example: '0412345678' },

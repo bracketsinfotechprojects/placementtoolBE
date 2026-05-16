@@ -13,7 +13,7 @@ export interface IPlacementAssignmentStudentDetail {
   first_name: string;
   last_name: string;
   status: string;
-  assignment_status: 'Allocated' | 'Started' | 'Completed' | 'Cancelled' | 'Dropped';
+  assignment_status: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
   student_type?: string;
   email?: string;
   primary_mobile?: string;
@@ -79,7 +79,7 @@ const create = async (params: ICreatePlacementAssignment) => {
     const assignment = new PlacementAssignment();
     assignment.placementslot_id = params.placementslot_id;
     assignment.student_id = params.student_id;
-    assignment.status = params.status || 'Allocated';
+     assignment.status = params.status || 'Assigned';
     assignment.start_date = params.start_date ? new Date(params.start_date) : null;
     assignment.end_date = params.end_date ? new Date(params.end_date) : null;
     assignment.notes = params.notes;
@@ -234,11 +234,14 @@ const confirm = async (placementslotId: number) => {
       throw new StringError('No assignments to confirm for this placement slot');
     }
 
-    await queryRunner.manager.update(
-      PlacementAssignment,
-      { placementslot_id: placementslotId, status: 'Allocated' },
-      { status: 'Started' }
-    );
+    if (assignments.length > 0) {
+      const ids = assignments.map(a => a.assignment_id);
+      await queryRunner.manager.update(
+        PlacementAssignment,
+        ids,
+        { status: 'Started' }
+      );
+    }
 
     await queryRunner.commitTransaction();
 
