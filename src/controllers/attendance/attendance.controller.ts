@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { getRepository } from 'typeorm';
-import { AttendanceLog, ApprovalStatus } from '../../entities/attendance/attendance-log.entity';
+import { getRepository, In } from 'typeorm';
+import { AttendanceLog, ApprovalStatus, AttendanceStatus } from '../../entities/attendance/attendance-log.entity';
 import { Student } from '../../entities/student/student.entity';
 import { Facility } from '../../entities/facility/facility.entity';
 import { PlacementSlot } from '../../entities/placement-slot/placement-slot.entity';
@@ -23,6 +23,25 @@ class AttendanceController {
       const facilityRepository = getRepository(Facility);
       const placementSlotRepository = getRepository(PlacementSlot);
       const userRepository = getRepository(User);
+
+      // Check for duplicate attendance record (only if not rejected)
+      const existingAttendance = await attendanceLogRepository.findOne({
+        where: {
+          student_id: createAttendanceLogDto.student_id,
+          facility_id: createAttendanceLogDto.facility_id,
+          placement_slot_id: createAttendanceLogDto.placement_slot_id,
+          attendance_date: createAttendanceLogDto.attendance_date,
+          is_deleted: false,
+          approval_status: In([ApprovalStatus.PENDING, ApprovalStatus.APPROVED]),
+        },
+      });
+
+      if (existingAttendance) {
+        return res.status(400).json({
+          success: false,
+          message: `Attendance already logged for student ${createAttendanceLogDto.student_id} on ${createAttendanceLogDto.attendance_date}. Cannot log duplicate attendance. If rejected, you can reapply.`,
+        });
+      }
 
       // Validate that student exists
       const student = await studentRepository.findOne({
@@ -81,9 +100,10 @@ class AttendanceController {
         const startDate = new Date(placementAssignment.start_date);
         startDate.setHours(0, 0, 0, 0);
         if (attendanceDate < startDate) {
+          const startDateStr = startDate.toISOString().split('T')[0];
           return res.status(400).json({
             success: false,
-            message: `Attendance date cannot be before placement start date (${placementAssignment.start_date.toISOString().split('T')[0]})`,
+            message: `Attendance date cannot be before placement start date (${startDateStr})`,
           });
         }
       }
@@ -92,9 +112,10 @@ class AttendanceController {
         const endDate = new Date(placementAssignment.end_date);
         endDate.setHours(0, 0, 0, 0);
         if (attendanceDate > endDate) {
+          const endDateStr = endDate.toISOString().split('T')[0];
           return res.status(400).json({
             success: false,
-            message: `Attendance date cannot be after placement end date (${placementAssignment.end_date.toISOString().split('T')[0]})`,
+            message: `Attendance date cannot be after placement end date (${endDateStr})`,
           });
         }
       }
@@ -314,9 +335,120 @@ class AttendanceController {
       });
     } catch (error) {
       logger.error('Error fetching pending attendance:', error);
-      return res.status(500).json({
+      return res.status(400).json({
         success: false,
         message: error.message || 'Failed to fetch pending attendance',
+      });
+    }
+  }
+
+  /**
+   * Generate attendance logbook for a student
+   */
+  static async generateLogbook(req: Request, res: Response) {
+    try {
+      const { student_id, facility_id, placement_slot_id, period_start_date, period_end_date, summary_period = 'weekly' } = req.query;
+
+      // Validate required parameters
+      if (!student_id || !facility_id || !placement_slot_id || !period_start_date || !period_end_date) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required parameters: student_id, facility_id, placement_slot_id, period_start_date, period_end_date',
+        });
+      }
+
+      const attendanceLogRepository = getRepository(AttendanceLog);
+
+      // Convert string parameters to numbers
+      const studentId = Number(student_id);
+      const facilityId = Number(facility_id);
+      const placementSlotId = Number(placement_slot_id);
+
+      // Get all attendance logs for the period
+      const attendanceLogs = await attendanceLogRepository
+        .createQueryBuilder('attendance')
+        .where('attendance.student_id = :student_id', { student_id: studentId })
+        .andWhere('attendance.facility_id = :facility_id', { facility_id: facilityId })
+        .andWhere('attendance.placement_slot_id = :placement_slot_id', { placement_slot_id: placementSlotId })
+        .andWhere('DATE(attendance.attendance_date) >= :period_start_date', { period_start_date })
+        .andWhere('DATE(attendance.attendance_date) <= :period_end_date', { period_end_date })
+        .andWhere('attendance.is_deleted = :is_deleted', { is_deleted: false })
+        .orderBy('attendance.attendance_date', 'ASC')
+        .getMany();
+
+      // Calculate metrics
+      let days_present = 0;
+      let days_absent = 0;
+      let days_on_leave = 0;
+      let half_days = 0;
+      let late_arrivals = 0;
+      let early_departures = 0;
+      let total_hours_worked = 0;
+      let policy_violations = 0;
+
+      attendanceLogs.forEach(log => {
+        if (log.status === AttendanceStatus.PRESENT) days_present++;
+        else if (log.status === AttendanceStatus.ABSENT) days_absent++;
+        else if (log.status === AttendanceStatus.LEAVE) days_on_leave++;
+        else if (log.status === AttendanceStatus.HALF_DAY) half_days++;
+        else if (log.status === AttendanceStatus.LATE) late_arrivals++;
+        else if (log.status === AttendanceStatus.EARLY_DEPARTURE) early_departures++;
+
+        if (log.worked_hours) {
+          total_hours_worked += Number(log.worked_hours);
+        }
+      });
+
+      // Calculate total days in period
+      const startDate = new Date(period_start_date as string);
+      const endDate = new Date(period_end_date as string);
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Calculate attendance percentage
+      const totalDaysWorked = days_present + half_days;
+      const attendance_percentage = totalDays > 0 ? (totalDaysWorked / totalDays) * 100 : 0;
+
+      // Assume 8 hours per day requirement
+      const total_hours_required = totalDays * 8;
+      const hours_shortfall = Math.max(0, total_hours_required - total_hours_worked);
+      const average_daily_hours = totalDaysWorked > 0 ? total_hours_worked / totalDaysWorked : 0;
+
+      // Determine if meets minimum attendance (80%)
+      const meets_minimum_attendance = attendance_percentage >= 80;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Attendance logbook generated successfully',
+        data: {
+          student_id: studentId,
+          facility_id: facilityId,
+          placement_slot_id: placementSlotId,
+          summary_period,
+          period_start_date,
+          period_end_date,
+          total_days_in_period: totalDays,
+          days_present,
+          days_absent,
+          days_on_leave,
+          half_days,
+          late_arrivals,
+          early_departures,
+          total_hours_worked: Number(total_hours_worked.toFixed(2)),
+          total_hours_required: Number(total_hours_required.toFixed(2)),
+          hours_shortfall: Number(hours_shortfall.toFixed(2)),
+          average_daily_hours: Number(average_daily_hours.toFixed(2)),
+          attendance_percentage: Number(attendance_percentage.toFixed(2)),
+          meets_minimum_attendance,
+          policy_violations,
+          status: 'draft',
+          attendance_logs: attendanceLogs,
+        },
+      });
+    } catch (error) {
+      logger.error('Error generating attendance logbook:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to generate attendance logbook',
       });
     }
   }
