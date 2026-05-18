@@ -13,16 +13,7 @@
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "*": [
-        "node_modules/*",
-        "src/interfaces/*"
-      ]
-    },
-    "lib": [
-      "es2015", "es5", "es6", "dom"
-    ],
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   },
   "include": [
     "src/**/*"

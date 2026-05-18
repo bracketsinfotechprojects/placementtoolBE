@@ -337,6 +337,132 @@ router.get('/list', AttendanceController.getAttendanceLogs);
 
 /**
  * @swagger
+ * /api/attendance/logbook:
+ *   get:
+ *     summary: Generate attendance logbook for a student
+ *     description: |
+ *       Generate an attendance logbook/summary for a student for a specific period.
+ *       Returns attendance metrics, hours worked, compliance status, and deviations.
+ *     tags:
+ *       - Attendance
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: student_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *       - in: query
+ *         name: facility_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Facility ID
+ *       - in: query
+ *         name: placement_slot_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Placement slot ID
+ *       - in: query
+ *         name: period_start_date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date of the period (YYYY-MM-DD)
+ *       - in: query
+ *         name: period_end_date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date of the period (YYYY-MM-DD)
+ *       - in: query
+ *         name: summary_period
+ *         schema:
+ *           type: string
+ *           enum: [daily, weekly, monthly]
+ *           default: weekly
+ *         description: Period type for summary
+ *     responses:
+ *       200:
+ *         description: Attendance logbook generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Attendance logbook generated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     summary_id:
+ *                       type: integer
+ *                     student_id:
+ *                       type: integer
+ *                     facility_id:
+ *                       type: integer
+ *                     placement_slot_id:
+ *                       type: integer
+ *                     summary_period:
+ *                       type: string
+ *                       enum: [daily, weekly, monthly]
+ *                     period_start_date:
+ *                       type: string
+ *                       format: date
+ *                     period_end_date:
+ *                       type: string
+ *                       format: date
+ *                     total_days_in_period:
+ *                       type: integer
+ *                     days_present:
+ *                       type: integer
+ *                     days_absent:
+ *                       type: integer
+ *                     days_on_leave:
+ *                       type: integer
+ *                     half_days:
+ *                       type: integer
+ *                     late_arrivals:
+ *                       type: integer
+ *                     early_departures:
+ *                       type: integer
+ *                     total_hours_worked:
+ *                       type: number
+ *                     total_hours_required:
+ *                       type: number
+ *                     hours_shortfall:
+ *                       type: number
+ *                     average_daily_hours:
+ *                       type: number
+ *                     attendance_percentage:
+ *                       type: number
+ *                     meets_minimum_attendance:
+ *                       type: boolean
+ *                     policy_violations:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                       enum: [draft, submitted, approved, rejected]
+ *       400:
+ *         description: Bad request - missing or invalid parameters
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/logbook', AttendanceController.generateLogbook);
+
+/**
+ * @swagger
  * /api/attendance/pending:
  *   get:
  *     summary: Get pending attendance for approval
