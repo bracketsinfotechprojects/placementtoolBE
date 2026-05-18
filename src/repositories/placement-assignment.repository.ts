@@ -226,3 +226,28 @@ export interface IPlacementAssignmentQueryParams extends IPlacementAssignmentFil
   limit?: number;
   page?: number;
 }
+
+export interface IStudentInternshipDetail {
+  assignment_id: number;
+  student_id: number;
+  student_name: string;
+  student_type?: string;
+  facility_id: string;
+  facility_name: string;
+  placementslot_id: number;
+  assignment_status: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
+  facility_confirmation_status: 'Approved' | 'Rejected' | null;
+  slot_type?: string[];
+  course_applicable?: string[];
+  slot_start_date?: Date;
+  slot_end_date?: Date;
+  actual_start_date?: Date;
+  actual_end_date?: Date;
+  total_hours_required?: number;
+  shift_type?: string[];
+  shift_timings?: string;
+  working_days?: string[];
+  notes?: string;
+  created_at: Date;
+  updated_at: Date;
+}

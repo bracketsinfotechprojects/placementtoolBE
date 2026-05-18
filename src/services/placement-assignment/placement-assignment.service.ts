@@ -717,6 +717,72 @@ const getAllStudentsByFacility = async (userId: number, userRoleId: number): Pro
   };
 };
 
+// NEW: Get all internships for a student (multiple placements across different facilities)
+const getStudentInternships = async (studentId: number, params?: {
+  status?: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
+  limit?: number;
+  page?: number;
+  sort_by?: string;
+  sort_order?: string;
+}): Promise<any> => {
+  let query = getRepository(PlacementAssignment)
+    .createQueryBuilder('assignment')
+    .leftJoinAndSelect('assignment.placementSlot', 'placementSlot')
+    .leftJoinAndSelect('assignment.student', 'student')
+    .leftJoinAndSelect('placementSlot.facility', 'facility')
+    .where('assignment.student_id = :studentId', { studentId })
+    .andWhere('placementSlot.is_deleted = :isDeleted', { isDeleted: false })
+    .andWhere('student.isDeleted = :studentDeleted', { studentDeleted: false });
+
+  // Filter by status if provided
+  if (params?.status) {
+    query = query.andWhere('assignment.status = :status', { status: params.status });
+  }
+
+  // Get total count before pagination
+  const total = await query.getCount();
+
+  // Apply sorting
+  const sortBy = params?.sort_by || 'assignment.created_at';
+  const sortOrder = params?.sort_order?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+  query = query.orderBy(sortBy, sortOrder);
+
+  // Apply pagination
+  const limit = params?.limit || 20;
+  const page = params?.page || 1;
+  const offset = (page - 1) * limit;
+  query = query.limit(limit).offset(offset);
+
+  const assignments = await query.getMany();
+
+  const internships = assignments.map(assignment => ({
+    assignment_id: assignment.assignment_id,
+    student_id: assignment.student_id,
+    student_name: `${assignment.student.first_name} ${assignment.student.last_name}`,
+    student_type: assignment.student.student_type,
+    facility_id: assignment.placementSlot.facility_id,
+    facility_name: assignment.placementSlot.facility?.organization_name || 'N/A',
+    placementslot_id: assignment.placementslot_id,
+    assignment_status: assignment.status,
+    facility_confirmation_status: assignment.facility_confirmation_status,
+    slot_type: assignment.placementSlot.placementslot_type,
+    course_applicable: assignment.placementSlot.course_applicable,
+    slot_start_date: assignment.placementSlot.placement_start_date,
+    slot_end_date: assignment.placementSlot.placement_end_date,
+    actual_start_date: assignment.start_date,
+    actual_end_date: assignment.end_date,
+    total_hours_required: assignment.placementSlot.total_hours_required,
+    shift_type: assignment.placementSlot.shift_type,
+    shift_timings: assignment.placementSlot.shift_timings,
+    working_days: assignment.placementSlot.working_days,
+    notes: assignment.notes,
+    created_at: assignment.created_at,
+    updated_at: assignment.updated_at
+  }));
+
+  return { internships, total };
+};
+
 export interface ICreatePlacementAssignment {
   placementslot_id: number;
   student_id: number;
@@ -752,5 +818,6 @@ export default {
   updateFacilityStatusByStudentAndSlot,
   getStudentsByFacility,
   getStudentsByFacilityId,
-  getAllStudentsByFacility
+  getAllStudentsByFacility,
+  getStudentInternships
 };

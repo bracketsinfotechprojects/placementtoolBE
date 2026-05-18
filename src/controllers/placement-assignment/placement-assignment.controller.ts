@@ -211,4 +211,34 @@ export default class PlacementAssignmentController extends BaseController {
       ApiResponseUtility.success(res, result.data, result.message);
     }, 'Get all students by facility');
   }
+
+  // NEW: Get all internships for a student (multiple placements across different facilities)
+  static async getStudentInternships(req: IRequest, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const studentId = BaseController.parseId(req, 'studentId');
+      
+      const params = {
+        status: req.query.status as any,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
+        page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
+        sort_by: (req.query.sort_by as string) || 'assignment.created_at',
+        sort_order: (req.query.sort_order as string) || 'DESC'
+      };
+
+      const result = await PlacementAssignmentService.getStudentInternships(studentId, params);
+      
+      const limit = params.limit || 20;
+      const page = params.page || 1;
+      const totalPages = Math.ceil(result.total / limit);
+      const pagination = {
+        totalPages,
+        previousPage: page > 1 ? page - 1 : null,
+        currentPage: page,
+        nextPage: page < totalPages ? page + 1 : null,
+        totalItems: result.total
+      };
+
+      ApiResponseUtility.success(res, result.internships, 'Student internships retrieved successfully', pagination);
+    }, 'Get student internships');
+  }
 }

@@ -21,6 +21,7 @@ import activationRouter from './common/activation.route';
 import fileRouter from './file/file.route';
 import locationRouter from './location/location.route';
 import shortCourseRouter from './short-course/short-course.route';
+import attendanceRouter from './attendance/attendance.route';
 
 const router = express.Router();
 
@@ -43,6 +44,7 @@ router.use('/placement-assignments', jwtAuth, placementAssignmentRouter); // Aut
 router.use('/files', jwtAuth, fileRouter); // File upload and management
 router.use('/location', jwtAuth, locationRouter); // Location-based queries
 router.use('/short-course', jwtAuth, shortCourseRouter); // Short course listing
+router.use('/attendance', jwtAuth, attendanceRouter); // Attendance logging
 router.use('/admin/cleanup', jwtAuth, adminOnly, cleanupRouter); // Admin only
 
 // Generic activation route (must be after specific routes to avoid conflicts)

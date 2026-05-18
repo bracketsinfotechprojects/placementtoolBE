@@ -231,6 +231,170 @@ router.get('/student/:studentId', jwtAuth, PlacementAssignmentController.getBySt
 
 /**
  * @swagger
+ * /api/placement-assignments/internships/{studentId}:
+ *   get:
+ *     summary: Get all internships for a student (multiple placements across different facilities)
+ *     description: |
+ *       Retrieves all internship records for a student across multiple facilities.
+ *       Each student can have multiple internships with the same or different facilities.
+ *       
+ *       **Response includes:**
+ *       - Student and facility information
+ *       - Placement slot details (type, dates, hours, shift info)
+ *       - Assignment status and facility confirmation status
+ *       - Actual start/end dates for the internship
+ *       - Shift timings and working days
+ *       
+ *       **Filters (optional):**
+ *       - `status`: Filter by assignment status (Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started)
+ *       - `sort_by`: Field to sort by (default: assignment.created_at)
+ *       - `sort_order`: ASC or DESC (default: DESC)
+ *       - `limit`: Results per page (default: 20)
+ *       - `page`: Page number (default: 1)
+ *     tags:
+ *       - Placement Assignments
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started]
+ *         description: Filter by assignment status
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           default: assignment.created_at
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sort_order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of results per page
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Student internships retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       assignment_id:
+ *                         type: integer
+ *                       student_id:
+ *                         type: integer
+ *                       student_name:
+ *                         type: string
+ *                       student_type:
+ *                         type: string
+ *                       facility_id:
+ *                         type: string
+ *                       facility_name:
+ *                         type: string
+ *                       placementslot_id:
+ *                         type: integer
+ *                       assignment_status:
+ *                         type: string
+ *                         enum: [Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started]
+ *                       facility_confirmation_status:
+ *                         type: string
+ *                         enum: [Approved, Rejected]
+ *                         nullable: true
+ *                       slot_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       course_applicable:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       slot_start_date:
+ *                         type: string
+ *                         format: date
+ *                       slot_end_date:
+ *                         type: string
+ *                         format: date
+ *                       actual_start_date:
+ *                         type: string
+ *                         format: date
+ *                       actual_end_date:
+ *                         type: string
+ *                         format: date
+ *                       total_hours_required:
+ *                         type: integer
+ *                       shift_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       shift_timings:
+ *                         type: string
+ *                       working_days:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       notes:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       updated_at:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalPages:
+ *                       type: integer
+ *                     previousPage:
+ *                       type: integer
+ *                       nullable: true
+ *                     currentPage:
+ *                       type: integer
+ *                     nextPage:
+ *                       type: integer
+ *                       nullable: true
+ *                     totalItems:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Student not found or no internships
+ */
+router.get('/internships/:studentId', jwtAuth, PlacementAssignmentController.getStudentInternships);
+
+/**
+ * @swagger
  * /api/placement-assignments/facility-students:
  *   get:
  *     summary: Get students linked to facility's placement slots

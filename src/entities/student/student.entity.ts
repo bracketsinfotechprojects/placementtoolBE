@@ -19,6 +19,7 @@ import { FacilityRecords } from './facility-records.entity';
 import { AddressChangeRequest } from './address-change-request.entity';
 import { JobStatusUpdate } from './job-status-update.entity';
 import { SelfPlacement } from './self-placement.entity';
+import { AttendanceLog } from '../attendance/attendance-log.entity';
 
 @Entity('students', { orderBy: { student_id: 'DESC' } })
 @Index(['student_id'])
@@ -144,6 +145,9 @@ export class Student extends BaseEntity {
 
   @OneToMany(() => SelfPlacement, selfPlacement => selfPlacement.student, { cascade: true })
   self_placements: SelfPlacement[];
+
+  @OneToMany(() => AttendanceLog, attendance => attendance.student, { cascade: true })
+  attendance_logs: AttendanceLog[];
 
   // Virtual properties
   get fullName(): string {
