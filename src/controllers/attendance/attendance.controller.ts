@@ -4,6 +4,7 @@ import { AttendanceLog, ApprovalStatus } from '../../entities/attendance/attenda
 import { Student } from '../../entities/student/student.entity';
 import { Facility } from '../../entities/facility/facility.entity';
 import { PlacementSlot } from '../../entities/placement-slot/placement-slot.entity';
+import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
 import { User } from '../../entities/user/user.entity';
 import { CreateAttendanceLogDto } from '../../modules/attendance/dto/create-attendance-log.dto';
 import { ApproveAttendanceDto } from '../../modules/attendance/dto/approve-attendance.dto';
@@ -54,6 +55,48 @@ class AttendanceController {
           success: false,
           message: `Placement slot with ID ${createAttendanceLogDto.placement_slot_id} not found`,
         });
+      }
+
+      // Validate attendance date is within student's placement assignment dates
+      const placementAssignmentRepository = getRepository(PlacementAssignment);
+      const placementAssignment = await placementAssignmentRepository.findOne({
+        where: {
+          student_id: createAttendanceLogDto.student_id,
+          placementslot_id: createAttendanceLogDto.placement_slot_id,
+        },
+      });
+
+      if (!placementAssignment) {
+        return res.status(400).json({
+          success: false,
+          message: `Placement assignment not found for student ${createAttendanceLogDto.student_id} in slot ${createAttendanceLogDto.placement_slot_id}`,
+        });
+      }
+
+      // Check if attendance date is within the placement assignment dates
+      const attendanceDate = new Date(createAttendanceLogDto.attendance_date);
+      attendanceDate.setHours(0, 0, 0, 0);
+
+      if (placementAssignment.start_date) {
+        const startDate = new Date(placementAssignment.start_date);
+        startDate.setHours(0, 0, 0, 0);
+        if (attendanceDate < startDate) {
+          return res.status(400).json({
+            success: false,
+            message: `Attendance date cannot be before placement start date (${placementAssignment.start_date.toISOString().split('T')[0]})`,
+          });
+        }
+      }
+
+      if (placementAssignment.end_date) {
+        const endDate = new Date(placementAssignment.end_date);
+        endDate.setHours(0, 0, 0, 0);
+        if (attendanceDate > endDate) {
+          return res.status(400).json({
+            success: false,
+            message: `Attendance date cannot be after placement end date (${placementAssignment.end_date.toISOString().split('T')[0]})`,
+          });
+        }
       }
 
       // Validate that logged_by user exists
