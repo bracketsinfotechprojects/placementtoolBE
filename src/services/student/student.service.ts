@@ -13,6 +13,9 @@ import { AddressChangeRequest } from '../../entities/student/address-change-requ
 import { JobStatusUpdate } from '../../entities/student/job-status-update.entity';
 import { SelfPlacement } from '../../entities/student/self-placement.entity';
 import { User } from '../../entities/user/user.entity';
+// Additional entities needed for getStudentFacilities
+import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
+import { Facility } from '../../entities/facility/facility.entity';
 
 // Services
 import RoleService from '../role/role.service';
@@ -1793,6 +1796,70 @@ const advancedSearch = async (params: IAdvancedSearchParams) => {
   return { response, pagination: pagRes.pagination };
 };
 
+// Get list of facilities where student has enrolled (applied or assigned)
+const getStudentFacilities = async (studentId: number) => {
+  try {
+    // Verify student exists
+    const student = await getRepository(Student).findOne({
+      where: { student_id: studentId, isDeleted: false }
+    });
+
+    if (!student) {
+      throw new StringError('Student not found');
+    }
+
+    // Get facilities from facility_records (self-placement/applications)
+    const facilityRecords = await getRepository(FacilityRecords).find({
+      where: { student_id: studentId },
+      relations: [] // We don't need to load the student relation again
+    });
+
+    // Get facilities from placement assignments (through placement_slot -> facility)
+    const placementAssignments = await getRepository(PlacementAssignment).find({
+      where: { student_id: studentId },
+      relations: ['placementSlot', 'placementSlot.facility']
+    });
+
+    // Extract facility IDs from both sources and get facility details
+    const facilityIdsFromRecords = facilityRecords.map(record => record.facility_id);
+    const facilityIdsFromAssignments = placementAssignments
+      .map(assignment => assignment.placementSlot?.facility?.facility_id)
+      .filter((id): id is number => id !== undefined && id !== null);
+
+    // Combine and deduplicate facility IDs
+    const allFacilityIds = [...new Set([...facilityIdsFromRecords, ...facilityIdsFromAssignments])];
+
+    // Fetch facility details for all unique facility IDs
+    const facilities = allFacilityIds.length > 0 
+      ? await getRepository(Facility).findByIds(allFacilityIds)
+      : [];
+
+    // Format response with facility information
+    const facilityList = facilities.map(facility => ({
+      facility_id: facility.facility_id,
+      organization_name: facility.organization_name,
+      registered_business_name: facility.registered_business_name,
+      website_url: facility.website_url,
+      abn_registration_number: facility.abn_registration_number,
+      source_of_data: facility.source_of_data,
+      states_covered: facility.states_covered,
+      categories: facility.categories
+    }));
+
+    return {
+      success: true,
+      message: `Retrieved ${facilityList.length} facilities for student`,
+      data: facilityList
+    };
+  } catch (error) {
+    if (error instanceof StringError) {
+      throw error;
+    }
+    console.error('Error in getStudentFacilities:', error);
+    throw new StringError('Failed to retrieve student facilities');
+  }
+};
+
 // Get student statistics
 const getStatistics = async () => {
   const studentRepo = getRepository(Student);
@@ -2897,7 +2964,8 @@ export default {
   updateSelfPlacement,
   bulkUpload,
   generateTemplate,
-  getStudentPlacements
+  getStudentPlacements,
+  getStudentFacilities
   // activate and deactivate removed - use generic activation API instead:
   // PATCH /api/students/{id}/activate?activate={true|false}
 };

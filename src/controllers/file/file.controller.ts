@@ -203,16 +203,16 @@ export default class FileController extends BaseController {
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
-      // Handle archive errors
-      archive.on('error', (err) => {
-        console.error('Archive error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            success: false,
-            message: 'Error creating archive'
-          });
-        }
-      });
+       // Handle archive errors
+       archive.on('error', (err: Error) => {
+         console.error('Archive error:', err);
+         if (!res.headersSent) {
+           res.status(500).json({
+             success: false,
+             message: 'Error creating archive'
+           });
+         }
+       });
 
       // Pipe archive to response
       archive.pipe(res);

@@ -308,14 +308,23 @@ export default class StudentController extends BaseController {
     }, 'Failed to retrieve student with user details');
   }
 
-  // Get all student details (comprehensive view)
-  static async getAllDetails(req: Request, res: Response) {
-    await StudentController.executeAction(res, async () => {
-      const id = StudentController.parseId(req);
-      const student = await StudentService.getAllDetails({ id });
-      ApiResponseUtility.success(res, student, 'Student all details retrieved successfully');
-    }, 'Failed to retrieve all student details');
-  }
+   // Get all student details (comprehensive view)
+   static async getAllDetails(req: Request, res: Response) {
+     await StudentController.executeAction(res, async () => {
+       const id = StudentController.parseId(req);
+       const student = await StudentService.getAllDetails({ id });
+       ApiResponseUtility.success(res, student, 'Student all details retrieved successfully');
+     }, 'Failed to retrieve all student details');
+   }
+
+   // Get facilities where student has enrolled
+   static async getStudentFacilities(req: Request, res: Response) {
+     await StudentController.executeAction(res, async () => {
+       const id = StudentController.parseId(req);
+       const result = await StudentService.getStudentFacilities(id);
+       ApiResponseUtility.success(res, result.data, result.message);
+     }, 'Failed to retrieve student facilities');
+   }
 
   // Get students list with specific fields
   static async getStudentsList(req: Request, res: Response) {

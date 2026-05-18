@@ -6,6 +6,9 @@ import { IFacilitySupervisorQueryParams } from '../../repositories/facility-supe
 import FileService from '../../services/file/file.service';
 import { EntityType, DocumentType } from '../../entities/file/file.entity';
 import * as fs from 'fs';
+import PlacementAssignmentService from '../../services/placement-assignment/placement-assignment.service';
+import IRequest from '../../interfaces/IRequest';
+import { StringError } from '../../errors/string.error';
 
 export default class FacilitySupervisorController extends BaseController {
   static async create(req: Request, res: Response) {
@@ -398,5 +401,30 @@ export default class FacilitySupervisorController extends BaseController {
       res.setHeader('Content-Disposition', 'attachment; filename=facility_supervisors_template.xlsx');
       res.send(buffer);
     }, 'Download facility supervisors template');
+  }
+
+  static async getStudentsByFacility(req: IRequest, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const user = req.user;
+      if (!user) {
+        throw new StringError('Unauthorized');
+      }
+
+      if (user.roleID !== 2 && user.roleID !== 3) {
+        throw new StringError('Only Facility or Supervisor users can access this endpoint');
+      }
+
+      const filters = {
+        status: req.query.status as string,
+        assignment_status: req.query.assignment_status as string,
+        student_type: req.query.student_type as string,
+        search: req.query.search as string,
+        facility_id: req.query.facility_id ? (isNaN(Number(req.query.facility_id)) ? req.query.facility_id as string : Number(req.query.facility_id)) : undefined,
+        ...BaseController.parsePaginationParams(req.query)
+      };
+
+      const result = await PlacementAssignmentService.getStudentsByFacility(user.id, user.roleID, filters);
+      ApiResponseUtility.success(res, result.data, 'Students retrieved successfully', result.pagination);
+    }, 'Get students by facility');
   }
 }
