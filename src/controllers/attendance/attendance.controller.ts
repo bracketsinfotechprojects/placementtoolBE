@@ -301,15 +301,18 @@ class AttendanceController {
   }
 
   /**
-   * Get pending attendance for approval
+   * Get all attendance records with optional status filter
    */
   static async getPendingAttendance(req: Request, res: Response) {
     try {
-      const { facility_id, limit = 10, page = 1 } = req.query;
+      const { facility_id, approval_status, limit = 10, page = 1 } = req.query;
 
       const attendanceLogRepository = getRepository(AttendanceLog);
-      let query = attendanceLogRepository.createQueryBuilder('attendance')
-        .where('attendance.approval_status = :approval_status', { approval_status: ApprovalStatus.PENDING });
+      let query = attendanceLogRepository.createQueryBuilder('attendance');
+
+      if (approval_status) {
+        query = query.where('attendance.approval_status = :approval_status', { approval_status });
+      }
 
       if (facility_id) {
         query = query.andWhere('attendance.facility_id = :facility_id', { facility_id });
@@ -324,7 +327,7 @@ class AttendanceController {
 
       return res.status(200).json({
         success: true,
-        message: 'Pending attendance retrieved successfully',
+        message: 'Attendance records retrieved successfully',
         data,
         pagination: {
           total,
@@ -334,10 +337,10 @@ class AttendanceController {
         },
       });
     } catch (error) {
-      logger.error('Error fetching pending attendance:', error);
+      logger.error('Error fetching attendance records:', error);
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to fetch pending attendance',
+        message: error.message || 'Failed to fetch attendance records',
       });
     }
   }

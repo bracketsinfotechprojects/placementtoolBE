@@ -465,7 +465,15 @@ router.get('/logbook', AttendanceController.generateLogbook);
  * @swagger
  * /api/attendance/pending:
  *   get:
- *     summary: Get pending attendance for approval
+ *     summary: Get all attendance records with optional status filter
+ *     description: |
+ *       Retrieve all attendance records with optional filtering by approval status.
+ *       If no approval_status is provided, returns all attendance records.
+ *       
+ *       **Approval Status Values:**
+ *       - pending: Attendance waiting for approval
+ *       - approved: Attendance that has been approved
+ *       - rejected: Attendance that has been rejected
  *     tags:
  *       - Attendance
  *     security:
@@ -475,19 +483,77 @@ router.get('/logbook', AttendanceController.generateLogbook);
  *         name: facility_id
  *         schema:
  *           type: integer
+ *         description: Optional filter by facility ID
+ *       - in: query
+ *         name: approval_status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Optional filter by approval status. If not provided, returns all statuses
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
+ *         description: Number of records per page
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Page number for pagination
  *     responses:
  *       200:
- *         description: Pending attendance retrieved successfully
+ *         description: Attendance records retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Attendance records retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       attendance_log_id:
+ *                         type: integer
+ *                       student_id:
+ *                         type: integer
+ *                       facility_id:
+ *                         type: integer
+ *                       placement_slot_id:
+ *                         type: integer
+ *                       attendance_date:
+ *                         type: string
+ *                         format: date
+ *                       status:
+ *                         type: string
+ *                         enum: [present, absent, leave, half_day, late, early_departure]
+ *                       approval_status:
+ *                         type: string
+ *                         enum: [pending, approved, rejected]
+ *                       approved_by_user_id:
+ *                         type: integer
+ *                       approved_at:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     per_page:
+ *                       type: integer
+ *                     current_page:
+ *                       type: integer
+ *                     last_page:
+ *                       type: integer
  *       401:
  *         description: Unauthorized
  *       500:
