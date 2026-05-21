@@ -238,6 +238,446 @@ const router = Router();
  *                   type: string
  *                   example: "Failed to log attendance"
  */
+/**
+ * @swagger
+ * /api/attendance/student/{attendance_log_id}:
+ *   put:
+ *     summary: Update attendance record by student
+ *     description: |
+ *       Students can update their own attendance records that are in PENDING status.
+ *       
+ *       **Allowed Fields for Students:**
+ *       - attendance_date: Date of attendance
+ *       - status: Attendance status (present, absent, leave, half_day, late, early_departure)
+ *       - login_time: Time when student logged in/arrived
+ *       - logout_time: Time when student logged out/left
+ *       - break_duration_minutes: Break duration in minutes
+ *       - worked_hours: Total hours worked
+ *       - task_description: Tasks completed during the day
+ *       
+ *       **Restrictions:**
+ *       - Students can only update their own records
+ *       - Only PENDING records can be updated
+ *       - Students cannot update supervisor_notes
+ *     tags:
+ *       - Attendance
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: attendance_log_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the attendance log to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               attendance_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-05-16"
+ *               status:
+ *                 type: string
+ *                 enum: [present, absent, leave, half_day, late, early_departure]
+ *                 example: "present"
+ *               login_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "09:00:00"
+ *               logout_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "17:30:00"
+ *               break_duration_minutes:
+ *                 type: integer
+ *                 example: 60
+ *               worked_hours:
+ *                 type: number
+ *                 format: float
+ *                 example: 8.5
+ *               task_description:
+ *                 type: string
+ *                 example: "Completed database migration and unit tests"
+ *     responses:
+ *       200:
+ *         description: Attendance record updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Attendance record updated successfully"
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Cannot update record (not in PENDING status or validation error)
+ *       403:
+ *         description: Forbidden - Can only update own records
+ *       404:
+ *         description: Attendance log not found
+ *       500:
+ *         description: Server error
+ */
+router.put('/student/:attendance_log_id', AttendanceController.updateAttendanceByStudent);
+
+/**
+ * @swagger
+ * /api/attendance/supervisor/{attendance_log_id}:
+ *   put:
+ *     summary: Update attendance record by facility supervisor
+ *     description: |
+ *       Facility supervisors and admins can update attendance records for their facility.
+ *       
+ *       **Allowed Fields for Supervisors:**
+ *       - attendance_date: Date of attendance
+ *       - status: Attendance status (present, absent, leave, half_day, late, early_departure)
+ *       - login_time: Time when student logged in/arrived
+ *       - logout_time: Time when student logged out/left
+ *       - break_duration_minutes: Break duration in minutes
+ *       - worked_hours: Total hours worked
+ *       - task_description: Tasks completed during the day
+ *       - supervisor_notes: Notes from facility supervisor
+ *       - approval_status: Approval status (pending, approved, rejected)
+ *       - approval_remarks: Remarks for approval/rejection
+ *       - approved_by_user_id: Email or User ID of the approver (optional, defaults to current user)
+ *       
+ *       **Auto-Set Fields:**
+ *       - approved_by_user_id: Automatically set from current user (JWT token)
+ *       - approved_at: Automatically set when approval_status is updated
+ *       
+ *       **Restrictions:**
+ *       - Supervisors can only update records for their assigned facility
+ *       - Admins can update any facility's records
+ *     tags:
+ *       - Attendance
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: attendance_log_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the attendance log to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               attendance_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-05-16"
+ *               status:
+ *                 type: string
+ *                 enum: [present, absent, leave, half_day, late, early_departure]
+ *                 example: "present"
+ *               login_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "09:00:00"
+ *               logout_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "17:30:00"
+ *               break_duration_minutes:
+ *                 type: integer
+ *                 example: 60
+ *               worked_hours:
+ *                 type: number
+ *                 format: float
+ *                 example: 8.5
+ *               task_description:
+ *                 type: string
+ *                 example: "Completed database migration and unit tests"
+ *               supervisor_notes:
+ *                 type: string
+ *                 example: "Good performance, completed all assigned tasks"
+ *               approval_status:
+ *                 type: string
+ *                 enum: [pending, approved, rejected]
+ *                 example: "approved"
+ *               approval_remarks:
+ *                 type: string
+ *                 example: "Approved"
+ *     responses:
+ *       200:
+ *         description: Attendance record updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Attendance record updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     attendance_log_id:
+ *                       type: integer
+ *                     approval_status:
+ *                       type: string
+ *                       example: "approved"
+ *                     approved_by_user_id:
+ *                       type: integer
+ *                       description: Automatically set from current user
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Automatically set when approval_status is updated
+ *       403:
+ *         description: Forbidden - Can only update records for assigned facility
+ *       404:
+ *         description: Attendance log not found
+ *       500:
+ *         description: Server error
+ */
+router.put('/supervisor/:attendance_log_id', AttendanceController.updateAttendanceBySupervisor);
+
+/**
+ * @swagger
+ * /api/attendance/log:
+ *   post:
+ *     summary: Log daily attendance for a student
+ *     description: |
+ *       Create an attendance log entry for a student at a facility.
+ *       This records the student's attendance status, login/logout times, and other details.
+ *       
+ *       **Workflow:**
+ *       - Attendance is created with PENDING approval status by default
+ *       - Facility supervisors must approve or reject the attendance using the /approve endpoint
+ *       - Once approved, the attendance is finalized
+ *       
+ *       **Required Fields:**
+ *       - student_id: ID of the student
+ *       - facility_id: ID of the facility
+ *       - placement_slot_id: ID of the placement slot
+ *       - attendance_date: Date of attendance (YYYY-MM-DD)
+ *       - status: Attendance status (present, absent, leave, half_day, late, early_departure)
+ *       - logged_by_user_id: ID of the user logging attendance (usually facility supervisor)
+ *     tags:
+ *       - Attendance
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - student_id
+ *               - facility_id
+ *               - placementslot_id
+ *               - assignment_id
+ *               - attendance_date
+ *               - status
+ *               - logged_by_user_id
+ *             properties:
+ *               student_id:
+ *                 type: integer
+ *                 example: 1
+ *                 description: ID of the student
+ *               facility_id:
+ *                 type: integer
+ *                 example: 5
+ *                 description: ID of the facility where attendance is being logged
+ *               placementslot_id:
+ *                 type: integer
+ *                 example: 10
+ *                 description: ID of the placement slot
+ *               assignment_id:
+ *                 type: integer
+ *                 example: 15
+ *                 description: ID of the course assignment (identifies which course under the placement)
+ *               branch_id:
+ *                 type: integer
+ *                 example: 2
+ *                 description: Optional ID of the facility branch site
+ *               attendance_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-05-16"
+ *                 description: Date of attendance (YYYY-MM-DD format)
+ *               status:
+ *                 type: string
+ *                 enum: [present, absent, leave, half_day, late, early_departure]
+ *                 example: "present"
+ *                 description: |
+ *                   Attendance status:
+ *                   - present: Student was present
+ *                   - absent: Student was absent
+ *                   - leave: Student took leave
+ *                   - half_day: Student worked half day
+ *                   - late: Student arrived late
+ *                   - early_departure: Student left early
+ *               login_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "09:00:00"
+ *                 description: Time when student logged in/arrived (HH:MM:SS format)
+ *               logout_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "17:30:00"
+ *                 description: Time when student logged out/left (HH:MM:SS format)
+ *               break_duration_minutes:
+ *                 type: integer
+ *                 example: 60
+ *                 description: Break duration in minutes
+ *               worked_hours:
+ *                 type: number
+ *                 format: float
+ *                 example: 8.5
+ *                 description: Total hours worked (calculated)
+ *               task_description:
+ *                 type: string
+ *                 example: "Completed database migration and unit tests"
+ *                 description: Tasks completed during the day
+ *               supervisor_notes:
+ *                 type: string
+ *                 example: "Good performance, completed all assigned tasks"
+ *                 description: Notes from facility supervisor
+ *               logged_by_user_id:
+ *                 type: integer
+ *                 example: 3
+ *                 description: ID of the user logging this attendance (usually facility supervisor)
+ *               updated_by_user_id:
+ *                 type: integer
+ *                 example: 4
+ *                 description: Optional ID of the user who last updated this record
+ *     responses:
+ *       201:
+ *         description: Attendance logged successfully with PENDING approval status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Attendance logged successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     attendance_log_id:
+ *                       type: integer
+ *                       example: 1
+ *                     student_id:
+ *                       type: integer
+ *                       example: 1
+ *                     facility_id:
+ *                       type: integer
+ *                       example: 5
+ *                     placement_slot_id:
+ *                       type: integer
+ *                       example: 10
+ *                     assignment_id:
+ *                       type: integer
+ *                       example: 15
+ *                     attendance_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-05-16"
+ *                     status:
+ *                       type: string
+ *                       enum: [present, absent, leave, half_day, late, early_departure]
+ *                       example: "present"
+ *                     login_time:
+ *                       type: string
+ *                       example: "09:00:00"
+ *                     logout_time:
+ *                       type: string
+ *                       example: "17:30:00"
+ *                     break_duration_minutes:
+ *                       type: integer
+ *                       example: 60
+ *                     worked_hours:
+ *                       type: number
+ *                       example: 8.5
+ *                     task_description:
+ *                       type: string
+ *                       example: "Completed database migration and unit tests"
+ *                     supervisor_notes:
+ *                       type: string
+ *                       example: "Good performance"
+ *                     approval_status:
+ *                       type: string
+ *                       enum: [pending, approved, rejected]
+ *                       example: "pending"
+ *                       description: Initial status is always PENDING
+ *                     approved_by_user_id:
+ *                       type: integer
+ *                       example: null
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: null
+ *                     approval_remarks:
+ *                       type: string
+ *                       example: null
+ *                     logged_by_user_id:
+ *                       type: integer
+ *                       example: 3
+ *                     logged_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-05-16T10:30:00Z"
+ *                     updated_by_user_id:
+ *                       type: integer
+ *                       example: null
+ *                     updated_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-05-16T10:30:00Z"
+ *       400:
+ *         description: Validation error or missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Student with ID 999 not found"
+ *       401:
+ *         description: Unauthorized - JWT token missing or invalid
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to log attendance"
+ */
 router.post('/log', AttendanceController.logAttendance);
 
 /**

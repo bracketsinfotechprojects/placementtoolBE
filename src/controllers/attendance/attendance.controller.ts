@@ -8,6 +8,7 @@ import { PlacementAssignment } from '../../entities/placement-assignment/placeme
 import { User } from '../../entities/user/user.entity';
 import { CreateAttendanceLogDto } from '../../modules/attendance/dto/create-attendance-log.dto';
 import { ApproveAttendanceDto } from '../../modules/attendance/dto/approve-attendance.dto';
+import { UpdateAttendanceLogDto } from '../../modules/attendance/dto/update-attendance-log.dto';
 import logger from '../../configs/logger.config';
 
 class AttendanceController {
@@ -341,6 +342,277 @@ class AttendanceController {
       return res.status(400).json({
         success: false,
         message: error.message || 'Failed to fetch attendance records',
+      });
+    }
+  }
+
+  /**
+   * Update attendance record by student
+   * Students can only update their own attendance records that are in PENDING status
+   */
+  static async updateAttendanceByStudent(req: Request, res: Response) {
+    try {
+      const { attendance_log_id } = req.params;
+      const updateDto: UpdateAttendanceLogDto = req.body;
+      const currentUser = (req as any).user; // From JWT middleware
+
+      const attendanceLogRepository = getRepository(AttendanceLog);
+      const userRepository = getRepository(User);
+
+      // Validate attendance log exists
+      const attendanceLog = await attendanceLogRepository.findOne({
+        where: { attendance_log_id: Number(attendance_log_id) },
+      });
+
+      if (!attendanceLog) {
+        return res.status(404).json({
+          success: false,
+          message: `Attendance log with ID ${attendance_log_id} not found`,
+        });
+      }
+
+      // Get current user details
+      const user = await userRepository.findOne({
+        where: { id: currentUser.id },
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      // Authorization: Student can only update their own attendance
+      if (user.roleID !== 6 || user.studentID !== attendanceLog.student_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update your own attendance records',
+        });
+      }
+
+      // Students can only update PENDING records
+      if (attendanceLog.approval_status !== ApprovalStatus.PENDING) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot update attendance with status '${attendanceLog.approval_status}'. Only PENDING records can be updated.`,
+        });
+      }
+
+      // Update allowed fields for students
+      if (updateDto.status !== undefined) {
+        attendanceLog.status = updateDto.status;
+      }
+      if (updateDto.attendance_date !== undefined) {
+        attendanceLog.attendance_date = updateDto.attendance_date;
+      }
+      if (updateDto.login_time !== undefined) {
+        attendanceLog.login_time = updateDto.login_time;
+      }
+      if (updateDto.logout_time !== undefined) {
+        attendanceLog.logout_time = updateDto.logout_time;
+      }
+      if (updateDto.break_duration_minutes !== undefined) {
+        attendanceLog.break_duration_minutes = updateDto.break_duration_minutes;
+      }
+      if (updateDto.worked_hours !== undefined) {
+        attendanceLog.worked_hours = updateDto.worked_hours;
+      }
+      if (updateDto.task_description !== undefined) {
+        attendanceLog.task_description = updateDto.task_description;
+      }
+
+      // Students cannot update supervisor_notes
+      attendanceLog.updated_by_user_id = user.id;
+      attendanceLog.updated_at = new Date();
+
+      const updatedLog = await attendanceLogRepository.save(attendanceLog);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Attendance record updated successfully',
+        data: updatedLog,
+      });
+    } catch (error) {
+      logger.error('Error updating attendance by student:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to update attendance record',
+      });
+    }
+  }
+
+  /**
+   * Update attendance record by facility supervisor
+   * Supervisors can update attendance records for their facility
+   */
+  static async updateAttendanceBySupervisor(req: Request, res: Response) {
+    try {
+      const { attendance_log_id } = req.params;
+      const updateDto: UpdateAttendanceLogDto = req.body;
+      const currentUser = (req as any).user; // From JWT middleware
+
+      const attendanceLogRepository = getRepository(AttendanceLog);
+      const userRepository = getRepository(User);
+
+      // Validate attendance log exists
+      const attendanceLog = await attendanceLogRepository.findOne({
+        where: { attendance_log_id: Number(attendance_log_id) },
+      });
+
+      if (!attendanceLog) {
+        return res.status(404).json({
+          success: false,
+          message: `Attendance log with ID ${attendance_log_id} not found`,
+        });
+      }
+
+      // Get current user details
+      const user = await userRepository.findOne({
+        where: { id: currentUser.id },
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      // Authorization: Only admin, facility user, or facility supervisor can update
+      const isAdmin = user.roleID === 1;
+      const isFacilityUser = user.roleID === 2 && user.facilityID !== null;
+      const isFacilitySupervisor = user.roleID === 3 && user.supervisorID !== null;
+
+      if (!isAdmin && !isFacilityUser && !isFacilitySupervisor) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only admin, facility user, or facility supervisor can update attendance',
+        });
+      }
+
+      // If facility user, verify they are linked to this facility
+      if (isFacilityUser && Number(user.facilityID) !== attendanceLog.facility_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update attendance for your assigned facility',
+        });
+      }
+
+      // If supervisor, verify they are linked to this facility
+      if (isFacilitySupervisor) {
+        const supervisorFacilityCheck = await attendanceLogRepository.query(
+          `SELECT s.facility_id FROM FacilitySupervisor s WHERE s.supervisor_id = ? AND s.facility_id = ?`,
+          [user.supervisorID, attendanceLog.facility_id]
+        );
+
+        if (supervisorFacilityCheck.length === 0) {
+          return res.status(403).json({
+            success: false,
+            message: 'You can only update attendance for your assigned facility',
+          });
+        }
+      }
+
+      // Update fields
+      if (updateDto.attendance_date !== undefined) {
+        attendanceLog.attendance_date = updateDto.attendance_date;
+      }
+      if (updateDto.status !== undefined) {
+        attendanceLog.status = updateDto.status;
+      }
+      if (updateDto.login_time !== undefined) {
+        attendanceLog.login_time = updateDto.login_time;
+      }
+      if (updateDto.logout_time !== undefined) {
+        attendanceLog.logout_time = updateDto.logout_time;
+      }
+      if (updateDto.break_duration_minutes !== undefined) {
+        attendanceLog.break_duration_minutes = updateDto.break_duration_minutes;
+      }
+      if (updateDto.worked_hours !== undefined) {
+        attendanceLog.worked_hours = updateDto.worked_hours;
+      }
+      if (updateDto.task_description !== undefined) {
+        attendanceLog.task_description = updateDto.task_description;
+      }
+      if (updateDto.supervisor_notes !== undefined) {
+        attendanceLog.supervisor_notes = updateDto.supervisor_notes;
+      }
+      if (updateDto.approval_status !== undefined) {
+        attendanceLog.approval_status = updateDto.approval_status;
+        
+        // If approved_by_user_id is provided, resolve it (could be email or ID)
+        let approverUserId = user.id; // Default to current user
+        
+        if (updateDto.approved_by_user_id !== undefined) {
+          const approverIdentifier = updateDto.approved_by_user_id;
+          
+          // Check if it's an email or a number
+          if (typeof approverIdentifier === 'string' && approverIdentifier.includes('@')) {
+            // It's an email, look up the user
+            const approverUser = await userRepository.findOne({
+              where: { loginID: approverIdentifier }, // Assuming loginID might be email or use a separate email column
+            });
+            
+            if (!approverUser) {
+              // Try finding by email if there's an email column
+              const approverByEmail = await userRepository.query(
+                `SELECT id FROM users WHERE email = ? OR loginID = ?`,
+                [approverIdentifier, approverIdentifier]
+              );
+              
+              if (approverByEmail.length > 0) {
+                approverUserId = approverByEmail[0].id;
+              } else {
+                return res.status(400).json({
+                  success: false,
+                  message: `User with email ${approverIdentifier} not found`,
+                });
+              }
+            } else {
+              approverUserId = approverUser.id;
+            }
+          } else {
+            // It's a number (user ID)
+            approverUserId = Number(approverIdentifier);
+            
+            // Verify user exists
+            const approverUser = await userRepository.findOne({
+              where: { id: approverUserId },
+            });
+            
+            if (!approverUser) {
+              return res.status(400).json({
+                success: false,
+                message: `User with ID ${approverUserId} not found`,
+              });
+            }
+          }
+        }
+        
+        attendanceLog.approved_by_user_id = approverUserId;
+        attendanceLog.approved_at = new Date();
+      }
+      if (updateDto.approval_remarks !== undefined) {
+        attendanceLog.approval_remarks = updateDto.approval_remarks;
+      }
+
+      attendanceLog.updated_by_user_id = user.id;
+      attendanceLog.updated_at = new Date();
+
+      const updatedLog = await attendanceLogRepository.save(attendanceLog);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Attendance record updated successfully',
+        data: updatedLog,
+      });
+    } catch (error) {
+      logger.error('Error updating attendance by supervisor:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to update attendance record',
       });
     }
   }
