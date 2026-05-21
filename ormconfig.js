@@ -23,6 +23,7 @@ module.exports = {
     'src/entities/course-slots/*.entity.ts',
     'src/entities/course-assignment/*.entity.ts',
     'src/entities/attendance/*.entity.ts',
+    'src/entities/complaint/*.entity.ts',
     'src/entities/base/*.entity.ts'
   ] : [
     'dist/entities/student/*.entity.js',
@@ -37,6 +38,7 @@ module.exports = {
     'dist/entities/course-slots/*.entity.js',
     'dist/entities/course-assignment/*.entity.js',
     'dist/entities/attendance/*.entity.js',
+    'dist/entities/complaint/*.entity.js',
     'dist/entities/base/*.entity.js'
   ],
   logging: process.env.NODE_ENV !== 'production' ? 'all' : 'error',

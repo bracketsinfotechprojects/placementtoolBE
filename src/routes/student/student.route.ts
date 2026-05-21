@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import StudentController from '../../controllers/student/student.controller';
 import EligibilityCredentialController from '../../controllers/student/eligibility-credential.controller';
+import StudentComplaintController from '../../controllers/complaint/student-complaint.controller';
 import { upload } from '../../configs/multer.config';
 
 const router = Router();
@@ -3162,5 +3163,348 @@ router.post('/:studentId/notify-eligibility', EligibilityCredentialController.no
  *         description: Internal server error
  */
 router.get('/:id/placements', StudentController.getStudentPlacements);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/complaints:
+ *   post:
+ *     summary: Create a new student complaint
+ *     description: |
+ *       Create a new complaint regarding facility issues. 
+ *       Supports file attachments (PDF, DOC, DOCX, JPG, PNG - max 10MB each).
+ *       Files are stored in /uploads/complaints/{facilityId}/ directory.
+ *       If is_anonymous is true, student_id will not be included in response.
+ *     tags:
+ *       - Student Complaints
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - category
+ *               - priority
+ *               - description
+ *               - location
+ *               - urgency_level
+ *             properties:
+ *               facility_id:
+ *                 type: integer
+ *                 description: ID of the facility the complaint is about (optional)
+ *                 example: 5
+ *               category:
+ *                 type: string
+ *                 description: Category of complaint
+ *                 example: "Facility Issues"
+ *               priority:
+ *                 type: string
+ *                 description: Priority level
+ *                 example: "High"
+ *               description:
+ *                 type: string
+ *                 description: Detailed description of the complaint (max 1000 chars)
+ *                 example: "The water cooler in the study area is not working properly"
+ *               location:
+ *                 type: string
+ *                 description: Location where the issue occurred
+ *                 example: "Building A, Room 203"
+ *               urgency_level:
+ *                 type: string
+ *                 description: Urgency level
+ *                 example: "High"
+ *               is_anonymous:
+ *                 type: boolean
+ *                 description: Whether to report anonymously (student_id won't be in response)
+ *                 example: false
+ *               attachments:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: File attachments (max 5 files, 10MB each)
+ *     responses:
+ *       201:
+ *         description: Complaint created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Complaint created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     complaint_id:
+ *                       type: integer
+ *                     student_id:
+ *                       type: integer
+ *                       description: Only included if is_anonymous is false
+ *                     facility_id:
+ *                       type: integer
+ *                     category:
+ *                       type: string
+ *                     priority:
+ *                       type: string
+ *                     description:
+ *                       type: string
+ *                     location:
+ *                       type: string
+ *                     attachments:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     urgency_level:
+ *                       type: string
+ *                     is_anonymous:
+ *                       type: boolean
+ *                     status:
+ *                       type: string
+ *                       example: "Pending"
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Student or facility not found
+ */
+// Multer configuration for student complaints
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Use a temporary directory for student complaints, then move files after body is parsed
+const tempUploadDir = path.join(process.cwd(), 'uploads', 'complaints', 'temp');
+
+// Create temp directory if it doesn't exist
+if (!fs.existsSync(tempUploadDir)) {
+  fs.mkdirSync(tempUploadDir, { recursive: true });
+}
+
+const studentComplaintStorage = multer.diskStorage({
+  destination: (req: any, file: any, cb: any) => {
+    cb(null, tempUploadDir);
+  },
+  filename: (req: any, file: any, cb: any) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `complaint_${uniqueSuffix}${ext}`);
+  }
+});
+
+const studentComplaintFileFilter = (req: any, file: any, cb: any) => {
+  const allowedMimeTypes = [
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+  const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.doc', '.docx'];
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('File type not allowed'));
+  }
+};
+
+const studentComplaintUpload = multer({
+  storage: studentComplaintStorage,
+  fileFilter: studentComplaintFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+
+// Middleware to move files to correct directory after body is parsed
+const moveStudentComplaintFiles = (req: any, res: any, next: any) => {
+  if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+    return next();
+  }
+
+  const facilityId = req.body?.facility_id || 'unknown';
+  const targetDir = path.join(process.cwd(), 'uploads', 'complaints', facilityId.toString());
+
+  // Create target directory if it doesn't exist
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  // Move files from temp to target directory
+  req.files.forEach((file: any) => {
+    const oldPath = file.path;
+    const newPath = path.join(targetDir, file.filename);
+    try {
+      fs.renameSync(oldPath, newPath);
+      file.path = newPath;
+    } catch (e) {
+      console.error('Error moving file:', e);
+    }
+  });
+
+  next();
+};
+
+router.post('/:studentId/complaints', studentComplaintUpload.array('attachments', 5), moveStudentComplaintFiles, StudentComplaintController.create);
+
+router.get('/:studentId/complaints/:complaintId', StudentComplaintController.getById);
+router.get('/:studentId/complaints', StudentComplaintController.getByStudentId);
+router.put('/:studentId/complaints/:complaintId', StudentComplaintController.update);
+router.delete('/:studentId/complaints/:complaintId', StudentComplaintController.delete);
+
+/**
+ * @swagger
+ * /api/students/{studentId}/complaints/{complaintId}:
+ *   get:
+ *     summary: Get complaint by ID
+ *     description: Retrieve a specific complaint by its ID
+ *     tags:
+ *       - Student Complaints
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: complaintId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Complaint retrieved successfully
+ *       404:
+ *         description: Complaint not found
+ */
+
+/**
+ * @swagger
+ * /api/students/{studentId}/complaints:
+ *   get:
+ *     summary: Get all complaints for a student
+ *     description: Retrieve all complaints for a specific student with pagination
+ *     tags:
+ *       - Student Complaints
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *     responses:
+ *       200:
+ *         description: Complaints retrieved successfully
+ */
+
+/**
+ * @swagger
+ * /api/students/{studentId}/complaints/{complaintId}:
+ *   put:
+ *     summary: Update complaint
+ *     description: Update a specific complaint
+ *     tags:
+ *       - Student Complaints
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: complaintId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               category:
+ *                 type: string
+ *               priority:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               urgency_level:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *               resolution_notes:
+ *                 type: string
+ *               resolved_at:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Complaint updated successfully
+ *       404:
+ *         description: Complaint not found
+ */
+
+/**
+ * @swagger
+ * /api/students/{studentId}/complaints/{complaintId}:
+ *   delete:
+ *     summary: Delete complaint
+ *     description: Soft delete a specific complaint
+ *     tags:
+ *       - Student Complaints
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: complaintId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Complaint deleted successfully
+ *       404:
+ *         description: Complaint not found
+ */
 
 export default router;
