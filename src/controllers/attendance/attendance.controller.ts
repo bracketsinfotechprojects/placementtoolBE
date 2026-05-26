@@ -306,13 +306,24 @@ class AttendanceController {
    */
   static async getPendingAttendance(req: Request, res: Response) {
     try {
-      const { facility_id, approval_status, limit = 10, page = 1 } = req.query;
+      const { student_id, facility_id, approval_status, limit = 10, page = 1 } = req.query;
+
+      // Validate mandatory student_id parameter
+      if (!student_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'student_id is required',
+        });
+      }
 
       const attendanceLogRepository = getRepository(AttendanceLog);
       let query = attendanceLogRepository.createQueryBuilder('attendance');
 
+      // Filter by student_id (mandatory)
+      query = query.where('attendance.student_id = :student_id', { student_id: Number(student_id) });
+
       if (approval_status) {
-        query = query.where('attendance.approval_status = :approval_status', { approval_status });
+        query = query.andWhere('attendance.approval_status = :approval_status', { approval_status });
       }
 
       if (facility_id) {

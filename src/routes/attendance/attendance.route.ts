@@ -905,10 +905,10 @@ router.get('/logbook', AttendanceController.generateLogbook);
  * @swagger
  * /api/attendance/pending:
  *   get:
- *     summary: Get all attendance records with optional status filter
+ *     summary: Get pending attendance records for a specific student
  *     description: |
- *       Retrieve all attendance records with optional filtering by approval status.
- *       If no approval_status is provided, returns all attendance records.
+ *       Retrieve attendance records for a specific student with optional filtering by approval status and facility.
+ *       The student_id parameter is mandatory.
  *       
  *       **Approval Status Values:**
  *       - pending: Attendance waiting for approval
@@ -919,6 +919,12 @@ router.get('/logbook', AttendanceController.generateLogbook);
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: query
+ *         name: student_id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Student ID (mandatory)
  *       - in: query
  *         name: facility_id
  *         schema:
@@ -994,6 +1000,19 @@ router.get('/logbook', AttendanceController.generateLogbook);
  *                       type: integer
  *                     last_page:
  *                       type: integer
+ *       400:
+ *         description: Bad request - student_id is required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "student_id is required"
  *       401:
  *         description: Unauthorized
  *       500:
