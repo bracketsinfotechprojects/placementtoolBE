@@ -2,6 +2,7 @@ import express from 'express';
 import FacilitySupervisorController from '../../controllers/facility-supervisor/facility-supervisor.controller';
 import FacilitySupervisorComplaintController from '../../controllers/complaint/facility-supervisor-complaint.controller';
 import { upload } from '../../configs/multer.config';
+import { authorizeRoles } from '../../middlewares/permission-handler.middleware';
 
 const router = express.Router();
 
@@ -1041,12 +1042,12 @@ const moveSupervisorComplaintFiles = (req: any, res: any, next: any) => {
   next();
 };
 
-router.post('/:facilityId/supervisor-complaints', supervisorComplaintUpload.array('attachments', 5), moveSupervisorComplaintFiles, FacilitySupervisorComplaintController.create);
+router.post('/:facilityId/supervisor-complaints', authorizeRoles(1, 2, 3), supervisorComplaintUpload.array('attachments', 5), moveSupervisorComplaintFiles, FacilitySupervisorComplaintController.create);
 
-router.get('/:facilityId/supervisor-complaints/:complaintId', FacilitySupervisorComplaintController.getById);
-router.get('/:facilityId/supervisor-complaints', FacilitySupervisorComplaintController.getByFacilityId);
-router.get('/:facilityId/supervisors/:supervisorId/complaints', FacilitySupervisorComplaintController.getBySupervisorId);
-router.put('/:facilityId/supervisor-complaints/:complaintId', FacilitySupervisorComplaintController.update);
-router.delete('/:facilityId/supervisor-complaints/:complaintId', FacilitySupervisorComplaintController.delete);
+router.get('/:facilityId/supervisor-complaints/:complaintId', authorizeRoles(1, 2, 3), FacilitySupervisorComplaintController.getById);
+router.get('/:facilityId/supervisor-complaints', authorizeRoles(1, 2, 3), FacilitySupervisorComplaintController.getByFacilityId);
+router.get('/:facilityId/supervisors/:supervisorId/complaints', authorizeRoles(1, 2, 3), FacilitySupervisorComplaintController.getBySupervisorId);
+router.put('/:facilityId/supervisor-complaints/:complaintId', authorizeRoles(1, 2, 3), FacilitySupervisorComplaintController.update);
+router.delete('/:facilityId/supervisor-complaints/:complaintId', authorizeRoles(1, 2, 3), FacilitySupervisorComplaintController.delete);
 
 export default router;

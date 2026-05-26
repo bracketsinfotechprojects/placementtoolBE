@@ -191,6 +191,8 @@ const login = async (loginID: string, password: string): Promise<ILoginResponse>
         break;
       case 3: // Supervisor
         if (user.supervisorID) userResponse.supervisorID = user.supervisorID;
+        // Add facility ID for supervisors
+        if (facilityIdToInclude) userResponse.facilityID = facilityIdToInclude;
         break;
       case 4: // Placement Executive
         if (user.placementExecutiveID) userResponse.placementExecutiveID = user.placementExecutiveID;

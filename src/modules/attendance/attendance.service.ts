@@ -108,6 +108,7 @@ export class AttendanceService {
    */
   async getPendingAttendance(
     filters: {
+      student_id: number;
       facility_id?: number;
       limit?: number;
       page?: number;

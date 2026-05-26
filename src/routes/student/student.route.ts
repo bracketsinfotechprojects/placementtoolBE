@@ -3,6 +3,7 @@ import StudentController from '../../controllers/student/student.controller';
 import EligibilityCredentialController from '../../controllers/student/eligibility-credential.controller';
 import StudentComplaintController from '../../controllers/complaint/student-complaint.controller';
 import { upload } from '../../configs/multer.config';
+import { authorizeRoles } from '../../middlewares/permission-handler.middleware';
 
 const router = Router();
 
@@ -3361,12 +3362,13 @@ const moveStudentComplaintFiles = (req: any, res: any, next: any) => {
   next();
 };
 
-router.post('/:studentId/complaints', studentComplaintUpload.array('attachments', 5), moveStudentComplaintFiles, StudentComplaintController.create);
+// Complaint endpoints - Admin and Students
+router.post('/:studentId/complaints', authorizeRoles(1, 4), studentComplaintUpload.array('attachments', 5), moveStudentComplaintFiles, StudentComplaintController.create);
 
-router.get('/:studentId/complaints/:complaintId', StudentComplaintController.getById);
-router.get('/:studentId/complaints', StudentComplaintController.getByStudentId);
-router.put('/:studentId/complaints/:complaintId', StudentComplaintController.update);
-router.delete('/:studentId/complaints/:complaintId', StudentComplaintController.delete);
+router.get('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), StudentComplaintController.getById);
+router.get('/:studentId/complaints', authorizeRoles(1, 4), StudentComplaintController.getByStudentId);
+router.put('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), StudentComplaintController.update);
+router.delete('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), StudentComplaintController.delete);
 
 /**
  * @swagger
