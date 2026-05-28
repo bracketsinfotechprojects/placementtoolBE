@@ -65,7 +65,7 @@ export default class UserController {
   // Get user by ID
   static async getById(req: Request, res: Response) {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       if (isNaN(id)) {
         ApiResponseUtility.badRequest(res, 'Invalid user ID');
         return;
@@ -86,7 +86,7 @@ export default class UserController {
   // Update user information
   static async update(req: Request, res: Response) {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       if (isNaN(id)) {
         ApiResponseUtility.badRequest(res, 'Invalid user ID');
         return;
@@ -132,7 +132,7 @@ export default class UserController {
   // Delete user (soft delete - mark as inactive)
   static async delete(req: Request, res: Response) {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       if (isNaN(id)) {
         ApiResponseUtility.badRequest(res, 'Invalid user ID');
         return;
@@ -152,7 +152,7 @@ export default class UserController {
   // Permanently delete user
   static async permanentlyDelete(req: Request, res: Response) {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id), 10);
       if (isNaN(id)) {
         ApiResponseUtility.badRequest(res, 'Invalid user ID');
         return;

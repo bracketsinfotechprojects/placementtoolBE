@@ -1,15 +1,23 @@
-require('dotenv/config');
+require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
 
 module.exports = {
   type: 'mysql',
   host: process.env.DB_HOST || 'localhost',
   username: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'Atul@2626',
+  password: process.env.DB_PASSWORD || 'root',
   database: process.env.DB_NAME || 'testcrm',
   port: process.env.DB_PORT || 3306,
   charset: 'utf8mb4',
-  driver: require('mysql2'),
+  legacySpatialSupport: false,
   synchronize: false,
+  // Connection pool limits to prevent resource exhaustion
+  extra: {
+    connectionLimit: parseInt(process.env.DB_POOL_LIMIT) || 10,
+    waitForConnections: true,
+    queueLimit: 0
+  },
+  // TypeORM connection pool settings
+  maxConnections: parseInt(process.env.DB_POOL_LIMIT) || 10,
   entities: process.env.NODE_ENV !== 'production' ? [
     'src/entities/student/*.entity.ts',
     'src/entities/user/*.entity.ts',
@@ -41,10 +49,16 @@ module.exports = {
     'dist/entities/complaint/*.entity.js',
     'dist/entities/base/*.entity.js'
   ],
-  logging: process.env.NODE_ENV !== 'production' ? 'all' : 'error',
-  migrations: ['src/migrations/*.ts'],
+  logging: process.env.NODE_ENV !== 'production' ? 'all' : ['error'],
+  migrations:
+    process.env.NODE_ENV !== 'production'
+      ? ['src/migrations/*.ts']
+      : ['dist/migrations/*.js'],
   cli: {
-    migrationsDir: 'src/migrations'
+    migrationsDir:
+      process.env.NODE_ENV !== 'production'
+        ? 'src/migrations'
+        : 'dist/migrations'
   },
   connectTimeout: 30000
 };

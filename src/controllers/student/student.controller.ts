@@ -351,7 +351,7 @@ export default class StudentController extends BaseController {
   // Add Facility Record (Self Placement)
   static async addFacilityRecord(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const studentId = parseInt(req.params.studentId);
+      const studentId = parseInt(String(req.params.studentId));
       
       if (isNaN(studentId)) {
         throw new StringError('Invalid student ID');
@@ -389,7 +389,7 @@ export default class StudentController extends BaseController {
   // Add Address Change Request
   static async addAddressChangeRequest(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const studentId = parseInt(req.params.studentId);
+      const studentId = parseInt(String(req.params.studentId));
       
       if (isNaN(studentId)) {
         throw new StringError('Invalid student ID');
@@ -452,7 +452,7 @@ export default class StudentController extends BaseController {
   // Add Job Status Update
   static async addJobStatusUpdate(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const studentId = parseInt(req.params.studentId);
+      const studentId = parseInt(String(req.params.studentId));
       
       if (isNaN(studentId)) {
         throw new StringError('Invalid student ID');
@@ -479,7 +479,7 @@ export default class StudentController extends BaseController {
   // Add Self Placement
   static async addSelfPlacement(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const studentId = parseInt(req.params.studentId);
+      const studentId = parseInt(String(req.params.studentId));
       
       if (isNaN(studentId)) {
         throw new StringError('Invalid student ID');
@@ -511,7 +511,7 @@ export default class StudentController extends BaseController {
   // Update Address Change Request
   static async updateAddressChangeRequest(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const acrId = parseInt(req.params.acrId);
+      const acrId = parseInt(String(req.params.acrId));
       
       if (isNaN(acrId)) {
         throw new StringError('Invalid address change request ID');
@@ -538,7 +538,7 @@ export default class StudentController extends BaseController {
   // Update Job Status Update
   static async updateJobStatusUpdate(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const jsuId = parseInt(req.params.jsuId);
+      const jsuId = parseInt(String(req.params.jsuId));
       
       if (isNaN(jsuId)) {
         throw new StringError('Invalid job status update ID');
@@ -566,7 +566,7 @@ export default class StudentController extends BaseController {
   // Update Self Placement
   static async updateSelfPlacement(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const placementId = parseInt(req.params.placementId);
+      const placementId = parseInt(String(req.params.placementId));
       
       if (isNaN(placementId)) {
         throw new StringError('Invalid self placement ID');
@@ -599,7 +599,7 @@ export default class StudentController extends BaseController {
   // Get Student Placements
   static async getStudentPlacements(req: Request, res: Response) {
     await StudentController.executeAction(res, async () => {
-      const studentId = parseInt(req.params.id);
+      const studentId = parseInt(req.params.id as string);
 
       if (isNaN(studentId)) {
         throw new StringError('Invalid student ID');
