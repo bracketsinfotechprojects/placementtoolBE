@@ -107,11 +107,12 @@ export class Student extends BaseEntity {
   status: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
 
   @Column({
-    type: 'point',
+    type: 'geometry',
     nullable: true,
     name: 'location',
     comment: 'Geographic location (latitude, longitude) of the student. Default POINT(0,0) means location not set.',
-    select: false
+    select: false,
+    spatialFeatureType: 'Point'
   })
   location: string;
 

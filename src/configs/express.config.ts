@@ -29,8 +29,21 @@ app.use((req, res, next) => {
   }
 });
 
-const corsOption = {
-  origin: process.env.FRONTEND_BASE_URL ? [process.env.FRONTEND_BASE_URL] : true,
+const allowedOrigins = [
+  'https://yocrazy.in',
+  'http://yocrazy.in',
+  'https://www.yocrazy.in',
+  'http://www.yocrazy.in',
+  'https://yokrazy.com/',
+  'https://crm.yokrazy.com/',
+];
+
+if (process.env.FRONTEND_BASE_URL) {
+  allowedOrigins.push(process.env.FRONTEND_BASE_URL);
+}
+
+const corsOption: cors.CorsOptions = {
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 }

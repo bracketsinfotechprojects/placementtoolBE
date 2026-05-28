@@ -149,7 +149,7 @@ export default class FileController extends BaseController {
         throw new StringError(`Invalid entity_type. Allowed values: ${Object.values(EntityType).join(', ')}`);
       }
 
-      const entityId = parseInt(entity_id, 10);
+      const entityId = parseInt(String(entity_id), 10);
       if (isNaN(entityId) || entityId <= 0) {
         throw new StringError('entity_id must be a positive integer');
       }
@@ -185,7 +185,7 @@ export default class FileController extends BaseController {
         });
       }
 
-      const entityId = parseInt(entity_id, 10);
+      const entityId = parseInt(String(entity_id), 10);
       if (isNaN(entityId) || entityId <= 0) {
         return res.status(400).json({
           success: false,

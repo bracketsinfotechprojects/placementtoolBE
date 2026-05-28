@@ -119,8 +119,11 @@ const create = async (params: ICreateFacility, agreementFiles?: Map<number, IAgr
 
     // Handle location with ST_MakePoint if latitude and longitude provided
     let savedFacility;
+
+    // Set a valid WKT default so TypeORM generates ST_GeomFromText('POINT(0 0)') in the INSERT
+    facility.location = 'POINT(0 0)';
+
     if (params.latitude !== undefined && params.longitude !== undefined) {
-      // Save facility first without location
       const tempFacility = await queryRunner.manager.save(facility);
       const facilityId = tempFacility.facility_id;
 
@@ -133,7 +136,6 @@ const create = async (params: ICreateFacility, agreementFiles?: Map<number, IAgr
       // Fetch the updated facility
       savedFacility = await queryRunner.manager.findOne(Facility, { where: { facility_id: facilityId } });
     } else {
-      // Save facility with default location POINT(0, 0)
       const tempFacility = await queryRunner.manager.save(facility);
       const facilityId = tempFacility.facility_id;
 

@@ -55,10 +55,13 @@ const create = async (params: ICreateStudent) => {
     // Handle location with ST_MakePoint if latitude and longitude provided
     let studentData;
     console.log('🔍 Location params:', { latitude: params.latitude, longitude: params.longitude });
-    
+
+    // Set a valid WKT default so TypeORM generates ST_GeomFromText('POINT(0 0)') in the INSERT
+    // (leaving location undefined causes mysql to receive an invalid geometry value)
+    student.location = 'POINT(0 0)';
+
     if (params.latitude !== undefined && params.longitude !== undefined) {
       console.log('✅ Both coordinates provided, setting actual location');
-      // Save student first without location
       const tempStudent = await queryRunner.manager.save(Student, student);
       const studentId = tempStudent.student_id;
 
@@ -73,7 +76,6 @@ const create = async (params: ICreateStudent) => {
       studentData = await queryRunner.manager.findOne(Student, { where: { student_id: studentId } });
     } else {
       console.log('⚠️ Coordinates not provided or incomplete, using default POINT(0, 0)');
-      // Save student with default location POINT(0, 0)
       const tempStudent = await queryRunner.manager.save(Student, student);
       const studentId = tempStudent.student_id;
 
@@ -336,8 +338,11 @@ const createExternalStudent = async (params: ICreateExternalStudent) => {
 
     // Handle location with ST_MakePoint if latitude and longitude provided
     let studentData;
+
+    // Set a valid WKT default so TypeORM generates ST_GeomFromText('POINT(0 0)') in the INSERT
+    student.location = 'POINT(0 0)';
+
     if (params.latitude !== undefined && params.longitude !== undefined) {
-      // Save student first without location
       const tempStudent = await queryRunner.manager.save(Student, student);
       const studentId = tempStudent.student_id;
 
@@ -2616,6 +2621,9 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
         student.nationality = studentData.nationality;
         student.student_type = studentData.student_type || 'domestic';
         student.status = studentData.status || 'active';
+
+        // Set a valid WKT default so TypeORM generates ST_GeomFromText('POINT(0 0)') in the INSERT
+        student.location = 'POINT(0 0)';
 
         const savedStudent = await queryRunner.manager.save(Student, student);
         

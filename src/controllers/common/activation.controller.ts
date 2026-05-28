@@ -19,7 +19,7 @@ export default class ActivationController extends BaseController {
    */
   static async toggleActivation(req: Request, res: Response) {
     await ActivationController.executeAction(res, async () => {
-      const tableName = req.params.tableName;
+      const tableName = String(req.params.tableName);
       const id = ActivationController.parseId(req);
       const activateParam = req.query.activate as string;
 
