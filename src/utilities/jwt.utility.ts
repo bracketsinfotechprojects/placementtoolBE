@@ -134,16 +134,24 @@ export default class JwtUtility {
    * @param userId - User ID
    * @param loginID - User login ID (email)
    * @param roleID - User role ID
+   * @param facilityID - Facility ID (for facility users and supervisors)
    * @returns Token payload
    */
-  static createLoginPayload(userId: number, loginID: string, roleID: number): any {
-    return {
+  static createLoginPayload(userId: number, loginID: string, roleID: number, facilityID?: number): any {
+    const payload: any = {
       id: userId,
       loginID: loginID,
       roleID: roleID,
       iat: Math.floor(Date.now() / 1000),
       type: 'login'
     };
+
+    // Add facilityID for facility users (roleID = 2) and supervisor users (roleID = 3)
+    if ((roleID === 2 || roleID === 3) && facilityID !== undefined) {
+      payload.facilityID = facilityID;
+    }
+
+    return payload;
   }
 
   /**

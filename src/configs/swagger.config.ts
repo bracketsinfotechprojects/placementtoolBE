@@ -687,9 +687,16 @@ const options = {
             student_id: { type: 'integer', description: 'Foreign key to students table', example: 1 },
             status: {
               type: 'string',
-              enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
+              enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
               description: 'Status of the assignment',
               example: 'Assigned'
+            },
+            facility_confirmation_status: {
+              type: 'string',
+              enum: ['Approved', 'Rejected'],
+              description: 'Facility confirmation status: Approved, Rejected',
+              example: 'Approved',
+              nullable: true
             },
             start_date: { type: 'string', format: 'date', description: 'Actual start date for this student', example: '2026-03-15' },
             end_date: { type: 'string', format: 'date', description: 'Actual end date for this student', example: '2026-04-15' },
@@ -701,40 +708,58 @@ const options = {
           }
         },
         PlacementAssignmentInput: {
-          type: 'object',
-          required: ['placementslot_id', 'student_id'],
-          properties: {
-            placementslot_id: {
-              type: 'integer',
-              description: 'Placement slot ID to assign student to',
-              example: 1
-            },
-            student_id: {
-              type: 'integer',
-              description: 'Student ID to assign',
-              example: 1
-            },
-            status: {
-              type: 'string',
-              enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
-              description: 'Status of the assignment (optional, defaults to Assigned)',
-              example: 'Assigned'
-            },
-            notes: {
-              type: 'string',
-              description: 'Notes about this assignment (optional)',
-              example: 'Student requires additional supervision'
-            }
-          }
-        },
+                  type: 'object',
+                  required: ['placementslot_id', 'student_id'],
+                  properties: {
+                    placementslot_id: {
+                      type: 'integer',
+                      description: 'Placement slot ID to assign student to',
+                      example: 1
+                    },
+                    student_id: {
+                      type: 'integer',
+                      description: 'Student ID to assign',
+                      example: 1
+                    },
+                   status: {
+                     type: 'string',
+                     enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
+                     description: 'Status of the assignment (optional, defaults to Assigned)',
+                     example: 'Assigned'
+                   },
+                    start_date: {
+                      type: 'string',
+                      format: 'date',
+                      description: 'Actual start date for this student (optional)',
+                      example: '2026-03-15'
+                    },
+                    end_date: {
+                      type: 'string',
+                      format: 'date',
+                      description: 'Actual end date for this student (optional)',
+                      example: '2026-06-15'
+                    },
+                    notes: {
+                      type: 'string',
+                      description: 'Notes about this assignment (optional)',
+                      example: 'Student requires additional supervision'
+                    }
+                  }
+                },
         PlacementAssignmentUpdateInput: {
           type: 'object',
           properties: {
-            status: {
+           status: {
+             type: 'string',
+             enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
+             description: 'Status of the assignment',
+             example: 'Active'
+           },
+            facility_confirmation_status: {
               type: 'string',
-              enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
-              description: 'Status of the assignment',
-              example: 'Active'
+              enum: ['Approved', 'Rejected'],
+              description: 'Facility confirmation status',
+              example: 'Approved'
             },
             start_date: {
               type: 'string',
@@ -754,9 +779,178 @@ const options = {
               example: 'Student making good progress'
             }
           }
+        },
+        PlacementAssignmentStatusUpdateByStudentSlot: {
+          type: 'object',
+          required: ['student_id', 'placementslot_id', 'status'],
+          properties: {
+            student_id: {
+              type: 'integer',
+              description: 'Student ID',
+              example: 1
+            },
+            placementslot_id: {
+              type: 'integer',
+              description: 'Placement Slot ID',
+              example: 5
+            },
+            status: {
+              type: 'string',
+               enum: ['Assigned', 'Active', 'Completed', 'Cancelled'],
+              description: 'New assignment status',
+              example: 'Started'
+            }
+          }
+        },
+        PlacementAssignmentFacilityStatusUpdateByStudentSlot: {
+          type: 'object',
+          required: ['student_id', 'placementslot_id', 'facility_confirmation_status'],
+          properties: {
+            student_id: {
+              type: 'integer',
+              description: 'Student ID',
+              example: 1
+            },
+            placementslot_id: {
+              type: 'integer',
+              description: 'Placement Slot ID',
+              example: 5
+            },
+            facility_confirmation_status: {
+              type: 'string',
+              enum: ['Approved', 'Rejected'],
+              description: 'New facility confirmation status',
+              example: 'Approved'
+            }
+          }
+        },
+        PlacementAssignmentStudentDetail: {
+           type: 'object',
+           properties: {
+             assignment_id: { type: 'integer', description: 'Assignment ID', example: 1 },
+             student_id: { type: 'integer', description: 'Student ID', example: 1 },
+             first_name: { type: 'string', description: 'Student first name', example: 'John' },
+             last_name: { type: 'string', description: 'Student last name', example: 'Doe' },
+             status: { type: 'string', description: 'Student status', example: 'active' },
+              assignment_status: {
+                type: 'string',
+                enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped'],
+                description: 'Assignment status',
+                example: 'Assigned'
+              },
+             student_type: { type: 'string', description: 'Student type (domestic/international)', example: 'domestic' },
+             email: { type: 'string', description: 'Student email', example: 'john@example.com' },
+             primary_mobile: { type: 'string', description: 'Primary mobile number', example: '0412345678' },
+             course_applicable: { type: 'array', items: { type: 'string' }, description: 'Courses applicable', example: ['CHC33015'] },
+             placement_start_date: { type: 'string', format: 'date', description: 'Placement start date', example: '2026-03-15' },
+             placement_end_date: { type: 'string', format: 'date', description: 'Placement end date', example: '2026-04-15' },
+             start_date: { type: 'string', format: 'date', description: 'Actual start date', example: '2026-03-15' },
+             end_date: { type: 'string', format: 'date', description: 'Actual end date', example: '2026-04-15' },
+             placementslot_id: { type: 'integer', description: 'Placement slot ID', example: 5 },
+             remaining_seats: { type: 'integer', description: 'Remaining seats in slot', example: 3 },
+             facility_id: { type: 'string', description: 'Facility ID', example: '1' }
+           }
+         },
+         Pagination: {
+           type: 'object',
+           properties: {
+             totalPages: { type: 'integer', description: 'Total number of pages', example: 5 },
+             previousPage: { type: 'integer', nullable: true, description: 'Previous page number', example: 1 },
+             currentPage: { type: 'integer', description: 'Current page number', example: 2 },
+             nextPage: { type: 'integer', nullable: true, description: 'Next page number', example: 3 },
+             totalItems: { type: 'integer', description: 'Total number of items', example: 50 }
+           }
+         },
+AvailablePlacementSlot: {
+           type: 'object',
+           description: 'Available placement slot with remaining seats',
+           properties: {
+             placementslot_id: {
+               type: 'integer',
+               description: 'Unique identifier for the placement slot',
+               example: 5
+             },
+             facility_id: {
+               type: 'string',
+               description: 'Facility ID where placement is offered',
+               example: 'FAC001'
+             },
+             placementslot_type: {
+               type: 'array',
+               items: { type: 'string' },
+               description: 'Type of placement slot',
+               example: ['Clinical Placement']
+             },
+             course_applicable: {
+               type: 'array',
+               items: { type: 'string' },
+               description: 'Courses applicable for this slot',
+               example: ['CHC33015']
+             },
+             total_slots_offered: {
+               type: 'integer',
+               description: 'Total number of slots offered',
+               example: 5
+             },
+             remaining_seats: {
+               type: 'integer',
+               description: 'Number of remaining available seats',
+               example: 2
+             },
+             placement_start_date: {
+               type: 'string',
+               format: 'date',
+               description: 'Placement slot start date',
+               example: '2026-05-05'
+             },
+             placement_end_date: {
+               type: 'string',
+               format: 'date',
+               description: 'Placement slot end date',
+               example: '2026-06-05'
+             },
+             total_hours_required: {
+               type: 'integer',
+               description: 'Total hours required for this placement',
+               example: 120
+             },
+             shift_type: {
+               type: 'array',
+               items: { type: 'string' },
+               description: 'Type of shift (Morning, Evening, Night, etc.)',
+               example: ['Morning']
+             },
+             shift_timings: {
+               type: 'string',
+               description: 'Specific shift timings',
+               example: '07:00 - 15:00'
+             },
+             working_days: {
+               type: 'array',
+               items: { type: 'string' },
+               description: 'Working days pattern',
+               example: ['Weekdays']
+             },
+             gender_preference: {
+               type: 'array',
+               items: { type: 'string' },
+               description: 'Gender preference for placement',
+               example: ['Any']
+             },
+             urgent_requirement: {
+               type: 'boolean',
+               description: 'Whether this is an urgent requirement',
+               example: false
+             },
+             created_at: {
+               type: 'string',
+               format: 'date-time',
+               description: 'Record creation timestamp'
+             }
+           }
+         },
         }
-      }
-    },
+     },
     security: [
       {
         bearerAuth: [] as any

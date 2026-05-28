@@ -1674,4 +1674,226 @@ router.put('/rules/:id', FacilityRuleController.update);
  */
 router.delete('/rules/:id', FacilityRuleController.delete);
 
+/**
+ * @swagger
+ * /api/facilities/{id}/slots:
+ *   get:
+ *     summary: Get placement slots for a facility
+ *     description: |
+ *       Retrieve all placement slots associated with a specific facility.
+ *       
+ *       Returns slots with:
+ *       - Slot details (type, courses, dates, hours)
+ *       - Availability information (total slots, remaining seats)
+ *       - Shift and working details
+ *       - Requirements and restrictions
+ *       
+ *       Supports filtering and pagination.
+ *     tags:
+ *       - Facilities
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Facility ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, all]
+ *           default: active
+ *         description: Filter by slot status (active = not deleted, inactive = deleted, all = both)
+ *       - in: query
+ *         name: slot_type
+ *         schema:
+ *           type: string
+ *         description: Filter by slot type
+ *       - in: query
+ *         name: course_applicable
+ *         schema:
+ *           type: string
+ *         description: Filter by course applicable
+ *       - in: query
+ *         name: shift_type
+ *         schema:
+ *           type: string
+ *         description: Filter by shift type
+ *       - in: query
+ *         name: working_days
+ *         schema:
+ *           type: string
+ *         description: Filter by working days
+ *       - in: query
+ *         name: gender_preference
+ *         schema:
+ *           type: string
+ *         description: Filter by gender preference
+ *       - in: query
+ *         name: urgent_requirement
+ *         schema:
+ *           type: boolean
+ *         description: Filter by urgent requirement status
+ *       - in: query
+ *         name: placement_start_date_from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by placement start date from
+ *       - in: query
+ *         name: placement_start_date_to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by placement start date to
+ *       - in: query
+ *         name: placement_end_date_from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by placement end date from
+ *       - in: query
+ *         name: placement_end_date_to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by placement end date to
+ *       - in: query
+ *         name: has_available_seats
+ *         schema:
+ *           type: boolean
+ *         description: Filter to show only slots with available seats
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           default: placement_start_date
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sort_order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: ASC
+ *         description: Sort order
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of results per page
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Facility slots retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facility slots retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       placementslot_id:
+ *                         type: integer
+ *                         example: 1
+ *                       facility_id:
+ *                         type: string
+ *                         example: "FAC001"
+ *                       placementslot_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Clinical Placement"]
+ *                       course_applicable:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["CHC33015"]
+ *                       total_slots_offered:
+ *                         type: integer
+ *                         example: 5
+ *                       remaining_seats:
+ *                         type: integer
+ *                         example: 2
+ *                       placement_start_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-05-05"
+ *                       placement_end_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-06-05"
+ *                       total_hours_required:
+ *                         type: integer
+ *                         example: 120
+ *                       shift_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Morning"]
+ *                       shift_timings:
+ *                         type: string
+ *                         example: "07:00 - 15:00"
+ *                       working_days:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Weekdays"]
+ *                       gender_preference:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Any"]
+ *                       urgent_requirement:
+ *                         type: boolean
+ *                         example: false
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 2
+ *                     previousPage:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     currentPage:
+ *                       type: integer
+ *                       example: 1
+ *                     nextPage:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: 2
+ *                     totalItems:
+ *                       type: integer
+ *                       example: 25
+ *       401:
+ *         description: Unauthorized - Invalid or missing authentication token
+ *       404:
+ *         description: Facility not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/:id/slots', FacilityController.getSlots);
+
 export default router;

@@ -308,14 +308,23 @@ export default class StudentController extends BaseController {
     }, 'Failed to retrieve student with user details');
   }
 
-  // Get all student details (comprehensive view)
-  static async getAllDetails(req: Request, res: Response) {
-    await StudentController.executeAction(res, async () => {
-      const id = StudentController.parseId(req);
-      const student = await StudentService.getAllDetails({ id });
-      ApiResponseUtility.success(res, student, 'Student all details retrieved successfully');
-    }, 'Failed to retrieve all student details');
-  }
+   // Get all student details (comprehensive view)
+   static async getAllDetails(req: Request, res: Response) {
+     await StudentController.executeAction(res, async () => {
+       const id = StudentController.parseId(req);
+       const student = await StudentService.getAllDetails({ id });
+       ApiResponseUtility.success(res, student, 'Student all details retrieved successfully');
+     }, 'Failed to retrieve all student details');
+   }
+
+   // Get facilities where student has enrolled
+   static async getStudentFacilities(req: Request, res: Response) {
+     await StudentController.executeAction(res, async () => {
+       const id = StudentController.parseId(req);
+       const result = await StudentService.getStudentFacilities(id);
+       ApiResponseUtility.success(res, result.data, result.message);
+     }, 'Failed to retrieve student facilities');
+   }
 
   // Get students list with specific fields
   static async getStudentsList(req: Request, res: Response) {
@@ -585,6 +594,32 @@ export default class StudentController extends BaseController {
       const updatedPlacement = await StudentService.updateSelfPlacement(updateData);
       ApiResponseUtility.success(res, updatedPlacement, 'Self placement updated successfully');
     }, 'Failed to update self placement');
+  }
+
+  // Get Student Placements
+  static async getStudentPlacements(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = parseInt(req.params.id);
+
+      if (isNaN(studentId)) {
+        throw new StringError('Invalid student ID');
+      }
+
+      // Check if student exists
+      const student = await StudentService.getById({ id: studentId });
+      if (!student) {
+        throw new StringError('Student not found');
+      }
+
+      // Get query parameters for filtering
+      const filters = {
+        status: req.query.status as string | undefined,
+        facility_confirmation_status: req.query.facility_confirmation_status as string | undefined
+      };
+
+      const result = await StudentService.getStudentPlacements(studentId, filters);
+      ApiResponseUtility.success(res, result.data, result.message);
+    }, 'Failed to retrieve student placements');
   }
 
   // Old activate/deactivate methods removed

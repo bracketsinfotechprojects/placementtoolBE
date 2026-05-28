@@ -13,9 +13,15 @@ import { AddressChangeRequest } from '../../entities/student/address-change-requ
 import { JobStatusUpdate } from '../../entities/student/job-status-update.entity';
 import { SelfPlacement } from '../../entities/student/self-placement.entity';
 import { User } from '../../entities/user/user.entity';
+// Additional entities needed for getStudentFacilities
+import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
+import { Facility } from '../../entities/facility/facility.entity';
 
 // Services
 import RoleService from '../role/role.service';
+
+// Repositories
+import PlacementAssignmentRepository from '../../repositories/placement-assignment.repository';
 
 // Utilities
 import ApiUtility from '../../utilities/api.utility';
@@ -1790,6 +1796,70 @@ const advancedSearch = async (params: IAdvancedSearchParams) => {
   return { response, pagination: pagRes.pagination };
 };
 
+// Get list of facilities where student has enrolled (applied or assigned)
+const getStudentFacilities = async (studentId: number) => {
+  try {
+    // Verify student exists
+    const student = await getRepository(Student).findOne({
+      where: { student_id: studentId, isDeleted: false }
+    });
+
+    if (!student) {
+      throw new StringError('Student not found');
+    }
+
+    // Get facilities from facility_records (self-placement/applications)
+    const facilityRecords = await getRepository(FacilityRecords).find({
+      where: { student_id: studentId },
+      relations: [] // We don't need to load the student relation again
+    });
+
+    // Get facilities from placement assignments (through placement_slot -> facility)
+    const placementAssignments = await getRepository(PlacementAssignment).find({
+      where: { student_id: studentId },
+      relations: ['placementSlot', 'placementSlot.facility']
+    });
+
+    // Extract facility IDs from both sources and get facility details
+    const facilityIdsFromRecords = facilityRecords.map(record => record.facility_id);
+    const facilityIdsFromAssignments = placementAssignments
+      .map(assignment => assignment.placementSlot?.facility?.facility_id)
+      .filter((id): id is number => id !== undefined && id !== null);
+
+    // Combine and deduplicate facility IDs
+    const allFacilityIds = [...new Set([...facilityIdsFromRecords, ...facilityIdsFromAssignments])];
+
+    // Fetch facility details for all unique facility IDs
+    const facilities = allFacilityIds.length > 0 
+      ? await getRepository(Facility).findByIds(allFacilityIds)
+      : [];
+
+    // Format response with facility information
+    const facilityList = facilities.map(facility => ({
+      facility_id: facility.facility_id,
+      organization_name: facility.organization_name,
+      registered_business_name: facility.registered_business_name,
+      website_url: facility.website_url,
+      abn_registration_number: facility.abn_registration_number,
+      source_of_data: facility.source_of_data,
+      states_covered: facility.states_covered,
+      categories: facility.categories
+    }));
+
+    return {
+      success: true,
+      message: `Retrieved ${facilityList.length} facilities for student`,
+      data: facilityList
+    };
+  } catch (error) {
+    if (error instanceof StringError) {
+      throw error;
+    }
+    console.error('Error in getStudentFacilities:', error);
+    throw new StringError('Failed to retrieve student facilities');
+  }
+};
+
 // Get student statistics
 const getStatistics = async () => {
   const studentRepo = getRepository(Student);
@@ -2800,6 +2870,76 @@ const generateTemplate = (): Buffer => {
   return ExcelUtility.generateTemplate(headers, sampleData);
 };
 
+const getStudentPlacements = async (studentId: number, filters?: { status?: string; facility_confirmation_status?: string }) => {
+  try {
+    console.log(`🔍 Fetching placements for student ID: ${studentId}`);
+    
+    const placements = await PlacementAssignmentRepository.findByStudentId(studentId);
+    console.log(`📊 Found ${placements?.length || 0} placements for student ${studentId}`);
+
+    if (!placements || placements.length === 0) {
+      console.log(`⚠️ No placements found for student ${studentId}`);
+      return {
+        success: true,
+        message: 'No placements found for this student',
+        data: []
+      };
+    }
+
+    // Apply filters if provided
+    let filteredPlacements = placements;
+
+    if (filters?.status) {
+      console.log(`🔎 Filtering by status: ${filters.status}`);
+      filteredPlacements = filteredPlacements.filter(p => p.status === filters.status);
+    }
+
+    if (filters?.facility_confirmation_status) {
+      console.log(`🔎 Filtering by facility_confirmation_status: ${filters.facility_confirmation_status}`);
+      filteredPlacements = filteredPlacements.filter(p => p.facility_confirmation_status === filters.facility_confirmation_status);
+    }
+
+    console.log(`✅ Returning ${filteredPlacements.length} placements after filtering`);
+
+    // Format response with placement slot details
+    const formattedData = filteredPlacements.map(placement => ({
+      assignment_id: placement.assignment_id,
+      student_id: placement.student_id,
+      placementslot_id: placement.placementslot_id,
+      status: placement.status,
+      facility_confirmation_status: placement.facility_confirmation_status,
+      start_date: placement.start_date,
+      end_date: placement.end_date,
+      notes: placement.notes,
+      created_at: placement.created_at,
+      updated_at: placement.updated_at,
+      placementSlot: placement.placementSlot ? {
+        placementslot_id: placement.placementSlot.placementslot_id,
+        facility_id: placement.placementSlot.facility_id,
+        placementslot_type: placement.placementSlot.placementslot_type,
+        course_applicable: placement.placementSlot.course_applicable,
+        total_slots_offered: placement.placementSlot.total_slots_offered,
+        remaining_seats: placement.placementSlot.remaining_seats,
+        placement_start_date: placement.placementSlot.placement_start_date,
+        placement_end_date: placement.placementSlot.placement_end_date,
+        total_hours_required: placement.placementSlot.total_hours_required,
+        shift_type: placement.placementSlot.shift_type,
+        shift_timings: placement.placementSlot.shift_timings,
+        working_days: placement.placementSlot.working_days
+      } : null
+    }));
+
+    return {
+      success: true,
+      message: 'Student placements retrieved successfully',
+      data: formattedData
+    };
+  } catch (error) {
+    console.error(`❌ Error fetching placements for student ${studentId}:`, error);
+    throw error;
+  }
+};
+
 export default {
   create,
   createExternalStudent,
@@ -2823,7 +2963,9 @@ export default {
   updateJobStatusUpdate,
   updateSelfPlacement,
   bulkUpload,
-  generateTemplate
+  generateTemplate,
+  getStudentPlacements,
+  getStudentFacilities
   // activate and deactivate removed - use generic activation API instead:
   // PATCH /api/students/{id}/activate?activate={true|false}
 };

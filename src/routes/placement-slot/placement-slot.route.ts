@@ -12,6 +12,161 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/placement-slots/available:
+ *   get:
+ *     summary: Get available placement slots by period
+ *     description: |
+ *       Retrieve available placement slots filtered by time period (today, week, or month).
+ *       
+ *       Optionally filter by student ID to exclude slots where the student is already assigned.
+ *       
+ *       Returns only slots with:
+ *       - Available seats (remaining_seats > 0)
+ *       - Start date within the specified period
+ *       - Not soft-deleted
+ *     tags:
+ *       - Placement Slots
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month]
+ *           default: today
+ *         description: |
+ *           Time period to filter slots:
+ *           - today: Current day only
+ *           - week: Current week (Monday to Sunday)
+ *           - month: Current month
+ *         example: "today"
+ *       - in: query
+ *         name: student_id
+ *         schema:
+ *           type: integer
+ *         description: |
+ *           Optional student ID to exclude slots where student is already assigned.
+ *           If provided, slots where this student has active assignments (Allocated or Started status) will be excluded.
+ *         example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of results per page
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Available slots retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Available placement slots retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       placementslot_id:
+ *                         type: integer
+ *                         example: 5
+ *                       facility_id:
+ *                         type: string
+ *                         example: "FAC001"
+ *                       placementslot_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Clinical Placement"]
+ *                       course_applicable:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["CHC33015"]
+ *                       total_slots_offered:
+ *                         type: integer
+ *                         example: 5
+ *                       remaining_seats:
+ *                         type: integer
+ *                         description: Number of available seats
+ *                         example: 2
+ *                       placement_start_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-05-05"
+ *                       placement_end_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-06-05"
+ *                       total_hours_required:
+ *                         type: integer
+ *                         example: 120
+ *                       shift_type:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Morning"]
+ *                       shift_timings:
+ *                         type: string
+ *                         example: "07:00 - 15:00"
+ *                       working_days:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Weekdays"]
+ *                       gender_preference:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["Any"]
+ *                       urgent_requirement:
+ *                         type: boolean
+ *                         example: false
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
+ *                     previousPage:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     currentPage:
+ *                       type: integer
+ *                       example: 1
+ *                     nextPage:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: 2
+ *                     totalItems:
+ *                       type: integer
+ *                       example: 45
+ *       401:
+ *         description: Unauthorized - Invalid or missing authentication token
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/available', PlacementSlotController.getAvailableSlots);
+
+/**
+ * @swagger
  * /api/placement-slots:
  *   post:
  *     summary: Create a new placement slot

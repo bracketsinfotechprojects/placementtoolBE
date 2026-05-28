@@ -2,6 +2,9 @@ import { getRepository } from 'typeorm';
 
 // Entities
 import { User } from '../../entities/user/user.entity';
+import { Student } from '../../entities/student/student.entity';
+import { Trainer } from '../../entities/trainer/trainer.entity';
+import { Facility } from '../../entities/facility/facility.entity';
 
 // Services
 import RoleService from '../role/role.service';
@@ -364,6 +367,103 @@ const changePassword = async (email: string, currentPassword: string, newPasswor
   }
 };
 
+// Get user profile with role-specific details (for /me endpoint)
+const getMeWithDetails = async (userId: number) => {
+  try {
+    const user = await getRepository(User).findOne({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new StringError('User not found');
+    }
+
+    const userProfile: any = ApiUtility.sanitizeUser(user);
+
+    // Fetch role-specific details based on roleID
+    switch (user.roleID) {
+      case 1: // Admin
+        // Admin users don't have role-specific details
+        userProfile.role_name = 'Admin';
+        break;
+
+      case 6: // Student
+        if (user.studentID) {
+          const student = await getRepository(Student).findOne({
+            where: { student_id: user.studentID }
+          });
+          if (student) {
+            userProfile.first_name = student.first_name;
+            userProfile.last_name = student.last_name;
+            userProfile.full_name = student.fullName;
+            userProfile.dob = student.dob;
+            userProfile.gender = student.gender;
+            userProfile.nationality = student.nationality;
+            userProfile.student_type = student.student_type;
+            userProfile.student_status = student.status;
+            userProfile.role_name = 'Student';
+          }
+        }
+        break;
+
+      case 5: // Trainer
+        if (user.trainerID) {
+          const trainer = await getRepository(Trainer).findOne({
+            where: { trainer_id: user.trainerID }
+          });
+          if (trainer) {
+            userProfile.first_name = trainer.first_name;
+            userProfile.last_name = trainer.last_name;
+            userProfile.full_name = `${trainer.first_name} ${trainer.last_name}`;
+            userProfile.email = trainer.email;
+            userProfile.mobile_number = trainer.mobile_number;
+            userProfile.gender = trainer.gender;
+            userProfile.date_of_birth = trainer.date_of_birth;
+            userProfile.role_name = 'Trainer';
+          }
+        }
+        break;
+
+      case 2: // Facility
+        if (user.facilityID) {
+          const facility = await getRepository(Facility).findOne({
+            where: { facility_id: user.facilityID }
+          });
+          if (facility) {
+            userProfile.organization_name = facility.organization_name;
+            userProfile.registered_business_name = facility.registered_business_name;
+            userProfile.website_url = facility.website_url;
+            userProfile.abn_registration_number = facility.abn_registration_number;
+            userProfile.role_name = 'Facility';
+          }
+        }
+        break;
+
+      case 3: // Supervisor
+        userProfile.role_name = 'Supervisor';
+        if (user.supervisorID) {
+          // Add supervisor details when entity is created
+        }
+        break;
+
+      case 4: // Placement Executive
+        userProfile.role_name = 'Placement Executive';
+        if (user.placementExecutiveID) {
+          // Add placement executive details when entity is created
+        }
+        break;
+
+      default:
+        userProfile.role_name = 'User';
+    }
+
+    return userProfile;
+  } catch (error) {
+    console.error('❌ Error fetching user details:', error.message);
+    throw error;
+  }
+};
+
 export default {
   create,
   getById,
@@ -375,4 +475,5 @@ export default {
   authenticate,
   getStatistics,
   changePassword,
+  getMeWithDetails,
 };

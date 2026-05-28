@@ -207,4 +207,56 @@ export default class UserController {
       }
     }
   }
+
+  // Get current authenticated user profile
+  static async getMe(req: Request, res: Response) {
+    try {
+      // Get user from authenticated request (populated by jwtAuth middleware)
+      const user = (req as any).user;
+      if (!user || !user.id) {
+        ApiResponseUtility.unauthorized(res, 'User not authenticated');
+        return;
+      }
+
+      // Fetch full user details with role-specific information
+      const userProfile = await UserService.getMeWithDetails(user.id);
+      if (!userProfile) {
+        ApiResponseUtility.notFound(res, 'User not found');
+        return;
+      }
+
+      ApiResponseUtility.success(res, userProfile, 'User profile retrieved successfully');
+    } catch (error) {
+      ApiResponseUtility.serverError(res, error.message);
+    }
+  }
+
+  // Update current authenticated user profile
+  static async updateMe(req: Request, res: Response) {
+    try {
+      // Get user from authenticated request (populated by jwtAuth middleware)
+      const user = (req as any).user;
+      if (!user || !user.id) {
+        ApiResponseUtility.unauthorized(res, 'User not authenticated');
+        return;
+      }
+
+      const updateData: IUpdateUser = {
+        id: user.id,
+        loginID: req.body.loginID,
+        password: req.body.password,
+        userRole: req.body.userRole,
+        status: req.body.status
+      };
+
+      const updatedUser = await UserService.update(updateData);
+      ApiResponseUtility.success(res, updatedUser, 'Profile updated successfully');
+    } catch (error) {
+      if (error instanceof StringError) {
+        ApiResponseUtility.badRequest(res, error.message);
+      } else {
+        ApiResponseUtility.serverError(res, error.message);
+      }
+    }
+  }
 }

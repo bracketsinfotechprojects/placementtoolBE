@@ -1740,6 +1740,71 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
   }
 };
 
+const getSlots = async (params: any) => {
+  const {
+    facility_id,
+    status = 'active',
+    placementslot_type,
+    course_applicable,
+    shift_type,
+    working_days,
+    gender_preference,
+    urgent_requirement,
+    placement_start_date_from,
+    placement_start_date_to,
+    placement_end_date_from,
+    placement_end_date_to,
+    has_available_seats,
+    sort_by = 'placement_start_date',
+    sort_order = 'ASC',
+    limit = 20,
+    page = 1
+  } = params;
+
+  // Verify facility exists
+  const facility = await FacilityRepository.findById(facility_id);
+  if (!facility) {
+    throw new StringError('Facility does not exist');
+  }
+
+  // Import PlacementSlotRepository dynamically to avoid circular dependencies
+  const PlacementSlotRepository = require('../../repositories/placement-slot.repository').default;
+
+  // Build query with filters
+  const filterParams = {
+    facility_id,
+    status,
+    placementslot_type,
+    course_applicable,
+    shift_type,
+    working_days,
+    gender_preference,
+    urgent_requirement,
+    placement_start_date_from,
+    placement_start_date_to,
+    placement_end_date_from,
+    placement_end_date_to,
+    sort_by,
+    sort_order,
+    limit,
+    page
+  };
+
+  // Get slots using the repository
+  const result = await PlacementSlotRepository.findWithFilters(filterParams);
+
+  // Filter by available seats if requested
+  let slots = result.slots;
+  if (has_available_seats) {
+    slots = slots.filter((slot: any) => slot.remaining_seats > 0);
+  }
+
+  return {
+    slots,
+    total: result.total
+  };
+};
+
 export default {
   create,
   getById,
@@ -1750,5 +1815,6 @@ export default {
   listSimplified,
   remove,
   permanentlyDelete,
-  bulkUpload
+  bulkUpload,
+  getSlots
 };
