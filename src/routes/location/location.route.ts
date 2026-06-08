@@ -447,7 +447,7 @@ router.get('/students/:studentId/nearby-facilities', LocationController.getFacil
  * /api/location/facilities-with-student-count:
  *   get:
  *     summary: Get all facilities with nearby student counts
- *     description: Returns all facilities grouped with count and details of nearby students within specified radius. Useful for admins to see which facilities have the most students nearby.
+ *     description: Returns all facilities grouped with count and details of nearby students within specified radius. Useful for admins to see which facilities have the most students nearby. Supports worldwide queries with radius up to 17,000km.
  *     tags:
  *       - Location
  *     security:
@@ -459,15 +459,15 @@ router.get('/students/:studentId/nearby-facilities', LocationController.getFacil
  *           type: number
  *           format: float
  *           default: 10
- *         description: Search radius in kilometers (max 500)
- *         example: 15
+ *         description: Search radius in kilometers (max 40000). Use 17000 for worldwide coverage.
+ *         example: 17000
  *       - in: query
  *         name: min_students
  *         schema:
  *           type: integer
  *           default: 0
  *         description: Minimum number of nearby students (filter)
- *         example: 5
+ *         example: 0
  *     responses:
  *       200:
  *         description: Facilities with student counts retrieved successfully
@@ -487,10 +487,10 @@ router.get('/students/:studentId/nearby-facilities', LocationController.getFacil
  *                   properties:
  *                     radius_km:
  *                       type: number
- *                       example: 15
+ *                       example: 17000
  *                     min_students:
  *                       type: integer
- *                       example: 5
+ *                       example: 0
  *                     total_facilities:
  *                       type: integer
  *                       example: 10
