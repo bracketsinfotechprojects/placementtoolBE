@@ -197,7 +197,7 @@ router.get(
       
       const courseSlots = await queryBuilder.getMany();
       
-      // Transform response to include eligibility_status with boolean to 0/1 conversion
+      // Transform response to include eligibility_status
       const enhancedCourseSlots = await Promise.all(
         courseSlots.map(async (slot) => {
           // Fetch all assignments for this course
@@ -215,7 +215,7 @@ router.get(
             })
           );
           
-          // Map eligibility statuses to response format (boolean to 0/1)
+          // Map eligibility statuses to response format (keep booleans as booleans)
           const eligibilityStatusArray = eligibilityStatuses
             .filter(es => es !== null && es !== undefined)
             .map(es => {
@@ -223,25 +223,28 @@ router.get(
               return {
                 status_id: es.status_id,
                 student_id: es.student_id,
-                classes_completed: es.classes_completed ? 1 : 0,
-                fees_paid: es.fees_paid ? 1 : 0,
-                assignments_submitted: es.assignments_submitted ? 1 : 0,
-                documents_submitted: es.documents_submitted ? 1 : 0,
-                trainer_consent: es.trainer_consent ? 1 : 0,
-                override_requested: es.override_requested ? 1 : 0,
-                manual_override: es.manual_override ? 1 : 0,
-                manual_handling: es.manual_handling ? 1 : 0,
+                classes_completed: es.classes_completed,
+                fees_paid: es.fees_paid,
+                assignments_submitted: es.assignments_submitted,
+                documents_submitted: es.documents_submitted,
+                trainer_consent: es.trainer_consent,
+                override_requested: es.override_requested,
+                manual_override: es.manual_override,
+                manual_handling: es.manual_handling,
                 requested_by: es.requested_by || null,
                 reason: es.reason || null,
                 comments: es.comments || null,
-                overall_status: es.overall_status
+                overall_status: es.overall_status,
+                is_eligible: es.overall_status === 'eligible'
               };
             })
             .filter(es => es !== null);
           
           return {
             ...slot,
-            eligibility_status: eligibilityStatusArray
+            eligibility_status: eligibilityStatusArray,
+            eligible_students_count: eligibilityStatusArray.filter(es => es.overall_status === 'eligible').length,
+            total_assigned_students: eligibilityStatusArray.length
           };
         })
       );
