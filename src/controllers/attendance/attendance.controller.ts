@@ -636,10 +636,10 @@ class AttendanceController {
       const { student_id, facility_id, placement_slot_id, period_start_date, period_end_date, summary_period = 'weekly' } = req.query;
 
       // Validate required parameters
-      if (!student_id || !facility_id || !placement_slot_id || !period_start_date || !period_end_date) {
+      if (!student_id || !facility_id || !placement_slot_id) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required parameters: student_id, facility_id, placement_slot_id, period_start_date, period_end_date',
+          message: 'Missing required parameters: student_id, facility_id, placement_slot_id',
         });
       }
 
@@ -650,15 +650,23 @@ class AttendanceController {
       const facilityId = Number(facility_id);
       const placementSlotId = Number(placement_slot_id);
 
-      // Get all attendance logs for the period
-      const attendanceLogs = await attendanceLogRepository
+      // Build query
+      let query = attendanceLogRepository
         .createQueryBuilder('attendance')
         .where('attendance.student_id = :student_id', { student_id: studentId })
         .andWhere('attendance.facility_id = :facility_id', { facility_id: facilityId })
         .andWhere('attendance.placement_slot_id = :placement_slot_id', { placement_slot_id: placementSlotId })
-        .andWhere('DATE(attendance.attendance_date) >= :period_start_date', { period_start_date })
-        .andWhere('DATE(attendance.attendance_date) <= :period_end_date', { period_end_date })
-        .andWhere('attendance.is_deleted = :is_deleted', { is_deleted: false })
+        .andWhere('attendance.is_deleted = :is_deleted', { is_deleted: false });
+
+      // Add date filters if provided
+      if (period_start_date) {
+        query = query.andWhere('DATE(attendance.attendance_date) >= :period_start_date', { period_start_date });
+      }
+      if (period_end_date) {
+        query = query.andWhere('DATE(attendance.attendance_date) <= :period_end_date', { period_end_date });
+      }
+
+      const attendanceLogs = await query
         .orderBy('attendance.attendance_date', 'ASC')
         .getMany();
 
@@ -686,9 +694,23 @@ class AttendanceController {
       });
 
       // Calculate total days in period
-      const startDate = new Date(period_start_date as string);
-      const endDate = new Date(period_end_date as string);
-      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      let totalDays = 0;
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      if (period_start_date && period_end_date) {
+        startDate = new Date(period_start_date as string);
+        endDate = new Date(period_end_date as string);
+        totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      } else if (attendanceLogs.length > 0) {
+        // If no dates provided, use the actual attendance log dates
+        const logDates = attendanceLogs.map(log => new Date(log.attendance_date).getTime());
+        const minDate = new Date(Math.min(...logDates));
+        const maxDate = new Date(Math.max(...logDates));
+        totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        startDate = minDate;
+        endDate = maxDate;
+      }
 
       // Calculate attendance percentage
       const totalDaysWorked = days_present + half_days;
@@ -710,8 +732,8 @@ class AttendanceController {
           facility_id: facilityId,
           placement_slot_id: placementSlotId,
           summary_period,
-          period_start_date,
-          period_end_date,
+          ...(startDate && { period_start_date: startDate.toISOString().split('T')[0] }),
+          ...(endDate && { period_end_date: endDate.toISOString().split('T')[0] }),
           total_days_in_period: totalDays,
           days_present,
           days_absent,

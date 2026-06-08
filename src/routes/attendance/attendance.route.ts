@@ -781,8 +781,9 @@ router.get('/list', AttendanceController.getAttendanceLogs);
  *   get:
  *     summary: Generate attendance logbook for a student
  *     description: |
- *       Generate an attendance logbook/summary for a student for a specific period.
+ *       Generate an attendance logbook/summary for a student.
  *       Returns attendance metrics, hours worked, compliance status, and deviations.
+ *       If period dates are not provided, all attendance records for the student will be included.
  *     tags:
  *       - Attendance
  *     security:
@@ -808,18 +809,18 @@ router.get('/list', AttendanceController.getAttendanceLogs);
  *         description: Placement slot ID
  *       - in: query
  *         name: period_start_date
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
  *           format: date
- *         description: Start date of the period (YYYY-MM-DD)
+ *         description: Start date of the period (YYYY-MM-DD). If not provided, uses earliest attendance record date.
  *       - in: query
  *         name: period_end_date
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
  *           format: date
- *         description: End date of the period (YYYY-MM-DD)
+ *         description: End date of the period (YYYY-MM-DD). If not provided, uses latest attendance record date.
  *       - in: query
  *         name: summary_period
  *         schema:
@@ -858,9 +859,11 @@ router.get('/list', AttendanceController.getAttendanceLogs);
  *                     period_start_date:
  *                       type: string
  *                       format: date
+ *                       nullable: true
  *                     period_end_date:
  *                       type: string
  *                       format: date
+ *                       nullable: true
  *                     total_days_in_period:
  *                       type: integer
  *                     days_present:

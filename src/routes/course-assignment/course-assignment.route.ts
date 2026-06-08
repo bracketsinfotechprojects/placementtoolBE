@@ -3,6 +3,7 @@ import { getRepository } from 'typeorm';
 import { CourseAssignment } from '../../entities/course-assignment/course-assignment.entity';
 import CourseAssignmentService from '../../services/assignment/course-assignment.service';
 import AssignmentService from '../../services/assignment/assignment.service';
+import courseAttendanceRouter from './course-attendance.route';
 
 const router = express.Router();
 
@@ -713,5 +714,8 @@ router.get(
     }
   }
 );
+
+// Include course attendance and certificate routes
+router.use('', courseAttendanceRouter);
 
 export default router;
