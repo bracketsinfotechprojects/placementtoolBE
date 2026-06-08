@@ -52,7 +52,7 @@ export default abstract class BaseController {
    * Validate and parse integer ID from request params
    */
   protected static parseId(req: Request, paramName: string = 'id'): number {
-    const id = parseInt(req.params[paramName], 10);
+    const id = parseInt(String(req.params[paramName]), 10);
     if (isNaN(id)) {
       throw new StringError(`Invalid ${paramName}`);
     }

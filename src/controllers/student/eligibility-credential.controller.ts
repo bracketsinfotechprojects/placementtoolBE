@@ -14,7 +14,7 @@ class EligibilityCredentialController {
    */
   async sendCredentialsToStudent(req: Request, res: Response): Promise<void> {
     try {
-      const studentId = parseInt(req.params.studentId);
+      const studentId = parseInt(String(req.params.studentId));
       const { skipPasswordReset } = req.body;
 
       if (isNaN(studentId)) {
@@ -66,7 +66,7 @@ class EligibilityCredentialController {
    */
   async notifyEligibilityStatus(req: Request, res: Response): Promise<void> {
     try {
-      const studentId = parseInt(req.params.studentId);
+      const studentId = parseInt(String(req.params.studentId));
 
       if (isNaN(studentId)) {
         return ApiResponse.badRequest(res, 'Invalid student ID');
