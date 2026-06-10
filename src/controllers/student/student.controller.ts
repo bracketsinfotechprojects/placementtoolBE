@@ -622,6 +622,37 @@ export default class StudentController extends BaseController {
     }, 'Failed to retrieve student placements');
   }
 
+  // Assign facilities to a student (replaces existing assignments)
+  static async assignFacilities(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = StudentController.parseId(req);
+
+      const { facility_list } = req.body;
+
+      if (!Array.isArray(facility_list)) {
+        throw new StringError('facility_list must be an array of facility IDs');
+      }
+
+      const facilityIds: number[] = facility_list.map((id: any) => parseInt(String(id)));
+
+      if (facilityIds.some(isNaN)) {
+        throw new StringError('All values in facility_list must be valid numeric IDs');
+      }
+
+      const result = await StudentService.assignFacilities(studentId, facilityIds);
+      ApiResponseUtility.success(res, result, 'Facilities assigned successfully');
+    }, 'Failed to assign facilities to student');
+  }
+
+  // Get facilities assigned to a student
+  static async getAssignedFacilities(req: Request, res: Response) {
+    await StudentController.executeAction(res, async () => {
+      const studentId = StudentController.parseId(req);
+      const result = await StudentService.getAssignedFacilities(studentId);
+      ApiResponseUtility.success(res, result, 'Assigned facilities retrieved successfully');
+    }, 'Failed to retrieve assigned facilities');
+  }
+
   // Old activate/deactivate methods removed
   // Use generic activation API instead: PATCH /api/students/{id}/activate?activate={true|false}
 }

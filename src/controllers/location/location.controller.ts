@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
+import { getRepository } from 'typeorm';
 import LocationService from '../../services/location/location.service';
+import LocationRepository from '../../repositories/location.repository';
 import ApiResponseUtility from '../../utilities/api-response.utility';
 import BaseController from '../base.controller';
+import { User } from '../../entities/user/user.entity';
+import { StudentFacilityAssignment } from '../../entities/student/student-facility-assignment.entity';
+
+const STUDENT_ROLE_ID = 6;
 
 /**
  * Location Controller
@@ -129,6 +135,43 @@ export default class LocationController extends BaseController {
     await BaseController.executeAction(res, async () => {
       const studentId = BaseController.parseId(req, 'studentId');
       const { radius_km, limit } = LocationController.parseLocationParams(req);
+
+      const reqUser = (req as any).user;
+
+      // For student role: skip geospatial filter — return all assigned facilities directly
+      // (geospatial query requires location coords on both student and facility; assigned
+      //  facilities may not have coordinates set, so we bypass it entirely for students)
+      if (reqUser?.roleID === STUDENT_ROLE_ID) {
+        const user = await getRepository(User).findOne({ where: { id: reqUser.id, isDeleted: false } });
+        if (!user?.studentID) {
+          return ApiResponseUtility.success(res, {
+            student_id: studentId,
+            radius_km,
+            total_found: 0,
+            facilities: [],
+            message: 'No facilities found within the specified radius or student location not set'
+          }, 'Found 0 facilities');
+        }
+        const assignments = await getRepository(StudentFacilityAssignment).find({
+          where: { student_id: user.studentID }
+        });
+        if (assignments.length === 0) {
+          return ApiResponseUtility.success(res, {
+            student_id: studentId,
+            radius_km,
+            total_found: 0,
+            facilities: [],
+            message: 'No facilities found within the specified radius or student location not set'
+          }, 'Found 0 facilities');
+        }
+        const assignedFacilityIds = assignments.map(a => a.facility_id);
+        const facilities = await LocationRepository.findFacilitiesByIds(assignedFacilityIds);
+        return ApiResponseUtility.success(res, {
+          student_id: studentId,
+          total_found: facilities.length,
+          facilities
+        }, `Found ${facilities.length} assigned facilities`);
+      }
 
       const result = await LocationService.getFacilitiesNearStudent(
         studentId,

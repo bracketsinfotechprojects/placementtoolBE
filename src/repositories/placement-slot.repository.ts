@@ -170,6 +170,14 @@ export default class PlacementSlotRepository {
       );
     }
 
+    // Restrict to specific facilities (used for student role — only show their assigned facilities)
+    if (params.facilityIds && params.facilityIds.length > 0) {
+      const facilityIdStrings = params.facilityIds.map(id => String(id));
+      query = query.andWhere('placementSlot.facility_id IN (:...facilityIds)', {
+        facilityIds: facilityIdStrings
+      });
+    }
+
     return query;
   }
 
@@ -250,6 +258,9 @@ export interface IPlacementSlotFilters {
   // ID filters
   facility_id?: number;
   created_by?: number;
+
+  // Restrict to these facility IDs (student role: only assigned facilities)
+  facilityIds?: number[];
 
   // Core slot details filters
   placementslot_type?: string;

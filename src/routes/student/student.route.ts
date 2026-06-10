@@ -3509,4 +3509,140 @@ router.delete('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), Stude
  *         description: Complaint not found
  */
 
+/**
+ * @swagger
+ * /api/students/{id}/assign-facilities:
+ *   post:
+ *     summary: Assign facilities to a student
+ *     description: |
+ *       Assigns one or more facilities to a student. This is a **full replacement** — any
+ *       previously assigned facilities are removed and replaced with the new list.
+ *       Pass an empty array to clear all assignments.
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - facility_list
+ *             properties:
+ *               facility_list:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: List of facility IDs to assign. Replaces all existing assignments.
+ *                 example: [1, 2]
+ *     responses:
+ *       200:
+ *         description: Facilities assigned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Facilities assigned successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     student_id:
+ *                       type: integer
+ *                       example: 1
+ *                     facilities:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           facility_id:
+ *                             type: integer
+ *                             example: 1
+ *                           organization_name:
+ *                             type: string
+ *                             example: "Sydney Medical Centre"
+ *       400:
+ *         description: Validation error (facility_list not an array, invalid IDs, facility not found)
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post('/:id/assign-facilities', StudentController.assignFacilities);
+
+/**
+ * @swagger
+ * /api/students/{id}/assigned-facilities:
+ *   get:
+ *     summary: Get facilities assigned to a student
+ *     description: Retrieve the list of facilities currently assigned to the given student.
+ *     tags:
+ *       - Students
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Student ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Assigned facilities retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Assigned facilities retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     student_id:
+ *                       type: integer
+ *                       example: 1
+ *                     facilities:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           facility_id:
+ *                             type: integer
+ *                             example: 1
+ *                           organization_name:
+ *                             type: string
+ *                             example: "Sydney Medical Centre"
+ *       404:
+ *         description: Student not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/:id/assigned-facilities', StudentController.getAssignedFacilities);
+
 export default router;

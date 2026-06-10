@@ -132,14 +132,15 @@ export default class LocationService {
   /**
    * Get facilities near a student
    */
-  static async getFacilitiesNearStudent(studentId: number, radiusKm: number = 10, limit: number = 50) {
+  static async getFacilitiesNearStudent(studentId: number, radiusKm: number = 10, limit: number = 50, assignedFacilityIds?: number[]) {
     this.validateRadius(radiusKm);
     this.validateLimit(limit);
 
     const facilities = await LocationRepository.findFacilitiesNearStudent(
       studentId,
       radiusKm,
-      limit
+      limit,
+      assignedFacilityIds
     );
 
     if (facilities.length === 0) {
