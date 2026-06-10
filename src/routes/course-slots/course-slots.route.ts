@@ -1,6 +1,8 @@
 import express from 'express';
 import { getRepository } from 'typeorm';
 import { CourseSlots } from '../../entities/course-slots/course-slots.entity';
+import { CourseAssignment } from '../../entities/course-assignment/course-assignment.entity';
+import { EligibilityStatus } from '../../entities/student/eligibility-status.entity';
 
 const router = express.Router();
 
@@ -170,6 +172,8 @@ router.get(
   async (req: any, res: any) => {
     try {
       const courseSlotsRepository = getRepository(CourseSlots);
+      const courseAssignmentRepository = getRepository(CourseAssignment);
+      const eligibilityStatusRepository = getRepository(EligibilityStatus);
       const { course_category, seat_status, city, trainer_id } = req.query;
       
       const queryBuilder = courseSlotsRepository.createQueryBuilder('courseSlot')
@@ -193,10 +197,62 @@ router.get(
       
       const courseSlots = await queryBuilder.getMany();
       
+      // Transform response to include eligibility_status
+      const enhancedCourseSlots = await Promise.all(
+        courseSlots.map(async (slot) => {
+          // Fetch all assignments for this course
+          const assignments = await courseAssignmentRepository.find({
+            where: { course_id: slot.course_id, isDeleted: false }
+          });
+          
+          // Fetch eligibility status for all enrolled students
+          const eligibilityStatuses = await Promise.all(
+            assignments.map(async (assignment) => {
+              const eligibility = await eligibilityStatusRepository.findOne({
+                where: { student_id: assignment.student_id }
+              });
+              return eligibility;
+            })
+          );
+          
+          // Map eligibility statuses to response format (keep booleans as booleans)
+          const eligibilityStatusArray = eligibilityStatuses
+            .filter(es => es !== null && es !== undefined)
+            .map(es => {
+              if (!es) return null;
+              return {
+                status_id: es.status_id,
+                student_id: es.student_id,
+                classes_completed: es.classes_completed,
+                fees_paid: es.fees_paid,
+                assignments_submitted: es.assignments_submitted,
+                documents_submitted: es.documents_submitted,
+                trainer_consent: es.trainer_consent,
+                override_requested: es.override_requested,
+                manual_override: es.manual_override,
+                manual_handling: es.manual_handling,
+                requested_by: es.requested_by || null,
+                reason: es.reason || null,
+                comments: es.comments || null,
+                overall_status: es.overall_status,
+                is_eligible: es.overall_status === 'eligible'
+              };
+            })
+            .filter(es => es !== null);
+          
+          return {
+            ...slot,
+            eligibility_status: eligibilityStatusArray,
+            eligible_students_count: eligibilityStatusArray.filter(es => es.overall_status === 'eligible').length,
+            total_assigned_students: eligibilityStatusArray.length
+          };
+        })
+      );
+      
       return res.status(200).json({
         success: true,
-        count: courseSlots.length,
-        data: courseSlots
+        count: enhancedCourseSlots.length,
+        data: enhancedCourseSlots
       });
     } catch (error: any) {
       console.error('Error fetching course slots:', error);

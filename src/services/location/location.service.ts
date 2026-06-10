@@ -18,8 +18,8 @@ export default class LocationService {
   }
 
   private static validateRadius(radius_km: number): void {
-    if (radius_km <= 0 || radius_km > 500) {
-      throw new StringError('Invalid radius. Must be between 0 and 500 km');
+    if (radius_km <= 0 || radius_km > 40000) {
+      throw new StringError('Invalid radius. Must be between 0 and 40000 km');
     }
   }
 

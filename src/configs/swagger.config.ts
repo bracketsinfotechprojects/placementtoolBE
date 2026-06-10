@@ -949,6 +949,390 @@ AvailablePlacementSlot: {
              }
            }
          },
+        },
+        // Attendance Schemas
+        AttendanceLog: {
+          type: 'object',
+          description: 'Attendance Log record for student placement',
+          properties: {
+            attendance_log_id: { type: 'integer', description: 'Primary key', example: 1 },
+            student_id: { type: 'integer', description: 'Foreign key to students table', example: 5 },
+            facility_id: { type: 'integer', description: 'Foreign key to facilities table', example: 3 },
+            placement_slot_id: { type: 'integer', description: 'Foreign key to placement_slots table', example: 10 },
+            branch_id: { type: 'integer', nullable: true, description: 'Foreign key to facility_branch_site table', example: 1 as any },
+            attendance_date: { type: 'string', format: 'date', description: 'Date of attendance', example: '2026-05-16' },
+            status: {
+              type: 'string',
+              enum: ['present', 'absent', 'leave', 'half_day', 'late', 'early_departure'],
+              description: 'Attendance status',
+              example: 'present'
+            },
+            login_time: { type: 'string', description: 'Time when student logged in/arrived (HH:MM:SS)', example: '09:00:00', nullable: true },
+            logout_time: { type: 'string', description: 'Time when student logged out/left (HH:MM:SS)', example: '17:30:00', nullable: true },
+            break_duration_minutes: { type: 'integer', description: 'Break duration in minutes', example: 60, default: 0 },
+            worked_hours: { type: 'number', format: 'decimal', description: 'Total hours worked', example: 8.5, nullable: true },
+            task_description: { type: 'string', description: 'Tasks completed during the day', example: 'Database migration and unit tests', nullable: true },
+            supervisor_notes: { type: 'string', description: 'Notes from facility supervisor', example: 'Supervisor notes' as any, nullable: true },
+            logged_by_user_id: { type: 'integer', description: 'Foreign key to users table - who logged this attendance', example: 20 },
+            logged_at: { type: 'string', format: 'date-time', description: 'When this record was created' },
+            updated_by_user_id: { type: 'integer', nullable: true, description: 'Foreign key to users table - who last updated', example: 21 as any },
+            updated_at: { type: 'string', format: 'date-time', nullable: true, description: 'When this record was last updated' },
+            is_deleted: { type: 'boolean', default: false, description: 'Soft delete flag' },
+            approval_status: {
+              type: 'string',
+              enum: ['pending', 'approved', 'rejected'],
+              description: 'Approval status of attendance',
+              example: 'pending'
+            },
+            approved_by_user_id: { type: 'integer', nullable: true, description: 'Foreign key to users table - who approved/rejected', example: 22 as any },
+            approved_at: { type: 'string', format: 'date-time', nullable: true, description: 'When this attendance was approved/rejected' },
+            approval_remarks: { type: 'string', nullable: true, description: 'Remarks from approver', example: 'Approved' as any }
+          }
+        },
+        AttendanceLogInput: {
+          type: 'object',
+          required: ['student_id', 'facility_id', 'placementslot_id', 'assignment_id', 'attendance_date', 'status', 'logged_by_user_id'],
+          description: 'Input schema for creating attendance log',
+          properties: {
+            student_id: { type: 'integer', description: 'Student ID', example: 5 },
+            facility_id: { type: 'integer', description: 'Facility ID', example: 3 },
+            placementslot_id: { type: 'integer', description: 'Placement slot ID', example: 10 },
+            assignment_id: { type: 'integer', description: 'Placement assignment ID', example: 1 },
+            attendance_date: { type: 'string', format: 'date', description: 'Date of attendance', example: '2026-05-16' },
+            status: {
+              type: 'string',
+              enum: ['present', 'absent', 'leave', 'half_day', 'late', 'early_departure'],
+              description: 'Attendance status',
+              example: 'present'
+            },
+            login_time: { type: 'string', description: 'Time when student logged in (HH:MM:SS format)', example: '09:00:00' },
+            logout_time: { type: 'string', description: 'Time when student logged out (HH:MM:SS format)', example: '17:30:00' },
+            break_duration_minutes: { type: 'integer', description: 'Break duration in minutes', example: 60, default: 0 },
+            worked_hours: { type: 'number', format: 'decimal', description: 'Total hours worked', example: 8.5 },
+            task_description: { type: 'string', description: 'Tasks completed during the day', example: 'Database migration and unit tests' },
+            logged_by_user_id: { type: 'integer', description: 'User ID of person logging attendance', example: 20 }
+          }
+        },
+        AttendanceUpdateByStudent: {
+          type: 'object',
+          description: 'Input schema for student updating their own attendance (PENDING records only)',
+          properties: {
+            status: {
+              type: 'string',
+              enum: ['present', 'absent', 'leave', 'half_day', 'late', 'early_departure'],
+              description: 'Attendance status',
+              example: 'present'
+            },
+            login_time: { type: 'string', description: 'Time when student logged in (HH:MM:SS)', example: '09:00:00' },
+            logout_time: { type: 'string', description: 'Time when student logged out (HH:MM:SS)', example: '17:30:00' },
+            break_duration_minutes: { type: 'integer', description: 'Break duration in minutes', example: 60 },
+            worked_hours: { type: 'number', format: 'decimal', description: 'Total hours worked', example: 8.5 },
+            task_description: { type: 'string', description: 'Tasks completed during the day', example: 'Completed all assigned tasks' }
+          }
+        },
+        AttendanceUpdateBySupervisor: {
+          type: 'object',
+          description: 'Input schema for supervisor/admin updating attendance records',
+          properties: {
+            status: {
+              type: 'string',
+              enum: ['present', 'absent', 'leave', 'half_day', 'late', 'early_departure'],
+              description: 'Attendance status',
+              example: 'present'
+            },
+            login_time: { type: 'string', description: 'Time when student logged in (HH:MM:SS)', example: '09:00:00' },
+            logout_time: { type: 'string', description: 'Time when student logged out (HH:MM:SS)', example: '17:30:00' },
+            break_duration_minutes: { type: 'integer', description: 'Break duration in minutes', example: 60 },
+            worked_hours: { type: 'number', format: 'decimal', description: 'Total hours worked', example: 8.5 },
+            task_description: { type: 'string', description: 'Tasks completed during the day', example: 'Completed all assigned tasks' },
+            supervisor_notes: { type: 'string', description: 'Supervisor notes about attendance', example: 'Good performance, completed all tasks' }
+          }
+        },
+        // StudentComplaint Schemas
+        StudentComplaint: {
+          type: 'object',
+          description: 'Student complaint record',
+          properties: {
+            complaint_id: { type: 'integer', description: 'Primary key', example: 1 },
+            student_id: { type: 'integer', description: 'Foreign key to students table', example: 5 },
+            facility_id: { type: 'integer', nullable: true, description: 'Foreign key to facilities table', example: 3 },
+            category: { type: 'string', description: 'Category of complaint (e.g., Facility Issues, Academic, Conduct, Health, Other)', example: 'Facility Issues' },
+            priority: { type: 'string', enum: ['Low', 'Medium', 'High'], description: 'Priority level', example: 'High' },
+            description: { type: 'string', description: 'Detailed description of the complaint', example: 'The water cooler in the study area is not working properly' },
+            location: { type: 'string', description: 'Location where the issue occurred', example: 'Building A, Room 203' },
+            attachments: { type: 'array', items: { type: 'string' }, nullable: true, description: 'Array of file paths for attachments', example: ['uploads/complaints/3/complaint_1/document.pdf'] },
+            urgency_level: { type: 'string', enum: ['Low', 'Medium', 'High'], description: 'Urgency level', example: 'High' },
+            is_anonymous: { type: 'boolean', default: false, description: 'Whether the complaint is anonymous (student_id excluded from response)', example: false },
+            status: { type: 'string', enum: ['Pending', 'In Progress', 'Resolved', 'Closed', 'Rejected'], default: 'Pending', description: 'Status of complaint', example: 'Pending' },
+            resolution_notes: { type: 'string', nullable: true, description: 'Notes on resolution by admin/supervisor', example: 'Resolved successfully' as any },
+            resolved_at: { type: 'string', format: 'date-time', nullable: true, description: 'Timestamp when complaint was resolved', example: '2026-05-20T15:30:00Z' as any },
+            createdAt: { type: 'string', format: 'date-time', description: 'Record creation timestamp' },
+            updatedAt: { type: 'string', format: 'date-time', description: 'Record update timestamp' }
+          }
+        },
+        StudentComplaintInput: {
+          type: 'object',
+          required: ['category', 'priority', 'description', 'location', 'urgency_level'],
+          description: 'Input schema for creating student complaint with file attachments',
+          properties: {
+            facility_id: { type: 'integer', description: 'ID of the facility the complaint is about (optional)', example: 3 },
+            category: { type: 'string', description: 'Category of complaint', example: 'Facility Issues' },
+            priority: { type: 'string', enum: ['Low', 'Medium', 'High'], description: 'Priority level', example: 'High' },
+            description: { type: 'string', description: 'Detailed description (max 1000 chars)', example: 'The water cooler in the study area is not working properly' },
+            location: { type: 'string', description: 'Location where the issue occurred', example: 'Building A, Room 203' },
+            urgency_level: { type: 'string', enum: ['Low', 'Medium', 'High'], description: 'Urgency level', example: 'High' },
+            is_anonymous: { type: 'boolean', default: false, description: 'Whether to report anonymously', example: false },
+            attachments: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'File attachments (max 5 files, 10MB each)', example: [] as any }
+          }
+        },
+        // PlacementAssignment Extended Schemas
+        PlacementAssignmentExtended: {
+          type: 'object',
+          description: 'Extended placement assignment with nested objects',
+          properties: {
+            assignment_id: { type: 'integer', description: 'Primary key', example: 1 },
+            placementslot_id: { type: 'integer', description: 'Foreign key to placement_slots', example: 5 },
+            student_id: { type: 'integer', description: 'Foreign key to students', example: 1 },
+            status: { type: 'string', enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped', 'Allocated', 'Started'], description: 'Assignment status', example: 'Assigned' },
+            facility_confirmation_status: { type: 'string', enum: ['Approved', 'Rejected'], nullable: true, description: 'Facility confirmation status', example: 'Approved' },
+            start_date: { type: 'string', format: 'date', nullable: true, description: 'Actual start date', example: '2026-03-15' },
+            end_date: { type: 'string', format: 'date', nullable: true, description: 'Actual end date', example: '2026-04-15' },
+            notes: { type: 'string', nullable: true, description: 'Notes about assignment', example: 'Student requires additional supervision' },
+            created_at: { type: 'string', format: 'date-time', description: 'Creation timestamp' },
+            updated_at: { type: 'string', format: 'date-time', description: 'Update timestamp' },
+            placementSlot: { $ref: '#/components/schemas/PlacementSlot' },
+            student: { $ref: '#/components/schemas/Student' }
+          }
+        },
+        PlacementInternshipDetail: {
+          type: 'object',
+          description: 'Student internship record with facility and placement details',
+          properties: {
+            assignment_id: { type: 'integer', example: 1 },
+            facility_id: { type: 'integer', example: 3 },
+            organization_name: { type: 'string', example: 'Sunshine Care Home' },
+            placementslot_id: { type: 'integer', example: 10 },
+            placement_start_date: { type: 'string', format: 'date', example: '2026-03-15' },
+            placement_end_date: { type: 'string', format: 'date', example: '2026-04-15' },
+            assignment_status: { type: 'string', enum: ['Assigned', 'Active', 'Completed', 'Cancelled'], example: 'Active' },
+            facility_confirmation_status: { type: 'string', enum: ['Approved', 'Rejected'], nullable: true, example: 'Approved' },
+            start_date: { type: 'string', format: 'date', nullable: true, example: '2026-03-15' },
+            end_date: { type: 'string', format: 'date', nullable: true, example: '2026-04-15' }
+          }
+        },
+        // Password Reset Schemas
+        ForgotPasswordRequest: {
+          type: 'object',
+          required: ['loginID'],
+          description: 'Request OTP for password reset',
+          properties: {
+            loginID: { type: 'string', description: 'User login ID (email)', example: 'user@example.com' }
+          }
+        },
+        VerifyOTPRequest: {
+          type: 'object',
+          required: ['loginID', 'otp'],
+          description: 'Verify OTP for password reset',
+          properties: {
+            loginID: { type: 'string', description: 'User login ID (email)', example: 'user@example.com' },
+            otp: { type: 'string', description: '6-digit OTP', example: '123456' }
+          }
+        },
+        ResetPasswordRequest: {
+          type: 'object',
+          required: ['loginID', 'otp', 'newPassword'],
+          description: 'Reset password using OTP',
+          properties: {
+            loginID: { type: 'string', description: 'User login ID (email)', example: 'user@example.com' },
+            otp: { type: 'string', description: '6-digit OTP', example: '123456' },
+            newPassword: { type: 'string', description: 'New password (min 8 chars)', example: 'NewPass123!' }
+          }
+        },
+        // Generic Success Response
+        SuccessResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string', example: 'Operation completed successfully' },
+            data: { type: 'object', description: 'Response data (varies by endpoint)' }
+          }
+        },
+        // Generic Error Response
+        ErrorResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: false },
+            error: {
+              type: 'object',
+              properties: {
+                message: { type: 'string', example: 'Error description' }
+              }
+            }
+          }
+        },
+        // Course Attendance Schemas
+        CourseAttendanceUpdate: {
+          type: 'object',
+          description: 'Input schema for updating course attendance',
+          required: ['attendance_status'],
+          properties: {
+            attendance_status: {
+              type: 'string',
+              enum: ['present', 'absent', 'late', 'leave'],
+              description: 'Attendance status for the course session',
+              example: 'present'
+            },
+            notes: {
+              type: 'string',
+              description: 'Optional notes about attendance',
+              example: 'Student was 15 minutes late'
+            }
+          }
+        },
+        CourseAttendanceBulkUpdate: {
+          type: 'object',
+          description: 'Input schema for bulk updating course attendance',
+          required: ['attendances'],
+          properties: {
+            attendances: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['assignment_id', 'attendance_status'],
+                properties: {
+                  assignment_id: {
+                    type: 'integer',
+                    description: 'Course assignment ID',
+                    example: 1
+                  },
+                  attendance_status: {
+                    type: 'string',
+                    enum: ['present', 'absent', 'late', 'leave'],
+                    description: 'Attendance status',
+                    example: 'present'
+                  },
+                  notes: {
+                    type: 'string',
+                    description: 'Optional notes',
+                    example: 'Attended all sessions'
+                  }
+                }
+              },
+              example: [
+                {
+                  assignment_id: 1,
+                  attendance_status: 'present',
+                  notes: 'Attended all sessions'
+                },
+                {
+                  assignment_id: 2,
+                  attendance_status: 'absent',
+                  notes: 'Medical leave'
+                }
+              ]
+            }
+          }
+        },
+        Certificate: {
+          type: 'object',
+          description: 'Certificate record for course or placement completion',
+          properties: {
+            certificate_id: {
+              type: 'integer',
+              description: 'Primary key',
+              example: 1
+            },
+            student_id: {
+              type: 'integer',
+              description: 'Foreign key to students table',
+              example: 5
+            },
+            assignment_type: {
+              type: 'string',
+              enum: ['course', 'placement'],
+              description: 'Type of assignment the certificate is for',
+              example: 'course'
+            },
+            assignment_id: {
+              type: 'integer',
+              description: 'Foreign key to CourseAssignments or PlacementAssignments table',
+              example: 1
+            },
+            certificate_file_path: {
+              type: 'string',
+              description: 'Path/URL to certificate file',
+              example: 'uploads/certificates/cert-1739500000000-123456789.pdf'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'When the certificate was created/uploaded',
+              example: '2026-05-16T10:30:00Z'
+            },
+            created_by_user_id: {
+              type: 'integer',
+              description: 'User ID who uploaded the certificate',
+              example: 20
+            },
+            is_deleted: {
+              type: 'boolean',
+              default: false,
+              description: 'Soft delete flag',
+              example: false
+            }
+          }
+        },
+        CertificateUpload: {
+          type: 'object',
+          description: 'Input schema for uploading certificate',
+          required: ['student_id', 'assignment_type', 'assignment_id', 'certificate'],
+          properties: {
+            student_id: {
+              type: 'integer',
+              description: 'Student ID',
+              example: 5
+            },
+            assignment_type: {
+              type: 'string',
+              enum: ['course', 'placement'],
+              description: 'Type of assignment',
+              example: 'course'
+            },
+            assignment_id: {
+              type: 'integer',
+              description: 'Course assignment ID or placement assignment ID',
+              example: 1
+            },
+            certificate: {
+              type: 'string',
+              format: 'binary',
+              description: 'Certificate file (PDF or image, max 50MB)'
+            }
+          }
+        },
+        CertificateList: {
+          type: 'object',
+          description: 'List of certificates for a student',
+          properties: {
+            success: { type: 'boolean', example: true },
+            data: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Certificate' }
+            }
+          }
+        },
+        CertificateDownload: {
+          type: 'object',
+          description: 'Certificate file download response',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string', example: 'Certificate downloaded successfully' },
+            file: {
+              type: 'string',
+              format: 'binary',
+              description: 'Certificate file content'
+            }
+          }
         }
      },
     security: [

@@ -151,7 +151,7 @@ export default class LocationController extends BaseController {
   static async getFacilitiesWithStudentCount(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const radius_km = req.query.radius_km 
-        ? Math.max(0, Math.min(500, parseFloat(req.query.radius_km as string)))
+        ? Math.max(0, Math.min(40000, parseFloat(req.query.radius_km as string)))
         : 10;
       
       const min_students = req.query.min_students 
