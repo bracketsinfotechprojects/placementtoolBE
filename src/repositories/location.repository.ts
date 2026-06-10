@@ -163,13 +163,22 @@ export default class LocationRepository {
   static async findFacilitiesNearStudent(
     studentId: number,
     radiusKm: number,
-    limit: number = 50
+    limit: number = 50,
+    assignedFacilityIds?: number[]
   ): Promise<any[]> {
     const manager = getManager();
-    
-    // Optimized: Use INNER JOIN instead of CROSS JOIN for better query plan
+
+    // When a specific set of facility IDs is provided, restrict results to only those facilities
+    let assignedFilter = '';
+    const extraParams: any[] = [];
+    if (assignedFacilityIds && assignedFacilityIds.length > 0) {
+      const placeholders = assignedFacilityIds.map(() => '?').join(',');
+      assignedFilter = `AND f.facility_id IN (${placeholders})`;
+      extraParams.push(...assignedFacilityIds);
+    }
+
     const query = `
-      SELECT 
+      SELECT
         f.facility_id,
         f.organization_name,
         f.registered_business_name,
@@ -185,15 +194,16 @@ export default class LocationRepository {
       INNER JOIN facility f ON (
         f.isDeleted = 0
         AND f.location IS NOT NULL
-        AND ST_X(f.location) != 0 
+        AND ST_X(f.location) != 0
         AND ST_Y(f.location) != 0
         AND ST_Distance_Sphere(f.location, s.location) <= ?
       )
       WHERE s.isDeleted = 0
         AND s.student_id = ?
         AND s.location IS NOT NULL
-        AND ST_X(s.location) != 0 
+        AND ST_X(s.location) != 0
         AND ST_Y(s.location) != 0
+        ${assignedFilter}
       ORDER BY distance_km ASC
       LIMIT ?
     `;
@@ -201,10 +211,37 @@ export default class LocationRepository {
     const results = await manager.query(query, [
       radiusKm * 1000,
       studentId,
+      ...extraParams,
       limit
     ]);
 
     return results;
+  }
+
+  /**
+   * Fetch facilities by explicit IDs — no geospatial filter.
+   * Used for student role where we show all assigned facilities regardless of location data.
+   */
+  static async findFacilitiesByIds(facilityIds: number[]): Promise<any[]> {
+    if (facilityIds.length === 0) return [];
+    const manager = getManager();
+    const placeholders = facilityIds.map(() => '?').join(',');
+    const query = `
+      SELECT
+        f.facility_id,
+        f.organization_name,
+        f.registered_business_name,
+        f.website_url,
+        f.states_covered,
+        f.categories,
+        ST_X(f.location) as longitude,
+        ST_Y(f.location) as latitude
+      FROM facility f
+      WHERE f.isDeleted = 0
+        AND f.facility_id IN (${placeholders})
+      ORDER BY f.organization_name ASC
+    `;
+    return await manager.query(query, facilityIds);
   }
 
   /**

@@ -16,6 +16,7 @@ import { User } from '../../entities/user/user.entity';
 // Additional entities needed for getStudentFacilities
 import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
 import { Facility } from '../../entities/facility/facility.entity';
+import { StudentFacilityAssignment } from '../../entities/student/student-facility-assignment.entity';
 
 // Services
 import RoleService from '../role/role.service';
@@ -2948,6 +2949,73 @@ const getStudentPlacements = async (studentId: number, filters?: { status?: stri
   }
 };
 
+// Assign a list of facilities to a student (replaces existing assignments)
+const assignFacilities = async (studentId: number, facilityIds: number[]) => {
+  const studentRepo = getRepository(Student);
+  const student = await studentRepo.findOne({ where: { student_id: studentId, isDeleted: false } });
+  if (!student) {
+    throw new StringError('Student not found');
+  }
+
+  if (facilityIds.length > 0) {
+    const facilityRepo = getRepository(Facility);
+    const found = await facilityRepo.findByIds(facilityIds);
+    if (found.length !== facilityIds.length) {
+      const foundIds = found.map(f => f.facility_id);
+      const missing = facilityIds.filter(id => !foundIds.includes(id));
+      throw new StringError(`Facilities not found: ${missing.join(', ')}`);
+    }
+  }
+
+  const assignmentRepo = getRepository(StudentFacilityAssignment);
+
+  await getConnection().transaction(async manager => {
+    await manager.delete(StudentFacilityAssignment, { student_id: studentId });
+
+    if (facilityIds.length > 0) {
+      const assignments = facilityIds.map(facilityId => {
+        const a = new StudentFacilityAssignment();
+        a.student_id = studentId;
+        a.facility_id = facilityId;
+        return a;
+      });
+      await manager.save(StudentFacilityAssignment, assignments);
+    }
+  });
+
+  const assigned = await assignmentRepo.find({
+    where: { student_id: studentId },
+    relations: ['facility'],
+    order: { id: 'ASC' }
+  });
+
+  return {
+    student_id: studentId,
+    facilities: assigned.map(a => a.facility)
+  };
+};
+
+// Get the facilities currently assigned to a student
+const getAssignedFacilities = async (studentId: number) => {
+  const studentRepo = getRepository(Student);
+  const student = await studentRepo.findOne({ where: { student_id: studentId, isDeleted: false } });
+  if (!student) {
+    throw new StringError('Student not found');
+  }
+
+  const assignmentRepo = getRepository(StudentFacilityAssignment);
+  const assignments = await assignmentRepo.find({
+    where: { student_id: studentId },
+    relations: ['facility'],
+    order: { id: 'ASC' }
+  });
+
+  return {
+    student_id: studentId,
+    facilities: assignments.map(a => a.facility)
+  };
+};
+
 export default {
   create,
   createExternalStudent,
@@ -2973,7 +3041,9 @@ export default {
   bulkUpload,
   generateTemplate,
   getStudentPlacements,
-  getStudentFacilities
+  getStudentFacilities,
+  assignFacilities,
+  getAssignedFacilities
   // activate and deactivate removed - use generic activation API instead:
   // PATCH /api/students/{id}/activate?activate={true|false}
 };

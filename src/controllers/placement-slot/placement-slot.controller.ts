@@ -1,8 +1,14 @@
 import { Request, Response } from 'express';
+import { getRepository } from 'typeorm';
 import BaseController from '../base.controller';
 import PlacementSlotService from '../../services/placement-slot/placement-slot.service';
 import ApiResponseUtility from '../../utilities/api-response.utility';
 import { IPlacementSlotQueryParams } from '../../repositories/placement-slot.repository';
+import { User } from '../../entities/user/user.entity';
+import { StudentFacilityAssignment } from '../../entities/student/student-facility-assignment.entity';
+
+const STUDENT_ROLE_ID = 6;
+const FACILITY_ROLE_ID = 2;
 
 export default class PlacementSlotController extends BaseController {
   static async create(req: Request, res: Response) {
@@ -83,6 +89,43 @@ export default class PlacementSlotController extends BaseController {
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
         page: req.query.page ? parseInt(req.query.page as string, 10) : 1
       };
+
+      // For student role (roleID 6): restrict to slots from their assigned facilities only
+      const reqUser = (req as any).user;
+      if (reqUser?.roleID === STUDENT_ROLE_ID) {
+        const user = await getRepository(User).findOne({
+          where: { id: reqUser.id, isDeleted: false }
+        });
+
+        if (!user?.studentID) {
+          return ApiResponseUtility.success(res, [], 'Placement slots retrieved successfully', {
+            totalPages: 0, previousPage: null, currentPage: 1, nextPage: null, totalItems: 0
+          });
+        }
+
+        const assignments = await getRepository(StudentFacilityAssignment).find({
+          where: { student_id: user.studentID }
+        });
+
+        if (assignments.length === 0) {
+          return ApiResponseUtility.success(res, [], 'Placement slots retrieved successfully', {
+            totalPages: 0, previousPage: null, currentPage: 1, nextPage: null, totalItems: 0
+          });
+        }
+
+        params.facilityIds = assignments.map(a => a.facility_id);
+      }
+
+      // For facility role (roleID 2): restrict to their own facility's slots only
+      if (reqUser?.roleID === FACILITY_ROLE_ID) {
+        const facilityID = reqUser.facilityID;
+        if (!facilityID) {
+          return ApiResponseUtility.success(res, [], 'Placement slots retrieved successfully', {
+            totalPages: 0, previousPage: null, currentPage: 1, nextPage: null, totalItems: 0
+          });
+        }
+        params.facilityIds = [facilityID];
+      }
 
       const result = await PlacementSlotService.list(params);
       const limit = params.limit || 20;
