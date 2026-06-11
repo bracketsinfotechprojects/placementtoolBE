@@ -74,6 +74,17 @@ router.post(
       });
     } catch (error: any) {
       console.error('Error creating course assignment:', error);
+      
+      // Handle duplicate entry error with user-friendly message
+      if (error.code === 'ER_DUP_ENTRY' || error.message?.includes('UQ_CourseAssignments_unique')) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'This trainer, course, and student combination has already been assigned. Each trainer can only be assigned to a student for a specific course once.'
+          }
+        });
+      }
+      
       return res.status(500).json({
         success: false,
         error: {
@@ -330,6 +341,17 @@ router.put(
       });
     } catch (error: any) {
       console.error('Error updating course assignment:', error);
+      
+      // Handle duplicate entry error with user-friendly message
+      if (error.code === 'ER_DUP_ENTRY' || error.message?.includes('UQ_CourseAssignments_unique')) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'This trainer, course, and student combination has already been assigned. Each trainer can only be assigned to a student for a specific course once.'
+          }
+        });
+      }
+      
       return res.status(500).json({
         success: false,
         error: {
