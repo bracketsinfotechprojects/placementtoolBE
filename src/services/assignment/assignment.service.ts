@@ -21,6 +21,7 @@ export interface IAssignmentData {
   enrollment_date?: Date | null;
   status: string;
   notes?: string | null;
+  attendance_status?: string | null;
   student: IStudentData;
 }
 
@@ -78,6 +79,7 @@ export default class AssignmentService {
       end_date: assignment.end_date,
       status: assignment.status,
       notes: assignment.notes,
+      attendance_status: assignment.attendance_status,
       student: studentData
     };
 

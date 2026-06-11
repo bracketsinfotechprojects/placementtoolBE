@@ -502,6 +502,10 @@ router.delete(
  *                             status:
  *                               type: string
  *                               enum: ['Active', 'Completed', 'Dropped']
+ *                             attendance_status:
+ *                               type: string
+ *                               enum: ['present', 'absent', 'late', 'early_departure', 'half_day', 'leave']
+ *                               nullable: true
  *                             student:
  *                               type: object
  *                               properties:
@@ -646,6 +650,10 @@ router.get(
  *                       status:
  *                         type: string
  *                         enum: ['Active', 'Completed', 'Dropped']
+ *                       attendance_status:
+ *                         type: string
+ *                         enum: ['present', 'absent', 'late', 'early_departure', 'half_day', 'leave']
+ *                         nullable: true
  *                       student:
  *                         type: object
  *                         properties:

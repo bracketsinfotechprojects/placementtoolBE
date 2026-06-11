@@ -139,6 +139,14 @@ const update = async (params: IUpdatePlacementAssignment) => {
       throw new StringError('Placement assignment does not exist');
     }
 
+    // Validate status value if provided
+    if (params.status) {
+      const validStatuses = ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped', 'Allocated', 'Started'];
+      if (!validStatuses.includes(params.status)) {
+        throw new StringError(`Invalid placement status. Allowed statuses: ${validStatuses.join(', ')}`);
+      }
+    }
+
     const oldStatus = assignment.status;
     const newStatus = params.status;
 
@@ -240,7 +248,7 @@ const confirm = async (placementslotId: number) => {
       await queryRunner.manager.update(
         PlacementAssignment,
         ids,
-        { status: 'Started' }
+        { status: 'Active' }
       );
     }
 
@@ -786,7 +794,7 @@ const getStudentInternships = async (studentId: number, params?: {
 export interface ICreatePlacementAssignment {
   placementslot_id: number;
   student_id: number;
-  status?: 'Allocated' | 'Started' | 'Completed' | 'Cancelled';
+  status?: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
   start_date?: string | Date;
   end_date?: string | Date;
   notes?: string;
@@ -794,7 +802,7 @@ export interface ICreatePlacementAssignment {
 
 export interface IUpdatePlacementAssignment {
   id: number;
-  status?: 'Allocated' | 'Started' | 'Completed' | 'Cancelled';
+  status?: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
   start_date?: string | Date;
   end_date?: string | Date;
   notes?: string;

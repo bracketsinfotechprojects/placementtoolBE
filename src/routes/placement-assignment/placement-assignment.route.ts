@@ -266,7 +266,7 @@ router.get('/student/:studentId', jwtAuth, PlacementAssignmentController.getBySt
  *         name: status
  *         schema:
  *           type: string
- *           enum: [Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started]
+ *           enum: [Assigned, Active, Completed, Cancelled, Dropped]
  *         description: Filter by assignment status
  *       - in: query
  *         name: sort_by
@@ -326,7 +326,7 @@ router.get('/student/:studentId', jwtAuth, PlacementAssignmentController.getBySt
  *                         type: integer
  *                       assignment_status:
  *                         type: string
- *                         enum: [Assigned, Active, Completed, Cancelled, Dropped, Allocated, Started]
+ *                         enum: [Assigned, Active, Completed, Cancelled, Dropped]
  *                       facility_confirmation_status:
  *                         type: string
  *                         enum: [Approved, Rejected]
@@ -882,9 +882,9 @@ router.put('/:id/facility-status', jwtAuth, authorizeRoles(2, 3), PlacementAssig
  *             properties:
  *               status:
  *                 type: string
- *                 enum: ['Allocated', 'Started', 'Completed', 'Cancelled']
+ *                 enum: ['Assigned', 'Active', 'Completed', 'Cancelled', 'Dropped']
  *                 description: New assignment status
- *                 example: "Started"
+ *                 example: "Active"
  *     responses:
  *       200:
  *         description: Assignment status updated successfully
