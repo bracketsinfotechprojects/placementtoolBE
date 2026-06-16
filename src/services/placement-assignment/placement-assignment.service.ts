@@ -7,6 +7,7 @@ import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-
 import PlacementAssignmentRepository, { IPlacementAssignmentQueryParams } from '../../repositories/placement-assignment.repository';
 import PlacementSlotRepository from '../../repositories/placement-slot.repository';
 import { StringError } from '../../errors/string.error';
+import NotificationService from '../notification/notification.service';
 
 export interface IPlacementAssignmentStudentDetail {
   assignment_id: number;
@@ -97,7 +98,65 @@ const create = async (params: ICreatePlacementAssignment) => {
 
     await queryRunner.commitTransaction();
 
-    return await PlacementAssignmentRepository.findByIdWithRelations(savedAssignment.assignment_id);
+    const result = await PlacementAssignmentRepository.findByIdWithRelations(savedAssignment.assignment_id);
+
+    const facilityId = parseInt(slot.facility_id as any);
+    const studentName = `${student.first_name} ${student.last_name}`;
+
+    // Notify the student
+    const studentUser = await getRepository(User).findOne({ where: { studentID: params.student_id, roleID: 6 } });
+    if (studentUser) {
+      NotificationService.createNotification({
+        userId: studentUser.id,
+        title: 'Facility Assigned',
+        message: 'You have been assigned to a facility for your internship. Check your placement details.',
+        type: 'success',
+        actionUrl: '/internship-management/my-internship-list',
+      }).catch(() => {});
+    }
+
+    // Notify all admin users
+    const adminUsers = await getRepository(User).find({ where: { roleID: 1, isDeleted: false } });
+    for (const admin of adminUsers) {
+      NotificationService.createNotification({
+        userId: admin.id,
+        title: 'Student Booked Placement Slot',
+        message: `${studentName} has been assigned to a placement slot. Review the assignment details.`,
+        type: 'info',
+        actionUrl: '/internship-management',
+      }).catch(() => {});
+    }
+
+    // Notify the facility user linked to this slot
+    const facilityUser = await getRepository(User).findOne({ where: { facilityID: facilityId, roleID: 2, isDeleted: false } });
+    if (facilityUser) {
+      NotificationService.createNotification({
+        userId: facilityUser.id,
+        title: 'New Student Placement',
+        message: `A new student (${studentName}) has been assigned to your facility for internship.`,
+        type: 'info',
+        actionUrl: '/internship-monitoring/active-interns',
+      }).catch(() => {});
+    }
+
+    // Notify facility supervisors linked to this facility
+    const supervisors = await getRepository(FacilitySupervisor).find({ where: { facility_id: facilityId } });
+    if (supervisors.length > 0) {
+      const supervisorUsers = await getRepository(User).find({
+        where: supervisors.map(s => ({ supervisorID: s.supervisor_id, roleID: 3, isDeleted: false })),
+      });
+      for (const supUser of supervisorUsers) {
+        NotificationService.createNotification({
+          userId: supUser.id,
+          title: 'New Intern Assigned',
+          message: `${studentName} has been assigned to your facility for internship. Please review their details.`,
+          type: 'info',
+          actionUrl: '/internship-monitoring/active-interns',
+        }).catch(() => {});
+      }
+    }
+
+    return result;
 
   } catch (error) {
     await queryRunner.rollbackTransaction();
@@ -367,7 +426,22 @@ const updateFacilityStatus = async (assignmentId: number, facilityStatus: 'Appro
 
     await queryRunner.commitTransaction();
 
-    return await detail(assignmentId);
+    const result = await detail(assignmentId);
+
+    if (facilityStatus === 'Approved') {
+      const studentUser = await getRepository(User).findOne({ where: { studentID: assignment.student_id, roleID: 6 } });
+      if (studentUser) {
+        NotificationService.createNotification({
+          userId: studentUser.id,
+          title: 'Facility Slot Approved',
+          message: 'Your internship placement has been approved by the facility. Check your internship details.',
+          type: 'success',
+          actionUrl: '/internship-management/my-internship-list',
+        }).catch(() => {});
+      }
+    }
+
+    return result;
 
   } catch (error) {
     await queryRunner.rollbackTransaction();

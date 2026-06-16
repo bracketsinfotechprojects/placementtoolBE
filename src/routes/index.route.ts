@@ -24,6 +24,7 @@ import shortCourseRouter from './short-course/short-course.route';
 import attendanceRouter from './attendance/attendance.route';
 import dashboardRouter from './dashboard/dashboard.route';
 import careerJobRouter from './career-job/career-job.route';
+import notificationRouter from './notification/notification.route';
 
 const router = express.Router();
 
@@ -49,6 +50,7 @@ router.use('/short-course', jwtAuth, shortCourseRouter); // Short course listing
 router.use('/attendance', jwtAuth, attendanceRouter); // Attendance logging
 router.use('/dashboard', jwtAuth, dashboardRouter); // Dashboard stats
 router.use('/career-jobs', jwtAuth, careerJobRouter); // Career job management
+router.use('/notifications', jwtAuth, notificationRouter); // Notifications
 router.use('/admin/cleanup', jwtAuth, adminOnly, cleanupRouter); // Admin only
 
 // Generic activation route (must be after specific routes to avoid conflicts)

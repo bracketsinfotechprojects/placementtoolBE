@@ -1,8 +1,11 @@
 import express from 'express';
 import { getRepository } from 'typeorm';
 import { CourseAssignment } from '../../entities/course-assignment/course-assignment.entity';
+import { CourseSlots } from '../../entities/course-slots/course-slots.entity';
+import { User } from '../../entities/user/user.entity';
 import CourseAssignmentService from '../../services/assignment/course-assignment.service';
 import AssignmentService from '../../services/assignment/assignment.service';
+import NotificationService from '../../services/notification/notification.service';
 import courseAttendanceRouter from './course-attendance.route';
 
 const router = express.Router();
@@ -66,7 +69,35 @@ router.post(
       
       const assignment = courseAssignmentRepository.create(req.body);
       const savedAssignment = await courseAssignmentRepository.save(assignment);
-      
+
+      // Notify admin and trainer when a student is booked into a workshop slot
+      const courseSlot = await getRepository(CourseSlots).findOne({ where: { course_id: savedAssignment.course_id } });
+      const courseName = courseSlot?.course_name || 'Workshop';
+
+      const adminUsers = await getRepository(User).find({ where: { roleID: 1, isDeleted: false } });
+      for (const admin of adminUsers) {
+        NotificationService.createNotification({
+          userId: admin.id,
+          title: 'Student Booked Workshop Slot',
+          message: `A student has been enrolled in "${courseName}". Review the course assignments.`,
+          type: 'info',
+          actionUrl: '/mh-fa-slot-management',
+        }).catch(() => {});
+      }
+
+      if (savedAssignment.trainer_id) {
+        const trainerUser = await getRepository(User).findOne({ where: { trainerID: savedAssignment.trainer_id, roleID: 5, isDeleted: false } });
+        if (trainerUser) {
+          NotificationService.createNotification({
+            userId: trainerUser.id,
+            title: 'New Student Enrolled in Your Workshop',
+            message: `A new student has been enrolled in your "${courseName}" session. Check the attendance list.`,
+            type: 'info',
+            actionUrl: '/mh-fa-slot-management',
+          }).catch(() => {});
+        }
+      }
+
       return res.status(201).json({
         success: true,
         message: 'Course assignment created successfully',

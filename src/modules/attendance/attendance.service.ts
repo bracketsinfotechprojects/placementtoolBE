@@ -1,8 +1,10 @@
 import { getRepository, Repository } from 'typeorm';
 import { AttendanceLog, AttendanceStatus, ApprovalStatus } from '../../entities/attendance/attendance-log.entity';
+import { User } from '../../entities/user/user.entity';
 import { CreateAttendanceLogDto } from './dto/create-attendance-log.dto';
 import { UpdateAttendanceLogDto } from './dto/update-attendance-log.dto';
 import { ApproveAttendanceDto } from './dto/approve-attendance.dto';
+import NotificationService from '../../services/notification/notification.service';
 
 export class AttendanceService {
   private attendanceRepository: Repository<AttendanceLog>;
@@ -48,7 +50,22 @@ export class AttendanceService {
     attendance.approval_remarks = approveDto.approval_remarks;
     attendance.updated_at = new Date();
 
-    return await this.attendanceRepository.save(attendance);
+    const saved = await this.attendanceRepository.save(attendance);
+
+    if (approveDto.approval_status === ApprovalStatus.APPROVED) {
+      const studentUser = await getRepository(User).findOne({ where: { studentID: attendance.student_id, roleID: 6 } });
+      if (studentUser) {
+        NotificationService.createNotification({
+          userId: studentUser.id,
+          title: 'Attendance Approved',
+          message: 'Your attendance log has been approved. Keep up the great work!',
+          type: 'success',
+          actionUrl: '/internship-management/my-internship-list',
+        }).catch(() => {});
+      }
+    }
+
+    return saved;
   }
 
   /**
@@ -140,7 +157,23 @@ export class AttendanceService {
     Object.assign(attendance, updateDto);
     attendance.updated_at = new Date();
 
-    return await this.attendanceRepository.save(attendance);
+    const saved = await this.attendanceRepository.save(attendance);
+
+    // Notify student when supervisor/facility updates their log sheet
+    if (updateDto.updated_by_user_id && updateDto.updated_by_user_id !== attendance.logged_by_user_id) {
+      const studentUser = await getRepository(User).findOne({ where: { studentID: attendance.student_id, roleID: 6 } });
+      if (studentUser) {
+        NotificationService.createNotification({
+          userId: studentUser.id,
+          title: 'Log Sheet Updated',
+          message: 'Your attendance log sheet has been updated by your supervisor. Please review the changes.',
+          type: 'info',
+          actionUrl: '/internship-management/my-internship-list',
+        }).catch(() => {});
+      }
+    }
+
+    return saved;
   }
 
   /**
