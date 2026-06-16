@@ -3,8 +3,11 @@ import { getRepository } from 'typeorm';
 // Entities
 import { User } from '../../entities/user/user.entity';
 import { Student } from '../../entities/student/student.entity';
+import { ContactDetails } from '../../entities/student/contact-details.entity';
 import { Trainer } from '../../entities/trainer/trainer.entity';
 import { Facility } from '../../entities/facility/facility.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
+import { PlacementExecutive } from '../../entities/placement-executive/placement-executive.entity';
 
 // Services
 import RoleService from '../role/role.service';
@@ -383,8 +386,8 @@ const getMeWithDetails = async (userId: number) => {
     // Fetch role-specific details based on roleID
     switch (user.roleID) {
       case 1: // Admin
-        // Admin users don't have role-specific details
         userProfile.role_name = 'Admin';
+        userProfile.email = user.loginID;
         break;
 
       case 6: // Student
@@ -395,13 +398,20 @@ const getMeWithDetails = async (userId: number) => {
           if (student) {
             userProfile.first_name = student.first_name;
             userProfile.last_name = student.last_name;
-            userProfile.full_name = student.fullName;
+            userProfile.full_name = `${student.first_name} ${student.last_name}`;
             userProfile.dob = student.dob;
             userProfile.gender = student.gender;
             userProfile.nationality = student.nationality;
             userProfile.student_type = student.student_type;
             userProfile.student_status = student.status;
             userProfile.role_name = 'Student';
+          }
+          const contact = await getRepository(ContactDetails).findOne({
+            where: { student_id: user.studentID, is_primary: true }
+          });
+          if (contact) {
+            userProfile.email = contact.email;
+            userProfile.mobile = contact.primary_mobile;
           }
         }
         break;
@@ -416,7 +426,7 @@ const getMeWithDetails = async (userId: number) => {
             userProfile.last_name = trainer.last_name;
             userProfile.full_name = `${trainer.first_name} ${trainer.last_name}`;
             userProfile.email = trainer.email;
-            userProfile.mobile_number = trainer.mobile_number;
+            userProfile.mobile = trainer.mobile_number;
             userProfile.gender = trainer.gender;
             userProfile.date_of_birth = trainer.date_of_birth;
             userProfile.role_name = 'Trainer';
@@ -430,6 +440,7 @@ const getMeWithDetails = async (userId: number) => {
             where: { facility_id: user.facilityID }
           });
           if (facility) {
+            userProfile.full_name = facility.organization_name;
             userProfile.organization_name = facility.organization_name;
             userProfile.registered_business_name = facility.registered_business_name;
             userProfile.website_url = facility.website_url;
@@ -442,14 +453,28 @@ const getMeWithDetails = async (userId: number) => {
       case 3: // Supervisor
         userProfile.role_name = 'Supervisor';
         if (user.supervisorID) {
-          // Add supervisor details when entity is created
+          const supervisor = await getRepository(FacilitySupervisor).findOne({
+            where: { supervisor_id: user.supervisorID }
+          });
+          if (supervisor) {
+            userProfile.full_name = supervisor.full_name;
+            userProfile.email = supervisor.email;
+            userProfile.mobile = supervisor.mobile_number;
+          }
         }
         break;
 
       case 4: // Placement Executive
         userProfile.role_name = 'Placement Executive';
         if (user.placementExecutiveID) {
-          // Add placement executive details when entity is created
+          const pe = await getRepository(PlacementExecutive).findOne({
+            where: { executive_id: user.placementExecutiveID }
+          });
+          if (pe) {
+            userProfile.full_name = pe.full_name;
+            userProfile.email = pe.email;
+            userProfile.mobile = pe.mobile_number;
+          }
         }
         break;
 
@@ -464,6 +489,83 @@ const getMeWithDetails = async (userId: number) => {
   }
 };
 
+// Update profile fields in role-specific entity
+const updateMeProfile = async (userId: number, data: {
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  mobile?: string;
+}) => {
+  const user = await getRepository(User).findOne({ where: { id: userId } });
+  if (!user) throw new StringError('User not found');
+
+  switch (user.roleID) {
+    case 6: // Student
+      if (user.studentID) {
+        const updateFields: any = { updatedAt: new Date() };
+        if (data.firstName !== undefined) updateFields.first_name = data.firstName;
+        if (data.lastName !== undefined) updateFields.last_name = data.lastName;
+        await getRepository(Student).update({ student_id: user.studentID }, updateFields);
+
+        if (data.mobile !== undefined) {
+          const contact = await getRepository(ContactDetails).findOne({
+            where: { student_id: user.studentID, is_primary: true }
+          });
+          if (contact) {
+            await getRepository(ContactDetails).update(
+              { contact_id: contact.contact_id },
+              { primary_mobile: data.mobile }
+            );
+          }
+        }
+      }
+      break;
+
+    case 5: // Trainer
+      if (user.trainerID) {
+        const updateFields: any = { updatedAt: new Date() };
+        if (data.firstName !== undefined) updateFields.first_name = data.firstName;
+        if (data.lastName !== undefined) updateFields.last_name = data.lastName;
+        if (data.mobile !== undefined) updateFields.mobile_number = data.mobile;
+        await getRepository(Trainer).update({ trainer_id: user.trainerID }, updateFields);
+      }
+      break;
+
+    case 3: // Supervisor
+      if (user.supervisorID) {
+        const updateFields: any = { updatedAt: new Date() };
+        if (data.fullName !== undefined) updateFields.full_name = data.fullName;
+        if (data.mobile !== undefined) updateFields.mobile_number = data.mobile;
+        await getRepository(FacilitySupervisor).update({ supervisor_id: user.supervisorID }, updateFields);
+      }
+      break;
+
+    case 4: // Placement Executive
+      if (user.placementExecutiveID) {
+        const updateFields: any = { updatedAt: new Date() };
+        if (data.fullName !== undefined) updateFields.full_name = data.fullName;
+        if (data.mobile !== undefined) updateFields.mobile_number = data.mobile;
+        await getRepository(PlacementExecutive).update({ executive_id: user.placementExecutiveID }, updateFields);
+      }
+      break;
+
+    case 2: // Facility
+      if (user.facilityID && data.fullName !== undefined) {
+        await getRepository(Facility).update(
+          { facility_id: user.facilityID },
+          { organization_name: data.fullName, updatedAt: new Date() }
+        );
+      }
+      break;
+
+    case 1: // Admin — no role-specific entity to update
+    default:
+      break;
+  }
+
+  return getMeWithDetails(userId);
+};
+
 export default {
   create,
   getById,
@@ -476,4 +578,5 @@ export default {
   getStatistics,
   changePassword,
   getMeWithDetails,
+  updateMeProfile,
 };
