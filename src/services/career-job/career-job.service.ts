@@ -3,8 +3,10 @@ import { CareerJob } from '../../entities/career-job/career-job.entity';
 import { CareerJobStudentMapping } from '../../entities/career-job/career-job-student-mapping.entity';
 import { CareerJobInterest } from '../../entities/career-job/career-job-interest.entity';
 import { Student } from '../../entities/student/student.entity';
+import { User } from '../../entities/user/user.entity';
 import { StringError } from '../../errors/string.error';
 import CareerJobRepository, { ICareerJobQueryParams } from '../../repositories/career-job.repository';
+import NotificationService from '../notification/notification.service';
 
 const create = async (params: any, createdByUserId: number) => {
   const job = new CareerJob();
@@ -78,6 +80,17 @@ const assignStudents = async (jobId: number, studentIds: number[], assignedByUse
     mapping.status = 'active';
     await CareerJobRepository.saveMapping(mapping);
     results.push({ studentId, status: 'assigned' });
+
+    const userRecord = await getRepository(User).findOne({ where: { studentID: studentId, roleID: 6 } });
+    if (userRecord) {
+      NotificationService.createNotification({
+        userId: userRecord.id,
+        title: 'New Job Opportunity Assigned',
+        message: `You have been assigned to a new job: ${job.designation} at ${job.company}. Check the details and express your interest.`,
+        type: 'success',
+        actionUrl: '/career-jobs/career-job-list',
+      }).catch(() => {});
+    }
   }
 
   return results;
