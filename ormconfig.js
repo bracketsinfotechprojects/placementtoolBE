@@ -33,6 +33,7 @@ module.exports = {
     'src/entities/attendance/*.entity.ts',
     'src/entities/complaint/*.entity.ts',
     'src/entities/certificate/*.entity.ts',
+    'src/entities/career-job/*.entity.ts',
     'src/entities/base/*.entity.ts'
   ] : [
     'dist/entities/student/*.entity.js',
@@ -49,6 +50,7 @@ module.exports = {
     'dist/entities/attendance/*.entity.js',
     'dist/entities/complaint/*.entity.js',
     'dist/entities/certificate/*.entity.js',
+    'dist/entities/career-job/*.entity.js',
     'dist/entities/base/*.entity.js'
   ],
   logging: process.env.NODE_ENV !== 'production' ? 'all' : ['error'],
