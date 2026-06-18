@@ -1549,6 +1549,7 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
         facility.source_of_data = facilityData.source_of_data;
         facility.states_covered = facilityData.states_covered || [];
         facility.categories = facilityData.categories || [];
+        facility.location = 'POINT(0 0)';
 
         let savedFacility;
         if (facilityData.latitude !== undefined && facilityData.longitude !== undefined) {
