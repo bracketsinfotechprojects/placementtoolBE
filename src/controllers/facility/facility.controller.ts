@@ -287,6 +287,15 @@ export default class FacilityController extends BaseController {
     }, 'Permanently delete facility');
   }
 
+  static async downloadTemplate(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const templateBuffer = FacilityService.generateFacilityTemplate();
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=facility_bulk_upload_template.xlsx');
+      res.send(templateBuffer);
+    }, 'Download facility template');
+  }
+
   static async bulkUpload(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       if (!req.file) {
