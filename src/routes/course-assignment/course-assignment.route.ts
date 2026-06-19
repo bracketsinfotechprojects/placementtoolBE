@@ -67,8 +67,8 @@ router.post(
     try {
       const courseAssignmentRepository = getRepository(CourseAssignment);
       
-      const assignment = courseAssignmentRepository.create(req.body);
-      const savedAssignment = await courseAssignmentRepository.save(assignment);
+      const assignment = courseAssignmentRepository.create(req.body as CourseAssignment);
+      const savedAssignment = await courseAssignmentRepository.save(assignment) as CourseAssignment;
 
       // Notify admin and trainer when a student is booked into a workshop slot
       const courseSlot = await getRepository(CourseSlots).findOne({ where: { course_id: savedAssignment.course_id } });

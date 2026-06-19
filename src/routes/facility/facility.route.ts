@@ -257,6 +257,7 @@ router.post('/', uploadMultiple.any(), FacilityController.create);
  *         description: File too large or too many records (max 500)
  */
 router.post('/bulk-upload', uploadMultiple.single('file'), FacilityController.bulkUpload);
+router.get('/template', FacilityController.downloadTemplate);
 
 
 /**

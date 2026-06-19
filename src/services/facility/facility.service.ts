@@ -1549,6 +1549,7 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
         facility.source_of_data = facilityData.source_of_data;
         facility.states_covered = facilityData.states_covered || [];
         facility.categories = facilityData.categories || [];
+        facility.location = 'POINT(0 0)';
 
         let savedFacility;
         if (facilityData.latitude !== undefined && facilityData.longitude !== undefined) {
@@ -1807,6 +1808,178 @@ const getSlots = async (params: any) => {
   };
 };
 
+const generateFacilityTemplate = (): Buffer => {
+  const headers = [
+    // Core facility fields
+    'organization_name', 'registered_business_name', 'website_url', 'abn_registration_number', 'source_of_data',
+    'latitude', 'longitude', 'states_covered', 'categories',
+    // Login credentials
+    'email', 'password',
+    // Attribute columns (up to 3)
+    'attribute_type_1', 'attribute_value_1',
+    'attribute_type_2', 'attribute_value_2',
+    'attribute_type_3', 'attribute_value_3',
+    // Organization structure
+    'deal_with', 'head_office_addr', 'contact_name', 'designation', 'phone', 'alternate_contact', 'notes',
+    // Branch / site
+    'site_code', 'full_address', 'suburb', 'city', 'state', 'postcode', 'site_type',
+    'palliative_care', 'dementia_care', 'num_beds', 'gender_rules',
+    'branch_contact_name', 'branch_contact_role', 'branch_contact_phone', 'branch_contact_email', 'branch_contact_comments',
+    // Agreement / MOU
+    'sent_students', 'with_mou', 'no_mou_but_taken', 'mou_exists_no_spot',
+    'total_students', 'last_placement', 'has_mou', 'signed_on', 'expiry_date',
+    'company_name', 'payment_required', 'amount_per_spot', 'payment_notes',
+    // Documents required
+    'document_name', 'notice_period_days', 'orientation_req', 'facilitator_req',
+    // Rules
+    'obligations', 'obligations_univ', 'obligations_student', 'process_notes',
+    'shift_rules', 'attendance_policy', 'dress_code', 'behaviour_rules', 'special_instr',
+  ];
+
+  const sampleRow = [
+    // Core
+    'Sunshine Aged Care', 'Sunshine Care Pty Ltd', 'https://sunshinecare.com.au', '12 345 678 901', 'agedcareguide',
+    '-33.8688', '151.2093', 'NSW,VIC', 'agedDisability',
+    // Login
+    'facility@sunshinecare.com.au', 'Password123!',
+    // Attributes
+    'Specialisation', 'Dementia Care',
+    'Accreditation', 'ISO 9001',
+    '', '',
+    // Org structure
+    'Students', '123 Main St Sydney NSW 2000', 'Jane Smith', 'Placement Coordinator', '0298765432', '0412345678', 'Preferred contact via email',
+    // Branch
+    'SYD-01', '45 Care Lane', 'Parramatta', 'Sydney', 'NSW', '2150', 'Residential',
+    'yes', 'yes', '120', 'Mixed',
+    'Bob Jones', 'Site Manager', '0298765433', 'bob@sunshinecare.com.au', 'Call before visiting',
+    // Agreement
+    'yes', 'yes', 'no', 'no',
+    '25', '2025-03-15', 'yes', '2024-01-01', '2026-12-31',
+    'Sunshine Care Pty Ltd', 'yes', '500', 'Invoice 30 days end of month',
+    // Documents
+    'Student Insurance Certificate', '14', 'yes', 'no',
+    // Rules
+    'Students must comply with facility policies', 'University to provide induction materials', 'Students must wear uniform',
+    'Contact placement coordinator on day 1', 'Morning: 07:00-15:00, Afternoon: 15:00-23:00',
+    'Must attend all rostered shifts', 'Full uniform including closed-toe shoes', 'Professional behaviour at all times',
+    'No mobile phones in resident areas',
+  ];
+
+  const instructionsData: any[][] = [
+    ['FACILITY BULK UPLOAD — COLUMN GUIDE'],
+    [''],
+    ['REQUIRED'],
+    ['organization_name', 'Full legal name of the facility (required)'],
+    [''],
+    ['CORE FACILITY FIELDS'],
+    ['registered_business_name', 'Trading / registered business name'],
+    ['website_url', 'Full URL including https://'],
+    ['abn_registration_number', 'Australian Business Number'],
+    ['source_of_data', 'Where the facility data came from (e.g. agedcareguide)'],
+    ['latitude', 'Decimal degrees, e.g. -33.8688'],
+    ['longitude', 'Decimal degrees, e.g. 151.2093'],
+    ['states_covered', 'Comma-separated state codes, e.g. NSW,VIC,QLD'],
+    ['categories', 'Comma-separated categories, e.g. agedDisability,disability'],
+    [''],
+    ['LOGIN CREDENTIALS (both required together if provided)'],
+    ['email', 'Login email address — must be unique'],
+    ['password', 'Login password (min 8 chars)'],
+    [''],
+    ['ATTRIBUTES (up to 3 per facility)'],
+    ['attribute_type_1 / attribute_value_1', 'e.g. Specialisation / Dementia Care'],
+    ['attribute_type_2 / attribute_value_2', 'e.g. Accreditation / ISO 9001'],
+    ['attribute_type_3 / attribute_value_3', 'Additional attribute (optional)'],
+    [''],
+    ['ORGANISATION STRUCTURE'],
+    ['deal_with', 'Who to deal with (e.g. Students, Admin, Coordinators)'],
+    ['head_office_addr', 'Head office address'],
+    ['contact_name', 'Primary contact person name'],
+    ['designation', 'Contact person job title'],
+    ['phone', 'Primary phone number'],
+    ['alternate_contact', 'Alternate phone number'],
+    ['notes', 'Any additional notes about the organisation'],
+    [''],
+    ['BRANCH / SITE (one branch per row)'],
+    ['site_code', 'Unique site/branch code (e.g. SYD-01)'],
+    ['full_address', 'Street address of the branch'],
+    ['suburb', 'Suburb'],
+    ['city', 'City'],
+    ['state', 'State abbreviation (e.g. NSW)'],
+    ['postcode', 'Postcode'],
+    ['site_type', 'Type of site (e.g. Residential, Community)'],
+    ['palliative_care', 'yes / no'],
+    ['dementia_care', 'yes / no'],
+    ['num_beds', 'Number of beds (number)'],
+    ['gender_rules', 'Gender preference (e.g. Mixed, Female Only)'],
+    ['branch_contact_name', 'Branch contact person name'],
+    ['branch_contact_role', 'Branch contact role/title'],
+    ['branch_contact_phone', 'Branch contact phone'],
+    ['branch_contact_email', 'Branch contact email'],
+    ['branch_contact_comments', 'Additional comments for branch contact'],
+    [''],
+    ['MOU / AGREEMENT'],
+    ['sent_students', 'Have students been sent? yes / no'],
+    ['with_mou', 'Was there an MOU when students were sent? yes / no'],
+    ['no_mou_but_taken', 'Students taken without MOU? yes / no'],
+    ['mou_exists_no_spot', 'MOU exists but no spot available? yes / no'],
+    ['total_students', 'Total number of students placed (number)'],
+    ['last_placement', 'Date of last placement (YYYY-MM-DD)'],
+    ['has_mou', 'Is there a current MOU? yes / no'],
+    ['signed_on', 'MOU signed date (YYYY-MM-DD)'],
+    ['expiry_date', 'MOU expiry date (YYYY-MM-DD)'],
+    ['company_name', 'Company name on the MOU'],
+    ['payment_required', 'Is payment required? yes / no'],
+    ['amount_per_spot', 'Payment amount per student spot (number)'],
+    ['payment_notes', 'Payment terms or notes'],
+    [''],
+    ['DOCUMENTS REQUIRED'],
+    ['document_name', 'Name of required document (e.g. Student Insurance Certificate)'],
+    ['notice_period_days', 'Days notice required before placement (number)'],
+    ['orientation_req', 'Orientation required? yes / no'],
+    ['facilitator_req', 'Facilitator required? yes / no'],
+    [''],
+    ['RULES / POLICIES'],
+    ['obligations', 'General placement obligations'],
+    ['obligations_univ', 'University obligations'],
+    ['obligations_student', 'Student obligations'],
+    ['process_notes', 'Process / onboarding notes'],
+    ['shift_rules', 'Shift schedule rules'],
+    ['attendance_policy', 'Attendance expectations'],
+    ['dress_code', 'Dress code requirements'],
+    ['behaviour_rules', 'Conduct / behaviour rules'],
+    ['special_instr', 'Any special instructions'],
+    [''],
+    ['BOOLEAN VALUES: use "yes" or "no" (or "true"/"false" or "1"/"0")'],
+    ['DATES: use YYYY-MM-DD format'],
+    ['MULTIPLE VALUES: separate with commas (states_covered, categories)'],
+  ];
+
+  const XLSX = require('xlsx');
+
+  const dataWs = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
+  // Column widths
+  dataWs['!cols'] = headers.map(h => {
+    if (['organization_name', 'registered_business_name', 'full_address', 'website_url',
+      'obligations', 'obligations_univ', 'obligations_student', 'process_notes',
+      'shift_rules', 'attendance_policy', 'behaviour_rules', 'special_instr'].includes(h)) {
+      return { wch: 35 };
+    }
+    if (['email', 'head_office_addr', 'contact_name', 'branch_contact_name', 'document_name', 'company_name', 'notes'].includes(h)) {
+      return { wch: 28 };
+    }
+    return { wch: 18 };
+  });
+
+  const instrWs = XLSX.utils.aoa_to_sheet(instructionsData);
+  instrWs['!cols'] = [{ wch: 35 }, { wch: 55 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, dataWs, 'Facilities');
+  XLSX.utils.book_append_sheet(wb, instrWs, 'Instructions');
+
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+};
+
 export default {
   create,
   getById,
@@ -1818,5 +1991,6 @@ export default {
   remove,
   permanentlyDelete,
   bulkUpload,
+  generateFacilityTemplate,
   getSlots
 };
