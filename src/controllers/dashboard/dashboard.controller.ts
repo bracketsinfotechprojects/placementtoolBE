@@ -77,6 +77,17 @@ export default class DashboardController extends BaseController {
     }, 'Get trainer dashboard stats');
   }
 
+  static async getFacilityPaymentSummary(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const { roleID } = (req as any).user;
+      if (roleID !== ADMIN_ROLE_ID && roleID !== PLACEMENT_EXECUTIVE_ROLE_ID) {
+        return ApiResponseUtility.unauthorized(res, 'Access restricted to admin and placement executive roles');
+      }
+      const data = await DashboardService.getFacilityPaymentSummary();
+      ApiResponseUtility.success(res, data, 'Facility payment summary retrieved successfully');
+    }, 'Get facility payment summary');
+  }
+
   static async getSupervisorStats(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const reqUser = (req as any).user;
