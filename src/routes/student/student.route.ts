@@ -3362,13 +3362,13 @@ const moveStudentComplaintFiles = (req: any, res: any, next: any) => {
   next();
 };
 
-// Complaint endpoints - Admin and Students
-router.post('/:studentId/complaints', authorizeRoles(1, 4), studentComplaintUpload.array('attachments', 5), moveStudentComplaintFiles, StudentComplaintController.create);
+// Complaint endpoints - Admin (1), Placement Executive (4), Student (6)
+router.post('/:studentId/complaints', authorizeRoles(1, 4, 6), studentComplaintUpload.array('attachments', 5), moveStudentComplaintFiles, StudentComplaintController.create);
 
-router.get('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), StudentComplaintController.getById);
-router.get('/:studentId/complaints', authorizeRoles(1, 4), StudentComplaintController.getByStudentId);
-router.put('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), StudentComplaintController.update);
-router.delete('/:studentId/complaints/:complaintId', authorizeRoles(1, 4), StudentComplaintController.delete);
+router.get('/:studentId/complaints/:complaintId', authorizeRoles(1, 4, 6), StudentComplaintController.getById);
+router.get('/:studentId/complaints', authorizeRoles(1, 4, 6), StudentComplaintController.getByStudentId);
+router.put('/:studentId/complaints/:complaintId', authorizeRoles(1, 4, 6), StudentComplaintController.update);
+router.delete('/:studentId/complaints/:complaintId', authorizeRoles(1, 4, 6), StudentComplaintController.delete);
 
 /**
  * @swagger
