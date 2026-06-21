@@ -107,7 +107,7 @@ export default class DashboardService {
   static async getFacilityStats(facilityId: number) {
     const manager = getManager();
 
-    const [[slotsRow], [internsRow]] = await Promise.all([
+    const [[slotsRow], [internsRow], [paymentRow]] = await Promise.all([
       // Total remaining placement seats for this facility (facility_id stored as varchar)
       manager.query(
         `SELECT COALESCE(SUM(remaining_seats), 0) AS cnt
@@ -117,18 +117,97 @@ export default class DashboardService {
       ),
       // Active interns at this facility
       manager.query(
-        `SELECT COUNT(*) AS cnt
+        `SELECT COUNT(DISTINCT pa.student_id) AS cnt
          FROM placement_assignments pa
          INNER JOIN placement_slots ps ON pa.placementslot_id = ps.placementslot_id
          WHERE ps.facility_id = ? AND pa.status IN ('Active', 'Started')`,
         [String(facilityId)]
       ),
+      // Payment summary: received vs pending based on amount_per_spot × active students
+      manager.query(
+        `SELECT
+           COUNT(DISTINCT pa.student_id) AS active_students,
+           COALESCE(MAX(fa.amount_per_spot), 0) AS amount_per_spot,
+           COALESCE(SUM(
+             CASE WHEN ps.placement_fee_status = 1
+               AND ps.placement_fee IS NOT NULL
+               AND ps.placement_fee != ''
+               AND ps.placement_fee != '0'
+             THEN CAST(ps.placement_fee AS DECIMAL(15,2)) ELSE 0 END
+           ), 0) AS received_payment
+         FROM placement_assignments pa
+         INNER JOIN placement_slots ps ON pa.placementslot_id = ps.placementslot_id
+         LEFT JOIN facility_agreements fa
+           ON fa.facility_id = CAST(ps.facility_id AS UNSIGNED) AND fa.isDeleted = 0
+         WHERE ps.facility_id = ? AND pa.status IN ('Active', 'Started')`,
+        [String(facilityId)]
+      ),
     ]);
+
+    const activeStudents = Number(paymentRow.active_students || 0);
+    const amountPerSpot  = Number(paymentRow.amount_per_spot  || 0);
+    const receivedPayment = Number(paymentRow.received_payment || 0);
+    const totalDue        = activeStudents * amountPerSpot;
+    const pendingPayment  = Math.max(0, totalDue - receivedPayment);
 
     return {
       slotsAvailable: Number(slotsRow.cnt),
       activeInterns: Number(internsRow.cnt),
+      amountPerSpot,
+      receivedPayment,
+      pendingPayment,
+      totalDue,
     };
+  }
+
+  static async getFacilityPaymentSummary() {
+    const manager = getManager();
+
+    const rows = await manager.query(`
+      SELECT
+        f.facility_id,
+        f.organization_name                              AS facility_name,
+        COUNT(DISTINCT pa.student_id)                   AS active_students,
+        COALESCE(MAX(fa.amount_per_spot), 0)            AS amount_per_spot,
+        COUNT(DISTINCT pa.student_id) * COALESCE(MAX(fa.amount_per_spot), 0)
+                                                         AS total_due,
+        COALESCE(SUM(
+          CASE WHEN ps.placement_fee_status = 1
+            AND ps.placement_fee IS NOT NULL
+            AND ps.placement_fee != ''
+            AND ps.placement_fee != '0'
+          THEN CAST(ps.placement_fee AS DECIMAL(15,2)) ELSE 0 END
+        ), 0)                                            AS paid_amount,
+        GREATEST(0,
+          COUNT(DISTINCT pa.student_id) * COALESCE(MAX(fa.amount_per_spot), 0) -
+          COALESCE(SUM(
+            CASE WHEN ps.placement_fee_status = 1
+              AND ps.placement_fee IS NOT NULL
+              AND ps.placement_fee != ''
+              AND ps.placement_fee != '0'
+            THEN CAST(ps.placement_fee AS DECIMAL(15,2)) ELSE 0 END
+          ), 0)
+        )                                                AS remaining_amount
+      FROM placement_assignments pa
+      INNER JOIN placement_slots ps ON pa.placementslot_id = ps.placementslot_id
+      INNER JOIN facility f
+        ON CAST(ps.facility_id AS UNSIGNED) = f.facility_id AND f.isDeleted = 0
+      LEFT JOIN facility_agreements fa
+        ON fa.facility_id = f.facility_id AND fa.isDeleted = 0
+      WHERE pa.status IN ('Active', 'Started')
+      GROUP BY f.facility_id, f.organization_name
+      ORDER BY active_students DESC
+    `);
+
+    return rows.map((r: any) => ({
+      facility_id:      Number(r.facility_id),
+      facility_name:    r.facility_name,
+      active_students:  Number(r.active_students),
+      amount_per_spot:  Number(r.amount_per_spot),
+      total_due:        Number(r.total_due),
+      paid_amount:      Number(r.paid_amount),
+      remaining_amount: Number(r.remaining_amount),
+    }));
   }
 
   static async getTrainerStats(trainerId: number) {
