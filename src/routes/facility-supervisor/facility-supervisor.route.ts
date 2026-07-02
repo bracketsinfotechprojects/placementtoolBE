@@ -212,23 +212,24 @@ router.get('/template', FacilitySupervisorController.downloadTemplate);
  *   post:
  *     summary: Bulk upload facility supervisors from Excel file
  *     description: |
- *       Upload multiple facility supervisors at once using an Excel file.
- *       
+ *       Upload multiple facility supervisors at once using an Excel file, all assigned to a single facility.
+ *
  *       **Features:**
  *       - Upload up to 2,000 facility supervisors per file
  *       - All-or-nothing transaction (if any record fails, all changes are rolled back)
  *       - Duplicate detection (within file and database)
  *       - Detailed per-row error reporting
  *       - Automatic password hashing
- *       
+ *
+ *       **facility_id** is passed as a separate form field (select the facility in the UI first) and applies to every row in the file — it is not a column in the Excel sheet.
+ *
  *       **Required Excel Columns:**
  *       - full_name
  *       - designation
  *       - mobile_number
- *       - facility_id (numeric)
  *       - login_id
  *       - password
- *       
+ *
  *       **Optional Excel Columns:**
  *       - email
  *       - facility_name
@@ -237,7 +238,7 @@ router.get('/template', FacilitySupervisorController.downloadTemplate);
  *       - facility_address
  *       - max_students_can_handle (numeric)
  *       - portal_access_enabled (true/false, yes/no, 1/0)
- *       
+ *
  *       **Download template first:** GET /api/facility-supervisors/template
  *     tags:
  *       - Facility Supervisors
@@ -251,11 +252,16 @@ router.get('/template', FacilitySupervisorController.downloadTemplate);
  *             type: object
  *             required:
  *               - file
+ *               - facility_id
  *             properties:
  *               file:
  *                 type: string
  *                 format: binary
  *                 description: Excel file (.xlsx or .xls) with facility supervisor data
+ *               facility_id:
+ *                 type: integer
+ *                 description: Facility ID that all uploaded supervisors will be linked to
+ *                 example: 1
  *     responses:
  *       200:
  *         description: Bulk upload completed
