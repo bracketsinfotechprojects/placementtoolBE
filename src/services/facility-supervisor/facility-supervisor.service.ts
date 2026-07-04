@@ -2,6 +2,7 @@ import { getRepository, getConnection, In } from 'typeorm';
 import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
 import { User } from '../../entities/user/user.entity';
 import FacilitySupervisorRepository, { IFacilitySupervisorQueryParams } from '../../repositories/facility-supervisor.repository';
+import FacilityRepository from '../../repositories/facility.repository';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
 import RoleService from '../role/role.service';
@@ -239,7 +240,6 @@ interface IBulkSupervisorRow {
   designation?: string;
   mobile_number?: string;
   email?: string;
-  facility_id?: string | number;
   facility_name?: string;
   branch_site?: string;
   facility_types?: string;
@@ -266,15 +266,6 @@ const validateSupervisorRow = (row: IBulkSupervisorRow, rowIndex: number): strin
   if (!row.mobile_number || row.mobile_number.trim() === '') {
     errors.push('mobile_number is required');
   }
-  if (!row.facility_id) {
-    errors.push('facility_id is required');
-  } else {
-    // Validate facility_id is a number
-    const facilityId = typeof row.facility_id === 'string' ? parseInt(row.facility_id) : row.facility_id;
-    if (isNaN(facilityId)) {
-      errors.push('facility_id must be a valid number');
-    }
-  }
   if (!row.login_id || row.login_id.trim() === '') {
     errors.push('login_id is required');
   }
@@ -296,20 +287,17 @@ const validateSupervisorRow = (row: IBulkSupervisorRow, rowIndex: number): strin
 /**
  * Convert Excel row to facility supervisor object
  */
-const convertRowToSupervisor = (row: IBulkSupervisorRow): ICreateFacilitySupervisor => {
+const convertRowToSupervisor = (row: IBulkSupervisorRow, facilityId: number): ICreateFacilitySupervisor => {
   // Parse facility_types (comma-separated string to array)
   const facilityTypes = row.facility_types
     ? row.facility_types.split(',').map(s => s.trim()).filter(s => s)
     : [];
 
-  // Parse facility_id
-  const facilityId = typeof row.facility_id === 'string' ? parseInt(row.facility_id) : row.facility_id;
-
   // Parse max_students_can_handle
   let maxStudents: number | undefined;
   if (row.max_students_can_handle) {
-    const parsed = typeof row.max_students_can_handle === 'string' 
-      ? parseInt(row.max_students_can_handle) 
+    const parsed = typeof row.max_students_can_handle === 'string'
+      ? parseInt(row.max_students_can_handle)
       : row.max_students_can_handle;
     if (!isNaN(parsed)) {
       maxStudents = parsed;
@@ -328,7 +316,7 @@ const convertRowToSupervisor = (row: IBulkSupervisorRow): ICreateFacilitySupervi
     designation: row.designation!.trim(),
     mobile_number: row.mobile_number!.trim(),
     email: row.email ? row.email.trim().toLowerCase() : undefined,
-    facility_id: facilityId!,
+    facility_id: facilityId,
     facility_name: row.facility_name ? row.facility_name.trim() : undefined,
     branch_site: row.branch_site ? row.branch_site.trim() : undefined,
     facility_types: facilityTypes,
@@ -345,7 +333,7 @@ const convertRowToSupervisor = (row: IBulkSupervisorRow): ICreateFacilitySupervi
 /**
  * Bulk upload facility supervisors from Excel file
  */
-const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
+const bulkUpload = async (filePath: string, facilityId: number): Promise<IBulkUploadResult> => {
   const result: IBulkUploadResult = {
     success: false,
     totalRows: 0,
@@ -359,6 +347,15 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
   const queryRunner = connection.createQueryRunner();
 
   try {
+    if (!facilityId || isNaN(facilityId)) {
+      throw new Error('facility_id is required');
+    }
+
+    const facility = await FacilityRepository.findById(facilityId);
+    if (!facility) {
+      throw new Error(`Facility with id ${facilityId} does not exist`);
+    }
+
     // Parse Excel file
     const excelData = ExcelUtility.parseExcelFile<IBulkSupervisorRow>(filePath);
     result.totalRows = excelData.length;
@@ -375,7 +372,7 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
     }
 
     // Required columns for validation
-    const requiredFields = ['full_name', 'designation', 'mobile_number', 'facility_id', 'login_id', 'password'];
+    const requiredFields = ['full_name', 'designation', 'mobile_number', 'login_id', 'password'];
 
     // Validate Excel structure
     const structureErrors = ExcelUtility.validateExcelStructure(excelData, requiredFields);
@@ -409,7 +406,7 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
       }
 
       // Convert row to supervisor object
-      const supervisorData = convertRowToSupervisor(row);
+      const supervisorData = convertRowToSupervisor(row, facilityId);
       validatedData.push({
         rowIndex,
         data: supervisorData
@@ -589,8 +586,8 @@ const bulkUpload = async (filePath: string): Promise<IBulkUploadResult> => {
  */
 const generateTemplate = (): Buffer => {
   const headers = [
-    'full_name', 'designation', 'mobile_number', 'email', 
-    'facility_id', 'facility_name', 'branch_site', 
+    'full_name', 'designation', 'mobile_number', 'email',
+    'facility_name', 'branch_site',
     'facility_types', 'facility_address', 'max_students_can_handle',
     'portal_access_enabled', 'login_id', 'password'
   ];
@@ -601,7 +598,6 @@ const generateTemplate = (): Buffer => {
       designation: 'Senior Supervisor',
       mobile_number: '0412345678',
       email: 'john.supervisor@example.com',
-      facility_id: '1',
       facility_name: 'Sunshine Aged Care',
       branch_site: 'Main Branch',
       facility_types: 'Aged Care,Disability',

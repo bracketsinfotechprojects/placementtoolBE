@@ -379,7 +379,12 @@ export default class FacilitySupervisorController extends BaseController {
         throw new Error('Excel file is required');
       }
 
-      const result = await FacilitySupervisorService.bulkUpload(req.file.path);
+      const facilityId = parseInt(req.body.facility_id, 10);
+      if (!req.body.facility_id || isNaN(facilityId)) {
+        throw new Error('facility_id is required and must be a valid number');
+      }
+
+      const result = await FacilitySupervisorService.bulkUpload(req.file.path, facilityId);
 
       if (result.success) {
         ApiResponseUtility.success(res, result, 'Bulk upload completed successfully');

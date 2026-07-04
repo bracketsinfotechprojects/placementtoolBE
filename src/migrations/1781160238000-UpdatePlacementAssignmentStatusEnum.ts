@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UpdatePlacementAssignmentStatusEnum20260611064358 implements MigrationInterface {
-  name = 'UpdatePlacementAssignmentStatusEnum20260611064358'
+export class UpdatePlacementAssignmentStatusEnum1781160238000 implements MigrationInterface {
+  name = 'UpdatePlacementAssignmentStatusEnum1781160238000'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     console.log('🚀 Updating placement_assignments status enum with all values...');

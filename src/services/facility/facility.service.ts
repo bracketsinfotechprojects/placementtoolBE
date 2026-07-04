@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Express } from 'express';
 import { Facility } from '../../entities/facility/facility.entity';
-import { FacilityAttribute } from '../../entities/facility/facility-attribute.entity';
-import { FacilityOrganizationStructure } from '../../entities/facility/facility-organization-structure.entity';
+import { FacilityAttribute, AttributeType } from '../../entities/facility/facility-attribute.entity';
+import { FacilityOrganizationStructure, DealWithType } from '../../entities/facility/facility-organization-structure.entity';
 import { FacilityBranchSite } from '../../entities/facility/facility-branch-site.entity';
 import { FacilityAgreement } from '../../entities/facility/facility-agreement.entity';
 import { FacilityDocumentRequired } from '../../entities/facility/facility-document-required.entity';
@@ -1258,12 +1258,67 @@ interface IBulkFacilityRow {
   longitude?: string | number;
   states_covered?: string;
   categories?: string;
-  attributes?: string;
-  organization_structures?: string;
-  branches?: string;
-  agreements?: string;
-  documents_required?: string;
-  rules?: string;
+  // Attributes (up to 3)
+  attribute_type_1?: string;
+  attribute_value_1?: string;
+  attribute_type_2?: string;
+  attribute_value_2?: string;
+  attribute_type_3?: string;
+  attribute_value_3?: string;
+  // Organization structure
+  deal_with?: string;
+  head_office_addr?: string;
+  contact_name?: string;
+  designation?: string;
+  phone?: string;
+  alternate_contact?: string;
+  notes?: string;
+  // Branch / site
+  site_code?: string;
+  full_address?: string;
+  suburb?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  site_type?: string;
+  palliative_care?: string;
+  dementia_care?: string;
+  num_beds?: string | number;
+  gender_rules?: string;
+  branch_contact_name?: string;
+  branch_contact_role?: string;
+  branch_contact_phone?: string;
+  branch_contact_email?: string;
+  branch_contact_comments?: string;
+  // Agreement / MOU
+  sent_students?: string;
+  with_mou?: string;
+  no_mou_but_taken?: string;
+  mou_exists_no_spot?: string;
+  total_students?: string | number;
+  last_placement?: string;
+  has_mou?: string;
+  signed_on?: string;
+  expiry_date?: string;
+  company_name?: string;
+  payment_required?: string;
+  amount_per_spot?: string | number;
+  payment_notes?: string;
+  // Documents required
+  document_name?: string;
+  notice_period_days?: string | number;
+  orientation_req?: string;
+  facilitator_req?: string;
+  // Rules
+  obligations?: string;
+  obligations_univ?: string;
+  obligations_student?: string;
+  process_notes?: string;
+  shift_rules?: string;
+  attendance_policy?: string;
+  dress_code?: string;
+  behaviour_rules?: string;
+  special_instr?: string;
 }
 
 interface IBulkUploadResult {
@@ -1274,6 +1329,21 @@ interface IBulkUploadResult {
   errors: Array<{ row: number; organization_name?: string; errors: string[] }>;
   createdFacilities: Array<{ facility_id: number; organization_name: string }>;
 }
+
+const parseYesNo = (value?: string): boolean | undefined => {
+  if (value === undefined || value === null || value.toString().trim() === '') {
+    return undefined;
+  }
+  return value.toString().trim().toLowerCase() === 'yes';
+};
+
+const parseNumericField = (value?: string | number): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return isNaN(num) ? undefined : num;
+};
 
 const validateFacilityRow = (row: IBulkFacilityRow, rowIndex: number): string[] => {
   const errors: string[] = [];
@@ -1310,17 +1380,45 @@ const validateFacilityRow = (row: IBulkFacilityRow, rowIndex: number): string[] 
     }
   }
 
-  // Validate JSON fields
-  const jsonFields: Array<keyof IBulkFacilityRow> = ['attributes', 'organization_structures', 'branches', 'agreements', 'documents_required', 'rules'];
-  for (const field of jsonFields) {
+  // Validate numeric fields
+  const numericFields: Array<keyof IBulkFacilityRow> = ['num_beds', 'total_students', 'amount_per_spot', 'notice_period_days'];
+  for (const field of numericFields) {
     const value = row[field];
-    if (value && typeof value === 'string' && value.trim() !== '') {
-      try {
-        JSON.parse(value);
-      } catch (e) {
-        errors.push(`${field} must be valid JSON format`);
-      }
+    if (value !== undefined && value !== null && value !== '' && isNaN(typeof value === 'string' ? parseFloat(value) : value as number)) {
+      errors.push(`${field} must be a valid number`);
     }
+  }
+
+  // Validate yes/no fields
+  const yesNoFields: Array<keyof IBulkFacilityRow> = [
+    'palliative_care', 'dementia_care', 'sent_students', 'with_mou', 'no_mou_but_taken',
+    'mou_exists_no_spot', 'has_mou', 'payment_required', 'orientation_req', 'facilitator_req'
+  ];
+  for (const field of yesNoFields) {
+    const value = row[field];
+    if (value && typeof value === 'string' && value.trim() !== '' && !['yes', 'no'].includes(value.trim().toLowerCase())) {
+      errors.push(`${field} must be "yes" or "no"`);
+    }
+  }
+
+  // Validate attribute_type enum values
+  const validAttributeTypes = Object.values(AttributeType);
+  for (const n of [1, 2, 3] as const) {
+    const type = row[`attribute_type_${n}` as keyof IBulkFacilityRow] as string;
+    if (type && type.trim() !== '' && !validAttributeTypes.includes(type.trim() as AttributeType)) {
+      errors.push(`attribute_type_${n} must be one of: ${validAttributeTypes.join(', ')}`);
+    }
+  }
+
+  // Validate deal_with enum value
+  const validDealWithTypes = Object.values(DealWithType);
+  if (row.deal_with && row.deal_with.trim() !== '' && !validDealWithTypes.includes(row.deal_with.trim() as DealWithType)) {
+    errors.push(`deal_with must be one of: ${validDealWithTypes.join(', ')}`);
+  }
+
+  const hasOrgStructureData = row.head_office_addr || row.contact_name || row.designation || row.phone || row.alternate_contact || row.notes;
+  if (hasOrgStructureData && (!row.deal_with || row.deal_with.trim() === '')) {
+    errors.push('deal_with is required when organization structure details are provided');
   }
 
   return errors;
@@ -1368,53 +1466,99 @@ const convertRowToFacility = (row: IBulkFacilityRow): ICreateFacility => {
       .filter(s => s);
   }
 
-  // Parse JSON fields
-  if (row.attributes && row.attributes.trim() !== '') {
-    try {
-      facilityData.attributes = JSON.parse(row.attributes);
-    } catch (e) {
-      // Already validated, should not happen
+  // Attributes (up to 3 flat attribute_type_N / attribute_value_N column pairs)
+  const attributes: Array<{ attribute_type: any; attribute_value: string }> = [];
+  for (const n of [1, 2, 3] as const) {
+    const type = (row[`attribute_type_${n}` as keyof IBulkFacilityRow] as string)?.trim();
+    const value = (row[`attribute_value_${n}` as keyof IBulkFacilityRow] as string)?.trim();
+    if (type && value) {
+      attributes.push({ attribute_type: type, attribute_value: value });
     }
   }
-
-  if (row.organization_structures && row.organization_structures.trim() !== '') {
-    try {
-      facilityData.organization_structures = JSON.parse(row.organization_structures);
-    } catch (e) {
-      // Already validated
-    }
+  if (attributes.length > 0) {
+    facilityData.attributes = attributes;
   }
 
-  if (row.branches && row.branches.trim() !== '') {
-    try {
-      facilityData.branches = JSON.parse(row.branches);
-    } catch (e) {
-      // Already validated
-    }
+  // Organization structure (one per row)
+  if (row.deal_with || row.head_office_addr || row.contact_name || row.designation || row.phone || row.alternate_contact || row.notes) {
+    facilityData.organization_structures = [{
+      deal_with: row.deal_with?.trim(),
+      head_office_addr: row.head_office_addr?.trim(),
+      contact_name: row.contact_name?.trim(),
+      designation: row.designation?.trim(),
+      phone: row.phone?.trim(),
+      alternate_contact: row.alternate_contact?.trim(),
+      notes: row.notes?.trim()
+    }];
   }
 
-  if (row.agreements && row.agreements.trim() !== '') {
-    try {
-      facilityData.agreements = JSON.parse(row.agreements);
-    } catch (e) {
-      // Already validated
-    }
+  // Branch / site (one per row)
+  if (row.site_code || row.full_address || row.suburb || row.city || row.state || row.postcode || row.site_type) {
+    facilityData.branches = [{
+      site_code: row.site_code?.trim(),
+      full_address: row.full_address?.trim(),
+      suburb: row.suburb?.trim(),
+      city: row.city?.trim(),
+      state: row.state?.trim(),
+      postcode: row.postcode?.trim(),
+      site_type: row.site_type?.trim(),
+      palliative_care: parseYesNo(row.palliative_care),
+      dementia_care: parseYesNo(row.dementia_care),
+      num_beds: parseNumericField(row.num_beds),
+      gender_rules: row.gender_rules?.trim(),
+      contact_name: row.branch_contact_name?.trim(),
+      contact_role: row.branch_contact_role?.trim(),
+      contact_phone: row.branch_contact_phone?.trim(),
+      contact_email: row.branch_contact_email?.trim(),
+      contact_comments: row.branch_contact_comments?.trim()
+    }];
   }
 
-  if (row.documents_required && row.documents_required.trim() !== '') {
-    try {
-      facilityData.documents_required = JSON.parse(row.documents_required);
-    } catch (e) {
-      // Already validated
-    }
+  // Agreement / MOU (one per row)
+  if (row.sent_students || row.with_mou || row.no_mou_but_taken || row.mou_exists_no_spot || row.total_students ||
+    row.last_placement || row.has_mou || row.signed_on || row.expiry_date || row.company_name || row.payment_required ||
+    row.amount_per_spot || row.payment_notes) {
+    facilityData.agreements = [{
+      sent_students: parseYesNo(row.sent_students),
+      with_mou: parseYesNo(row.with_mou),
+      no_mou_but_taken: parseYesNo(row.no_mou_but_taken),
+      mou_exists_no_spot: parseYesNo(row.mou_exists_no_spot),
+      total_students: parseNumericField(row.total_students),
+      last_placement: row.last_placement?.trim(),
+      has_mou: parseYesNo(row.has_mou),
+      signed_on: row.signed_on?.trim(),
+      expiry_date: row.expiry_date?.trim(),
+      company_name: row.company_name?.trim() ? [row.company_name.trim()] : undefined,
+      payment_required: parseYesNo(row.payment_required),
+      amount_per_spot: parseNumericField(row.amount_per_spot),
+      payment_notes: row.payment_notes?.trim()
+    }];
   }
 
-  if (row.rules && row.rules.trim() !== '') {
-    try {
-      facilityData.rules = JSON.parse(row.rules);
-    } catch (e) {
-      // Already validated
-    }
+  // Documents required (one per row)
+  if (row.document_name || row.notice_period_days || row.orientation_req || row.facilitator_req) {
+    facilityData.documents_required = [{
+      document_name: row.document_name?.trim(),
+      notice_period_days: parseNumericField(row.notice_period_days),
+      orientation_req: parseYesNo(row.orientation_req),
+      facilitator_req: parseYesNo(row.facilitator_req)
+    }];
+  }
+
+  // Rules (one per row)
+  if (row.obligations || row.obligations_univ || row.obligations_student || row.process_notes ||
+    row.shift_rules || row.attendance_policy || row.dress_code || row.behaviour_rules || row.special_instr) {
+    facilityData.rules = [{
+      obligations: row.obligations?.trim(),
+      obligations_univ: row.obligations_univ?.trim(),
+      obligations_student: row.obligations_student?.trim(),
+      process_notes: row.process_notes?.trim(),
+      shift_rules: row.shift_rules?.trim(),
+      attendance_policy: row.attendance_policy?.trim(),
+      dress_code: row.dress_code?.trim(),
+      behaviour_rules: row.behaviour_rules?.trim(),
+      special_instr: row.special_instr?.trim()
+    }];
   }
 
   return facilityData;
@@ -1843,11 +1987,11 @@ const generateFacilityTemplate = (): Buffer => {
     // Login
     'facility@sunshinecare.com.au', 'Password123!',
     // Attributes
-    'Specialisation', 'Dementia Care',
-    'Accreditation', 'ISO 9001',
+    'specialty', 'Dementia Care',
+    'accreditation', 'ISO 9001',
     '', '',
     // Org structure
-    'Students', '123 Main St Sydney NSW 2000', 'Jane Smith', 'Placement Coordinator', '0298765432', '0412345678', 'Preferred contact via email',
+    'Head Office', '123 Main St Sydney NSW 2000', 'Jane Smith', 'Placement Coordinator', '0298765432', '0412345678', 'Preferred contact via email',
     // Branch
     'SYD-01', '45 Care Lane', 'Parramatta', 'Sydney', 'NSW', '2150', 'Residential',
     'yes', 'yes', '120', 'Mixed',
@@ -1886,12 +2030,12 @@ const generateFacilityTemplate = (): Buffer => {
     ['password', 'Login password (min 8 chars)'],
     [''],
     ['ATTRIBUTES (up to 3 per facility)'],
-    ['attribute_type_1 / attribute_value_1', 'e.g. Specialisation / Dementia Care'],
-    ['attribute_type_2 / attribute_value_2', 'e.g. Accreditation / ISO 9001'],
+    ['attribute_type_1 / attribute_value_1', 'Type must be one of: Category, State, care_type, capacity, facility_type, accreditation, specialty — e.g. specialty / Dementia Care'],
+    ['attribute_type_2 / attribute_value_2', 'e.g. accreditation / ISO 9001'],
     ['attribute_type_3 / attribute_value_3', 'Additional attribute (optional)'],
     [''],
     ['ORGANISATION STRUCTURE'],
-    ['deal_with', 'Who to deal with (e.g. Students, Admin, Coordinators)'],
+    ['deal_with', 'Must be one of: Head Office, Branch, Both'],
     ['head_office_addr', 'Head office address'],
     ['contact_name', 'Primary contact person name'],
     ['designation', 'Contact person job title'],
