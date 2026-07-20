@@ -1,8 +1,12 @@
 import { Response, NextFunction } from 'express';
 import { getRepository } from 'typeorm';
 import { CourseAssignment, AttendanceStatus } from '../../entities/course-assignment/course-assignment.entity';
+import { CourseSlots } from '../../entities/course-slots/course-slots.entity';
 import { Certificate } from '../../entities/certificate/certificate.entity';
 import { AssignmentType } from '../../entities/certificate/certificate.entity';
+import { Student } from '../../entities/student/student.entity';
+import { ContactDetails } from '../../entities/student/contact-details.entity';
+import EmailUtility from '../../utilities/email.utility';
 import IRequest from '../../interfaces/IRequest';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -332,6 +336,33 @@ export class CourseAttendanceController {
       const saved = await certificateRepo.save(certificate);
 
       console.log(`Certificate uploaded successfully - ID: ${saved.certificate_id}, Student: ${student_id}, by User: ${userId}`);
+
+      // Email the certificate to the student as an attachment
+      const student = await getRepository(Student).findOne({ where: { student_id: saved.student_id, isDeleted: false } });
+      if (student) {
+        const studentContact = await getRepository(ContactDetails).findOne({
+          where: { student_id: student.student_id, is_primary: true }
+        }) || await getRepository(ContactDetails).findOne({ where: { student_id: student.student_id } });
+
+        if (studentContact?.email) {
+          let certificateName = 'Placement Certificate';
+          if (saved.assignment_type === AssignmentType.COURSE) {
+            const courseAssignment = await getRepository(CourseAssignment).findOne({ where: { assignment_id: saved.assignment_id } });
+            if (courseAssignment) {
+              const courseSlot = await getRepository(CourseSlots).findOne({ where: { course_id: courseAssignment.course_id } });
+              certificateName = courseSlot?.course_name || 'Workshop Certificate';
+            }
+          }
+
+          EmailUtility.sendCertificateEmail(
+            studentContact.email,
+            student.fullName,
+            certificateName,
+            file.path,
+            file.originalname
+          ).catch(() => {});
+        }
+      }
 
       return res.status(201).json({
         success: true,

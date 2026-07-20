@@ -182,6 +182,7 @@ export default class PlacementAssignmentController extends BaseController {
       const filters = {
         status: req.query.status as string,
         assignment_status: req.query.assignment_status as string,
+        facility_confirmation_status: req.query.facility_confirmation_status as string,
         student_type: req.query.student_type as string,
         search: req.query.search as string,
         limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
