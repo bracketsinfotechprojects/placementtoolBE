@@ -422,6 +422,7 @@ export default class FacilitySupervisorController extends BaseController {
       const filters = {
         status: req.query.status as string,
         assignment_status: req.query.assignment_status as string,
+        facility_confirmation_status: req.query.facility_confirmation_status as string,
         student_type: req.query.student_type as string,
         search: req.query.search as string,
         facility_id: req.query.facility_id ? (isNaN(Number(req.query.facility_id)) ? req.query.facility_id as string : Number(req.query.facility_id)) : undefined,

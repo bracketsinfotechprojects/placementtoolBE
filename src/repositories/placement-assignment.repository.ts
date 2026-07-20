@@ -13,6 +13,7 @@ export interface IPlacementAssignmentStudentDetail {
   last_name: string;
   status: string;
   assignment_status: 'Assigned' | 'Active' | 'Completed' | 'Cancelled' | 'Dropped' | 'Allocated' | 'Started';
+  facility_confirmation_status?: 'Approved' | 'Rejected' | null;
   student_type?: string;
   email?: string;
   primary_mobile?: string;
@@ -183,6 +184,7 @@ export default class PlacementAssignmentRepository {
       last_name: assignment.student.last_name,
       status: assignment.student.status,
       assignment_status: assignment.status,
+      facility_confirmation_status: assignment.facility_confirmation_status,
       student_type: assignment.student.student_type,
       email: assignment.student.contact_details?.[0]?.email,
       primary_mobile: assignment.student.contact_details?.[0]?.primary_mobile,

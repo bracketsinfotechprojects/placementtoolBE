@@ -6,6 +6,7 @@ import { Facility } from '../../entities/facility/facility.entity';
 import { PlacementSlot } from '../../entities/placement-slot/placement-slot.entity';
 import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
 import { User } from '../../entities/user/user.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
 import { CreateAttendanceLogDto } from '../../modules/attendance/dto/create-attendance-log.dto';
 import { ApproveAttendanceDto } from '../../modules/attendance/dto/approve-attendance.dto';
 import { UpdateAttendanceLogDto } from '../../modules/attendance/dto/update-attendance-log.dto';
@@ -209,18 +210,15 @@ class AttendanceController {
         }
       }
 
-      // If supervisor, verify they are linked to this facility
+      // If supervisor, verify they are linked to this facility (looked up fresh from the
+      // FacilitySupervisor table, not cached on the user/JWT, so a facility reassignment
+      // takes effect immediately)
       if (isFacilitySupervisor) {
-        // Get supervisor details to check facility link
-        // Assuming there's a supervisors table with facility_id
-        // For now, we'll check if the supervisor's facility matches the attendance facility
-        // This requires a query to the supervisors table
-        const supervisorFacilityCheck = await attendanceLogRepository.query(
-          `SELECT s.facility_id FROM supervisors s WHERE s.supervisor_id = ? AND s.facility_id = ?`,
-          [approverUser.supervisorID, attendanceLog.facility_id]
-        );
+        const supervisor = await getRepository(FacilitySupervisor).findOne({
+          where: { supervisor_id: approverUser.supervisorID, isDeleted: false }
+        });
 
-        if (supervisorFacilityCheck.length === 0) {
+        if (!supervisor || supervisor.facility_id !== attendanceLog.facility_id) {
           return res.status(403).json({
             success: false,
             message: 'You can only approve attendance for your assigned facility',

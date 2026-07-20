@@ -6,9 +6,11 @@ import ApiResponseUtility from '../../utilities/api-response.utility';
 import { IPlacementSlotQueryParams } from '../../repositories/placement-slot.repository';
 import { User } from '../../entities/user/user.entity';
 import { StudentFacilityAssignment } from '../../entities/student/student-facility-assignment.entity';
+import { FacilitySupervisor } from '../../entities/facility-supervisor/facility-supervisor.entity';
 
 const STUDENT_ROLE_ID = 6;
 const FACILITY_ROLE_ID = 2;
+const SUPERVISOR_ROLE_ID = 3;
 
 export default class PlacementSlotController extends BaseController {
   static async create(req: Request, res: Response) {
@@ -125,6 +127,33 @@ export default class PlacementSlotController extends BaseController {
           });
         }
         params.facilityIds = [facilityID];
+      }
+
+      // For facility supervisor role (roleID 3): restrict to their currently assigned facility's slots only.
+      // Looked up fresh from the DB (not the JWT's cached facilityID) so a facility reassignment takes
+      // effect immediately, without requiring the supervisor to log out and back in.
+      if (reqUser?.roleID === SUPERVISOR_ROLE_ID) {
+        const user = await getRepository(User).findOne({
+          where: { id: reqUser.id, isDeleted: false }
+        });
+
+        if (!user?.supervisorID) {
+          return ApiResponseUtility.success(res, [], 'Placement slots retrieved successfully', {
+            totalPages: 0, previousPage: null, currentPage: 1, nextPage: null, totalItems: 0
+          });
+        }
+
+        const supervisor = await getRepository(FacilitySupervisor).findOne({
+          where: { supervisor_id: user.supervisorID, isDeleted: false }
+        });
+
+        if (!supervisor) {
+          return ApiResponseUtility.success(res, [], 'Placement slots retrieved successfully', {
+            totalPages: 0, previousPage: null, currentPage: 1, nextPage: null, totalItems: 0
+          });
+        }
+
+        params.facilityIds = [supervisor.facility_id];
       }
 
       const result = await PlacementSlotService.list(params);

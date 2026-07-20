@@ -1,11 +1,16 @@
 import express from 'express';
-import { getRepository } from 'typeorm';
+import { getConnection, getRepository } from 'typeorm';
 import { CourseAssignment } from '../../entities/course-assignment/course-assignment.entity';
 import { CourseSlots } from '../../entities/course-slots/course-slots.entity';
 import { User } from '../../entities/user/user.entity';
+import { Student } from '../../entities/student/student.entity';
+import { ContactDetails } from '../../entities/student/contact-details.entity';
+import { EligibilityStatus } from '../../entities/student/eligibility-status.entity';
 import CourseAssignmentService from '../../services/assignment/course-assignment.service';
 import AssignmentService from '../../services/assignment/assignment.service';
 import NotificationService from '../../services/notification/notification.service';
+import EmailUtility from '../../utilities/email.utility';
+import { StringError } from '../../errors/string.error';
 import courseAttendanceRouter from './course-attendance.route';
 
 const router = express.Router();
@@ -64,15 +69,55 @@ const router = express.Router();
 router.post(
   '/',
   async (req: any, res: any) => {
+    const queryRunner = getConnection().createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const courseAssignmentRepository = getRepository(CourseAssignment);
-      
-      const assignment = courseAssignmentRepository.create(req.body as CourseAssignment);
-      const savedAssignment = await courseAssignmentRepository.save(assignment) as CourseAssignment;
+      const courseSlot = await queryRunner.manager.findOne(CourseSlots, {
+        where: { course_id: req.body?.course_id, isDeleted: false },
+        lock: { mode: 'pessimistic_write' }
+      });
+
+      if (!courseSlot) {
+        throw new StringError('Workshop slot does not exist');
+      }
+
+      if (courseSlot.seats_remaining !== null && courseSlot.seats_remaining !== undefined && courseSlot.seats_remaining <= 0) {
+        throw new StringError('Cannot book slot - no remaining seats available');
+      }
+
+      const assignment = queryRunner.manager.create(CourseAssignment, req.body as CourseAssignment);
+      const savedAssignment = await queryRunner.manager.save(CourseAssignment, assignment);
+
+      if (courseSlot.seats_remaining !== null && courseSlot.seats_remaining !== undefined) {
+        await queryRunner.manager.update(
+          CourseSlots,
+          { course_id: courseSlot.course_id },
+          { seats_remaining: courseSlot.seats_remaining - 1 }
+        );
+      }
+
+      await queryRunner.commitTransaction();
 
       // Notify admin and trainer when a student is booked into a workshop slot
-      const courseSlot = await getRepository(CourseSlots).findOne({ where: { course_id: savedAssignment.course_id } });
       const courseName = courseSlot?.course_name || 'Workshop';
+
+      // Send the student a booking confirmation email with full slot details
+      const bookedStudent = await getRepository(Student).findOne({ where: { student_id: savedAssignment.student_id, isDeleted: false } });
+      if (bookedStudent && courseSlot) {
+        const studentContact = await getRepository(ContactDetails).findOne({
+          where: { student_id: bookedStudent.student_id, is_primary: true }
+        }) || await getRepository(ContactDetails).findOne({ where: { student_id: bookedStudent.student_id } });
+
+        if (studentContact?.email) {
+          EmailUtility.sendWorkshopSlotBookingConfirmation(
+            studentContact.email,
+            bookedStudent.fullName,
+            courseSlot
+          ).catch(() => {});
+        }
+      }
 
       const adminUsers = await getRepository(User).find({ where: { roleID: 1, isDeleted: false } });
       for (const admin of adminUsers) {
@@ -104,8 +149,12 @@ router.post(
         data: savedAssignment
       });
     } catch (error: any) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+
       console.error('Error creating course assignment:', error);
-      
+
       // Handle duplicate entry error with user-friendly message
       if (error.code === 'ER_DUP_ENTRY' || error.message?.includes('UQ_CourseAssignments_unique')) {
         return res.status(400).json({
@@ -115,13 +164,24 @@ router.post(
           }
         });
       }
-      
+
+      if (error instanceof StringError) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: error.message
+          }
+        });
+      }
+
       return res.status(500).json({
         success: false,
         error: {
           message: error.message || 'Failed to create course assignment'
         }
       });
+    } finally {
+      await queryRunner.release();
     }
   }
 );
@@ -352,7 +412,7 @@ router.put(
       const assignment = await courseAssignmentRepository.findOne({
         where: { assignment_id: parseInt(id), isDeleted: false }
       });
-      
+
       if (!assignment) {
         return res.status(404).json({
           success: false,
@@ -361,10 +421,60 @@ router.put(
           }
         });
       }
-      
+
+      const previousAttendanceStatus = assignment.attendance_status;
+
       courseAssignmentRepository.merge(assignment, req.body);
       const updatedAssignment = await courseAssignmentRepository.save(assignment);
-      
+
+      // When a trainer marks/changes attendance, notify the student and admin,
+      // and auto-approve the "classes completed" checklist item on Present.
+      if (req.body?.attendance_status && req.body.attendance_status !== previousAttendanceStatus) {
+        const student = await getRepository(Student).findOne({ where: { student_id: updatedAssignment.student_id, isDeleted: false } });
+
+        if (student) {
+          const courseSlot = await getRepository(CourseSlots).findOne({ where: { course_id: updatedAssignment.course_id } });
+          const courseName = courseSlot?.course_name || 'Workshop';
+
+          const studentContact = await getRepository(ContactDetails).findOne({
+            where: { student_id: student.student_id, is_primary: true }
+          }) || await getRepository(ContactDetails).findOne({ where: { student_id: student.student_id } });
+
+          if (studentContact?.email) {
+            EmailUtility.sendAttendanceStatusEmail(
+              studentContact.email,
+              student.fullName,
+              updatedAssignment.attendance_status,
+              courseName,
+              courseSlot?.course_date
+            ).catch(() => {});
+          }
+
+          const adminUsers = await getRepository(User).find({ where: { roleID: 1, isDeleted: false } });
+          for (const admin of adminUsers) {
+            NotificationService.createNotification({
+              userId: admin.id,
+              title: 'Workshop Attendance Marked',
+              message: `${student.fullName} was marked "${updatedAssignment.attendance_status}" for "${courseName}".`,
+              type: 'info',
+              actionUrl: '/mh-fa-slot-management',
+            }).catch(() => {});
+          }
+
+          if (updatedAssignment.attendance_status === 'present') {
+            const eligibilityRepo = getRepository(EligibilityStatus);
+            let eligibility = await eligibilityRepo.findOne({ where: { student_id: student.student_id } });
+            if (!eligibility) {
+              eligibility = eligibilityRepo.create({ student_id: student.student_id });
+            }
+            if (!eligibility.classes_completed) {
+              eligibility.classes_completed = true;
+              await eligibilityRepo.save(eligibility);
+            }
+          }
+        }
+      }
+
       return res.status(200).json({
         success: true,
         message: 'Course assignment updated successfully',
@@ -433,15 +543,19 @@ router.put(
 router.delete(
   '/:id',
   async (req: any, res: any) => {
+    const queryRunner = getConnection().createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      const courseAssignmentRepository = getRepository(CourseAssignment);
       const { id } = req.params;
-      
-      const assignment = await courseAssignmentRepository.findOne({
+
+      const assignment = await queryRunner.manager.findOne(CourseAssignment, {
         where: { assignment_id: parseInt(id), isDeleted: false }
       });
-      
+
       if (!assignment) {
+        await queryRunner.rollbackTransaction();
         return res.status(404).json({
           success: false,
           error: {
@@ -449,15 +563,36 @@ router.delete(
           }
         });
       }
-      
+
       assignment.isDeleted = true;
-      await courseAssignmentRepository.save(assignment);
-      
+      await queryRunner.manager.save(CourseAssignment, assignment);
+
+      // Free up the seat that was held for this booking
+      const courseSlot = await queryRunner.manager.findOne(CourseSlots, {
+        where: { course_id: assignment.course_id },
+        lock: { mode: 'pessimistic_write' }
+      });
+      if (courseSlot && courseSlot.seats_remaining !== null && courseSlot.seats_remaining !== undefined) {
+        const restoredSeats = courseSlot.total_seats
+          ? Math.min(courseSlot.total_seats, courseSlot.seats_remaining + 1)
+          : courseSlot.seats_remaining + 1;
+        await queryRunner.manager.update(
+          CourseSlots,
+          { course_id: courseSlot.course_id },
+          { seats_remaining: restoredSeats }
+        );
+      }
+
+      await queryRunner.commitTransaction();
+
       return res.status(200).json({
         success: true,
         message: 'Course assignment deleted successfully'
       });
     } catch (error: any) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       console.error('Error deleting course assignment:', error);
       return res.status(500).json({
         success: false,
@@ -465,6 +600,8 @@ router.delete(
           message: error.message || 'Failed to delete course assignment'
         }
       });
+    } finally {
+      await queryRunner.release();
     }
   }
 );

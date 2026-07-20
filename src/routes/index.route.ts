@@ -16,6 +16,7 @@ import courseSlotsRouter from './course-slots/course-slots.route';
 import courseAssignmentRouter from './course-assignment/course-assignment.route';
 import placementSlotRouter from './placement-slot/placement-slot.route';
 import placementAssignmentRouter from './placement-assignment/placement-assignment.route';
+import placementPaymentRouter from './placement-payment/placement-payment.route';
 import cleanupRouter from './admin/cleanup.route';
 import activationRouter from './common/activation.route';
 import fileRouter from './file/file.route';
@@ -44,6 +45,7 @@ router.use('/course-slots', jwtAuth, courseSlotsRouter); // Authenticated users
 router.use('/course-assignments', jwtAuth, courseAssignmentRouter); // Authenticated users
 router.use('/placement-slots', jwtAuth, placementSlotRouter); // Authenticated users
 router.use('/placement-assignments', jwtAuth, placementAssignmentRouter); // Authenticated users
+router.use('/placement-payments', jwtAuth, placementPaymentRouter); // Authenticated users
 router.use('/files', jwtAuth, fileRouter); // File upload and management
 router.use('/location', jwtAuth, locationRouter); // Location-based queries
 router.use('/short-course', jwtAuth, shortCourseRouter); // Short course listing
