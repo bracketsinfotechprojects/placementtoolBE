@@ -836,6 +836,87 @@ router.get('/:id/classes/today', TrainerController.getTodayClasses);
 
 /**
  * @swagger
+ * /api/trainers/{id}/assigned-interns:
+ *   get:
+ *     summary: Get assigned interns for a trainer (Internship Oversight)
+ *     description: |
+ *       Returns every student who took a workshop under this trainer and whose internship
+ *       placement has been accepted (facility_confirmation_status = Approved) by a facility.
+ *       Each row combines the student, the facility, the internship slot, the workshop
+ *       completion status, and the current internship status.
+ *     tags:
+ *       - Trainers
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Trainer ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Assigned interns retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Assigned interns retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       student_id:
+ *                         type: integer
+ *                         example: 12
+ *                       student_name:
+ *                         type: string
+ *                         example: "John Doe"
+ *                       student_type:
+ *                         type: string
+ *                         example: "domestic"
+ *                       course_name:
+ *                         type: string
+ *                         example: "Manual Handling Training"
+ *                       workshop_status:
+ *                         type: string
+ *                         enum: ["Active", "Completed", "Dropped"]
+ *                         example: "Completed"
+ *                       facility_id:
+ *                         type: string
+ *                         example: "5"
+ *                       facility_name:
+ *                         type: string
+ *                         example: "ABC Hospital"
+ *                       placementslot_id:
+ *                         type: integer
+ *                         example: 8
+ *                       internship_status:
+ *                         type: string
+ *                         enum: ["Assigned", "Active", "Completed", "Cancelled", "Dropped", "Allocated", "Started"]
+ *                         example: "Active"
+ *                       facility_confirmation_status:
+ *                         type: string
+ *                         enum: ["Approved", "Rejected"]
+ *                         example: "Approved"
+ *       401:
+ *         description: Unauthorized - Invalid or missing JWT token
+ *       404:
+ *         description: Trainer not found
+ */
+router.get('/:id/assigned-interns', TrainerController.getAssignedInterns);
+
+/**
+ * @swagger
  * /api/trainers/{id}:
  *   get:
  *     summary: Get trainer by ID with photograph information

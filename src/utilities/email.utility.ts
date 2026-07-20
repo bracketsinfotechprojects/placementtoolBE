@@ -339,6 +339,220 @@ class EmailUtility {
   }
 
   /**
+   * Send workshop slot booking confirmation with full slot details
+   * @param to - Recipient email address
+   * @param studentName - Student's full name
+   * @param slot - Workshop (CourseSlots) details for the booked slot
+   */
+  async sendWorkshopSlotBookingConfirmation(
+    to: string,
+    studentName: string,
+    slot: {
+      course_name?: string;
+      course_date?: string | Date;
+      day_of_week?: string;
+      reporting_time?: string;
+      expected_end_time?: string;
+      total_duration?: string;
+      mode?: string[] | string;
+      training_location?: string;
+      address?: string;
+      city?: string;
+      google_maps_link?: string;
+      dress_code?: string;
+      items_to_bring?: string[] | string;
+      mobile_phone_policy?: string;
+      documents_required?: string[] | string;
+      pre_course_requirement?: string[] | string;
+      restrictions?: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const formatList = (value?: string[] | string) => {
+        if (!value) return '-';
+        return Array.isArray(value) ? value.join(', ') : value;
+      };
+
+      const formattedDate = slot.course_date
+        ? new Date(slot.course_date).toLocaleDateString('en-AU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        : '-';
+
+      const detailRow = (label: string, value?: string) =>
+        value
+          ? `<div class="detail-item"><span class="detail-label">${label}:</span> <span class="detail-value">${value}</span></div>`
+          : '';
+
+      const mailOptions = {
+        from: `"Placement Portal" <${process.env.EMAIL_USER}>`,
+        to: to,
+        subject: `✅ Workshop Slot Booked - ${slot.course_name || 'Workshop'}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .header h1 { margin: 0; font-size: 24px; }
+              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .details-box { background-color: #fff; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .detail-item { margin: 10px 0; }
+              .detail-label { font-weight: bold; color: #667eea; }
+              .detail-value { color: #333; }
+              .map-button { display: inline-block; background: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 20px; margin-top: 10px; font-weight: bold; }
+              .restrictions-box { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 5px; }
+              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>✅ Workshop Slot Booked Successfully</h1>
+              </div>
+              <div class="content">
+                <p>Dear ${studentName},</p>
+                <p>Your workshop slot has been booked successfully. Please find the details below:</p>
+
+                <div class="details-box">
+                  <h3 style="margin-top: 0; color: #667eea;">📋 Workshop Details</h3>
+                  ${detailRow('Course Name', slot.course_name)}
+                  ${detailRow('Date', formattedDate)}
+                  ${detailRow('Day', slot.day_of_week)}
+                  ${detailRow('Reporting Time', slot.reporting_time)}
+                  ${detailRow('End Time', slot.expected_end_time)}
+                  ${detailRow('Duration', slot.total_duration)}
+                  ${detailRow('Mode', formatList(slot.mode))}
+                </div>
+
+                <div class="details-box">
+                  <h3 style="margin-top: 0; color: #667eea;">📍 Venue Details</h3>
+                  ${detailRow('Training Location', slot.training_location)}
+                  ${detailRow('Address', slot.address)}
+                  ${detailRow('City', slot.city)}
+                  ${
+                    slot.google_maps_link
+                      ? `<a href="${slot.google_maps_link}" class="map-button" target="_blank" rel="noopener noreferrer">🗺️ View on Google Maps</a>`
+                      : ''
+                  }
+                </div>
+
+                <div class="details-box">
+                  <h3 style="margin-top: 0; color: #667eea;">📌 What to Bring / Prepare</h3>
+                  ${detailRow('Dress Code', slot.dress_code)}
+                  ${detailRow('Items to Bring', formatList(slot.items_to_bring))}
+                  ${detailRow('Documents Required', formatList(slot.documents_required))}
+                  ${detailRow('Pre-Course Requirement', formatList(slot.pre_course_requirement))}
+                  ${detailRow('Mobile Phone Policy', slot.mobile_phone_policy)}
+                </div>
+
+                ${
+                  slot.restrictions
+                    ? `<div class="restrictions-box"><strong>⚠️ Restrictions:</strong><br>${slot.restrictions}</div>`
+                    : ''
+                }
+
+                <p>Please arrive on time and bring all the required documents and items listed above.</p>
+                <p><strong>The Placement Team</strong></p>
+              </div>
+              <div class="footer">
+                <p>This is an automated email. Please do not reply directly to this message.</p>
+                <p>&copy; ${new Date().getFullYear()} Placement Portal. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`✅ Workshop slot booking confirmation email sent to ${to}. Message ID: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to send workshop slot booking confirmation email to ${to}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Send workshop attendance status notification to a student
+   * @param to - Recipient email address
+   * @param studentName - Student's full name
+   * @param attendanceStatus - Attendance status marked by the trainer
+   * @param courseName - Name of the workshop/course
+   * @param courseDate - Date the workshop was held
+   */
+  async sendAttendanceStatusEmail(
+    to: string,
+    studentName: string,
+    attendanceStatus: string,
+    courseName: string,
+    courseDate?: string | Date
+  ): Promise<boolean> {
+    try {
+      const isPresent = attendanceStatus === 'present';
+      const statusLabel = attendanceStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const color = isPresent ? '#10b981' : '#ef4444';
+      const icon = isPresent ? '✅' : '❌';
+
+      const formattedDate = courseDate
+        ? new Date(courseDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '';
+
+      const mailOptions = {
+        from: `"Placement Portal" <${process.env.EMAIL_USER}>`,
+        to: to,
+        subject: `${icon} Attendance Update - ${courseName}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: ${color}; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .status-badge { background-color: ${color}; color: white; padding: 10px 20px; border-radius: 20px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>${icon} Attendance Marked: ${statusLabel}</h1>
+              </div>
+              <div class="content">
+                <p>Dear ${studentName},</p>
+                <div class="status-badge">STATUS: ${statusLabel.toUpperCase()}</div>
+                <p>Your attendance for <strong>${courseName}</strong>${formattedDate ? ` on <strong>${formattedDate}</strong>` : ''} has been marked as <strong>${statusLabel}</strong> by your trainer.</p>
+                ${isPresent ? '<p>Your class completion checklist item has been updated accordingly.</p>' : '<p>If you believe this is incorrect, please contact your trainer or the placement team.</p>'}
+                <p><strong>The Placement Team</strong></p>
+              </div>
+              <div class="footer">
+                <p>This is an automated email. Please do not reply directly to this message.</p>
+                <p>&copy; ${new Date().getFullYear()} Placement Portal. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`✅ Attendance status email sent to ${to}. Message ID: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to send attendance status email to ${to}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Verify email configuration
    */
   async verifyConnection(): Promise<boolean> {

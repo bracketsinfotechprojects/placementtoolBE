@@ -177,9 +177,18 @@ export default class TrainerController extends BaseController {
   static async getTodayClasses(req: Request, res: Response) {
     await BaseController.executeAction(res, async () => {
       const trainerId = BaseController.parseId(req, 'id');
-      
+
       const courses = await TrainerService.getTodayClasses(trainerId);
       ApiResponseUtility.success(res, courses, 'Today\'s courses retrieved successfully');
     }, 'Get today\'s courses for trainer');
+  }
+
+  static async getAssignedInterns(req: Request, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const trainerId = BaseController.parseId(req, 'id');
+
+      const interns = await TrainerService.getAssignedInterns(trainerId);
+      ApiResponseUtility.success(res, interns, 'Assigned interns retrieved successfully');
+    }, 'Get assigned interns for trainer');
   }
 }

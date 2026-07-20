@@ -5,6 +5,8 @@ import { Express } from 'express';
 import { Trainer } from '../../entities/trainer/trainer.entity';
 import { User } from '../../entities/user/user.entity';
 import { File, EntityType, DocumentType } from '../../entities/file/file.entity';
+import { CourseAssignment } from '../../entities/course-assignment/course-assignment.entity';
+import { PlacementAssignment } from '../../entities/placement-assignment/placement-assignment.entity';
 import TrainerRepository, { ITrainerQueryParams } from '../../repositories/trainer.repository';
 import ApiUtility from '../../utilities/api.utility';
 import PasswordUtility from '../../utilities/password.utility';
@@ -1159,6 +1161,82 @@ const getTodayClasses = async (trainerId: number) => {
   return courses;
 };
 
+/**
+ * A student is considered "assigned" to this trainer via the workshop (CourseAssignment) they
+ * took under the trainer. Each such student is then matched against their internship
+ * (PlacementAssignment) records that the facility has accepted, to surface facility,
+ * internship slot, workshop completion, and internship status together.
+ */
+const getAssignedInterns = async (trainerId: number) => {
+  const workshopAssignments = await getRepository(CourseAssignment)
+    .createQueryBuilder('ca')
+    .leftJoinAndSelect('ca.course', 'course')
+    .leftJoinAndSelect('ca.student', 'student')
+    .where('ca.trainer_id = :trainerId', { trainerId })
+    .andWhere('student.isDeleted = :studentDeleted', { studentDeleted: false })
+    .orderBy('ca.enrollment_date', 'DESC')
+    .getMany();
+
+  if (workshopAssignments.length === 0) {
+    return [];
+  }
+
+  const studentIds = [...new Set(workshopAssignments.map((wa) => wa.student_id))];
+
+  const internshipAssignments = await getRepository(PlacementAssignment)
+    .createQueryBuilder('pa')
+    .leftJoinAndSelect('pa.placementSlot', 'placementSlot')
+    .leftJoinAndSelect('placementSlot.facility', 'facility')
+    .where('pa.student_id IN (:...studentIds)', { studentIds })
+    .andWhere('pa.facility_confirmation_status = :confirmed', { confirmed: 'Approved' })
+    .andWhere('placementSlot.is_deleted = :isDeleted', { isDeleted: false })
+    .orderBy('pa.created_at', 'DESC')
+    .getMany();
+
+  const internshipsByStudent = new Map<number, PlacementAssignment[]>();
+  for (const internshipAssignment of internshipAssignments) {
+    const list = internshipsByStudent.get(internshipAssignment.student_id) || [];
+    list.push(internshipAssignment);
+    internshipsByStudent.set(internshipAssignment.student_id, list);
+  }
+
+  const rows: any[] = [];
+  for (const workshopAssignment of workshopAssignments) {
+    const internships = internshipsByStudent.get(workshopAssignment.student_id) || [];
+
+    for (const internshipAssignment of internships) {
+      rows.push({
+        student_id: workshopAssignment.student_id,
+        student_name: `${workshopAssignment.student.first_name} ${workshopAssignment.student.last_name}`,
+        student_type: workshopAssignment.student.student_type,
+        workshop_assignment_id: workshopAssignment.assignment_id,
+        course_id: workshopAssignment.course_id,
+        course_name: workshopAssignment.course?.course_name,
+        workshop_status: workshopAssignment.status,
+        workshop_attendance_status: workshopAssignment.attendance_status,
+        internship_assignment_id: internshipAssignment.assignment_id,
+        facility_id: internshipAssignment.placementSlot?.facility_id,
+        facility_name: internshipAssignment.placementSlot?.facility?.organization_name || 'N/A',
+        placementslot_id: internshipAssignment.placementslot_id,
+        internship_status: internshipAssignment.status,
+        facility_confirmation_status: internshipAssignment.facility_confirmation_status,
+        slot_type: internshipAssignment.placementSlot?.placementslot_type,
+        course_applicable: internshipAssignment.placementSlot?.course_applicable,
+        shift_type: internshipAssignment.placementSlot?.shift_type,
+        shift_timings: internshipAssignment.placementSlot?.shift_timings,
+        working_days: internshipAssignment.placementSlot?.working_days,
+        slot_start_date: internshipAssignment.placementSlot?.placement_start_date,
+        slot_end_date: internshipAssignment.placementSlot?.placement_end_date,
+        actual_start_date: internshipAssignment.start_date,
+        actual_end_date: internshipAssignment.end_date,
+        total_hours_required: internshipAssignment.placementSlot?.total_hours_required
+      });
+    }
+  }
+
+  return rows;
+};
+
 export default {
   create,
   getById,
@@ -1168,5 +1246,6 @@ export default {
   permanentlyDelete,
   bulkUpload,
   generateTemplate,
-  getTodayClasses
+  getTodayClasses,
+  getAssignedInterns
 };

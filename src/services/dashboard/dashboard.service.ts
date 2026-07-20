@@ -1,4 +1,17 @@
 import { getManager } from 'typeorm';
+import PlacementPaymentRepository from '../../repositories/placement-payment.repository';
+
+// Fetches every placement slot's payment summary unpaginated, for dashboard aggregation.
+// Sources the same computation used by the Placement Payments module so dashboard totals
+// and the dedicated payments screen can never drift apart.
+const fetchAllPaymentSummaries = async (facilityId?: number) => {
+  const { rows } = await PlacementPaymentRepository.list({
+    facility_id: facilityId,
+    limit: Number.MAX_SAFE_INTEGER,
+    page: 1,
+  });
+  return rows;
+};
 
 export default class DashboardService {
   static async getAdminStats() {
@@ -19,24 +32,27 @@ export default class DashboardService {
       manager.query(`SELECT COUNT(*) AS cnt FROM Trainer WHERE isDeleted = 0`),
       manager.query(`
         SELECT COALESCE(SUM(remaining_seats), 0) AS cnt
-        FROM placement_slots WHERE is_deleted = 0 AND remaining_seats > 0
+        FROM placement_slots
+        WHERE is_deleted = 0 AND remaining_seats > 0
+          AND (placement_end_date IS NULL OR placement_end_date >= CURDATE())
       `),
       manager.query(`
         SELECT COALESCE(SUM(seats_remaining), 0) AS cnt
-        FROM CourseSlots WHERE isDeleted = 0 AND seats_remaining > 0
+        FROM CourseSlots
+        WHERE isDeleted = 0 AND seats_remaining > 0
+          AND course_date >= CURDATE()
       `),
       manager.query(`
         SELECT COUNT(*) AS cnt FROM placement_assignments
         WHERE facility_confirmation_status = 'Approved'
       `),
+      // Sum of actually-recorded payments from the placement payment ledger
+      // (was previously derived from the placement_fee_status flag, which cannot
+      // represent partial payments and used the wrong "active/started" filter).
       manager.query(`
-        SELECT COALESCE(SUM(CAST(ps.placement_fee AS DECIMAL(15,2))), 0) AS total
-        FROM placement_slots ps
-        INNER JOIN placement_assignments pa ON pa.placementslot_id = ps.placementslot_id
-        WHERE pa.facility_confirmation_status = 'Approved'
-          AND ps.placement_fee_status = 1
-          AND ps.is_deleted = 0
-          AND (ps.placement_fee IS NOT NULL AND ps.placement_fee != '' AND ps.placement_fee != '0')
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM placement_payment_transactions
+        WHERE status = 'Recorded'
       `),
       manager.query(`
         SELECT COUNT(*) AS cnt FROM placement_assignments
@@ -107,12 +123,13 @@ export default class DashboardService {
   static async getFacilityStats(facilityId: number) {
     const manager = getManager();
 
-    const [[slotsRow], [internsRow], [paymentRow]] = await Promise.all([
+    const [[slotsRow], [internsRow], paymentSummaries] = await Promise.all([
       // Total remaining placement seats for this facility (facility_id stored as varchar)
       manager.query(
         `SELECT COALESCE(SUM(remaining_seats), 0) AS cnt
          FROM placement_slots
-         WHERE facility_id = ? AND is_deleted = 0`,
+         WHERE facility_id = ? AND is_deleted = 0
+           AND (placement_end_date IS NULL OR placement_end_date >= CURDATE())`,
         [String(facilityId)]
       ),
       // Active interns at this facility
@@ -123,32 +140,17 @@ export default class DashboardService {
          WHERE ps.facility_id = ? AND pa.status IN ('Active', 'Started')`,
         [String(facilityId)]
       ),
-      // Payment summary: received vs pending based on amount_per_spot × active students
-      manager.query(
-        `SELECT
-           COUNT(DISTINCT pa.student_id) AS active_students,
-           COALESCE(MAX(fa.amount_per_spot), 0) AS amount_per_spot,
-           COALESCE(SUM(
-             CASE WHEN ps.placement_fee_status = 1
-               AND ps.placement_fee IS NOT NULL
-               AND ps.placement_fee != ''
-               AND ps.placement_fee != '0'
-             THEN CAST(ps.placement_fee AS DECIMAL(15,2)) ELSE 0 END
-           ), 0) AS received_payment
-         FROM placement_assignments pa
-         INNER JOIN placement_slots ps ON pa.placementslot_id = ps.placementslot_id
-         LEFT JOIN facility_agreements fa
-           ON fa.facility_id = CAST(ps.facility_id AS UNSIGNED) AND fa.isDeleted = 0
-         WHERE ps.facility_id = ? AND pa.status IN ('Active', 'Started')`,
-        [String(facilityId)]
-      ),
+      // Payment summary: per-slot (accepted students × that slot's own placement_fee),
+      // reduced across this facility's slots, backed by the payment ledger — see
+      // PlacementPaymentRepository (shared with the Placement Payments module).
+      fetchAllPaymentSummaries(facilityId),
     ]);
 
-    const activeStudents = Number(paymentRow.active_students || 0);
-    const amountPerSpot  = Number(paymentRow.amount_per_spot  || 0);
-    const receivedPayment = Number(paymentRow.received_payment || 0);
-    const totalDue        = activeStudents * amountPerSpot;
-    const pendingPayment  = Math.max(0, totalDue - receivedPayment);
+    const totalDue = paymentSummaries.reduce((sum, r) => sum + r.total_payable, 0);
+    const receivedPayment = paymentSummaries.reduce((sum, r) => sum + r.total_paid, 0);
+    const pendingPayment = Math.max(0, totalDue - receivedPayment);
+    const acceptedStudents = paymentSummaries.reduce((sum, r) => sum + r.accepted_students, 0);
+    const amountPerSpot = acceptedStudents > 0 ? totalDue / acceptedStudents : 0;
 
     return {
       slotsAvailable: Number(slotsRow.cnt),
@@ -161,53 +163,45 @@ export default class DashboardService {
   }
 
   static async getFacilityPaymentSummary() {
-    const manager = getManager();
+    const paymentSummaries = await fetchAllPaymentSummaries();
 
-    const rows = await manager.query(`
-      SELECT
-        f.facility_id,
-        f.organization_name                              AS facility_name,
-        COUNT(DISTINCT pa.student_id)                   AS active_students,
-        COALESCE(MAX(fa.amount_per_spot), 0)            AS amount_per_spot,
-        COUNT(DISTINCT pa.student_id) * COALESCE(MAX(fa.amount_per_spot), 0)
-                                                         AS total_due,
-        COALESCE(SUM(
-          CASE WHEN ps.placement_fee_status = 1
-            AND ps.placement_fee IS NOT NULL
-            AND ps.placement_fee != ''
-            AND ps.placement_fee != '0'
-          THEN CAST(ps.placement_fee AS DECIMAL(15,2)) ELSE 0 END
-        ), 0)                                            AS paid_amount,
-        GREATEST(0,
-          COUNT(DISTINCT pa.student_id) * COALESCE(MAX(fa.amount_per_spot), 0) -
-          COALESCE(SUM(
-            CASE WHEN ps.placement_fee_status = 1
-              AND ps.placement_fee IS NOT NULL
-              AND ps.placement_fee != ''
-              AND ps.placement_fee != '0'
-            THEN CAST(ps.placement_fee AS DECIMAL(15,2)) ELSE 0 END
-          ), 0)
-        )                                                AS remaining_amount
-      FROM placement_assignments pa
-      INNER JOIN placement_slots ps ON pa.placementslot_id = ps.placementslot_id
-      INNER JOIN facility f
-        ON CAST(ps.facility_id AS UNSIGNED) = f.facility_id AND f.isDeleted = 0
-      LEFT JOIN facility_agreements fa
-        ON fa.facility_id = f.facility_id AND fa.isDeleted = 0
-      WHERE pa.status IN ('Active', 'Started')
-      GROUP BY f.facility_id, f.organization_name
-      ORDER BY active_students DESC
-    `);
+    const byFacility = new Map<number, {
+      facility_id: number;
+      facility_name: string;
+      active_students: number;
+      total_due: number;
+      paid_amount: number;
+    }>();
 
-    return rows.map((r: any) => ({
-      facility_id:      Number(r.facility_id),
-      facility_name:    r.facility_name,
-      active_students:  Number(r.active_students),
-      amount_per_spot:  Number(r.amount_per_spot),
-      total_due:        Number(r.total_due),
-      paid_amount:      Number(r.paid_amount),
-      remaining_amount: Number(r.remaining_amount),
-    }));
+    for (const row of paymentSummaries) {
+      // Preserve prior behavior: only surface facilities with at least one accepted student
+      if (row.accepted_students <= 0) continue;
+
+      const existing = byFacility.get(row.facility_id) || {
+        facility_id: row.facility_id,
+        facility_name: row.facility_name,
+        active_students: 0,
+        total_due: 0,
+        paid_amount: 0,
+      };
+      existing.active_students += row.accepted_students;
+      existing.total_due += row.total_payable;
+      existing.paid_amount += row.total_paid;
+      byFacility.set(row.facility_id, existing);
+    }
+
+    return Array.from(byFacility.values())
+      .map((f) => ({
+        facility_id: f.facility_id,
+        facility_name: f.facility_name,
+        active_students: f.active_students,
+        // Weighted average — a facility can have multiple slots with different fees
+        amount_per_spot: f.active_students > 0 ? f.total_due / f.active_students : 0,
+        total_due: f.total_due,
+        paid_amount: f.paid_amount,
+        remaining_amount: Math.max(0, f.total_due - f.paid_amount),
+      }))
+      .sort((a, b) => b.active_students - a.active_students);
   }
 
   static async getTrainerStats(trainerId: number) {

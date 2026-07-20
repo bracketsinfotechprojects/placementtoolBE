@@ -2957,6 +2957,10 @@ const assignFacilities = async (studentId: number, facilityIds: number[]) => {
     throw new StringError('Student not found');
   }
 
+  if (student.status === 'active' || student.status === 'inactive') {
+    throw new StringError('All checklist items are not approved yet. Facility assignment is only allowed once the student has progressed past the initial active status.');
+  }
+
   if (facilityIds.length > 0) {
     const facilityRepo = getRepository(Facility);
     const found = await facilityRepo.findByIds(facilityIds);
