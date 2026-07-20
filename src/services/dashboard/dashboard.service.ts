@@ -56,7 +56,8 @@ export default class DashboardService {
       `),
       manager.query(`
         SELECT COUNT(*) AS cnt FROM placement_assignments
-        WHERE status IN ('Active', 'Started')
+        WHERE facility_confirmation_status = 'Approved'
+          AND status NOT IN ('Cancelled', 'Dropped')
       `),
     ]);
 
@@ -132,12 +133,13 @@ export default class DashboardService {
            AND (placement_end_date IS NULL OR placement_end_date >= CURDATE())`,
         [String(facilityId)]
       ),
-      // Active interns at this facility
+      // Active interns at this facility (facility has approved the placement, and it hasn't been cancelled/dropped)
       manager.query(
         `SELECT COUNT(DISTINCT pa.student_id) AS cnt
          FROM placement_assignments pa
          INNER JOIN placement_slots ps ON pa.placementslot_id = ps.placementslot_id
-         WHERE ps.facility_id = ? AND pa.status IN ('Active', 'Started')`,
+         WHERE ps.facility_id = ? AND pa.facility_confirmation_status = 'Approved'
+           AND pa.status NOT IN ('Cancelled', 'Dropped')`,
         [String(facilityId)]
       ),
       // Payment summary: per-slot (accepted students × that slot's own placement_fee),

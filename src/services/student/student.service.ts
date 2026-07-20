@@ -464,7 +464,7 @@ export interface ICreateStudent {
   gender?: string;
   nationality?: string;
   student_type?: string;
-  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'placement_approved' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
   latitude?: number;
   longitude?: number;
   email?: string; // Email for contact details and user account
@@ -495,7 +495,7 @@ export interface ICreateExternalStudent {
   gender?: string;
   nationality?: string;
   student_type?: string;  // Defaults to 'external'
-  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'placement_approved' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
   latitude?: number;
   longitude?: number;
 
@@ -517,7 +517,7 @@ export interface IUpdateStudent {
   gender?: string;
   nationality?: string;
   student_type?: string;
-  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  status?: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'placement_approved' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
   latitude?: number;
   longitude?: number;
 
@@ -2305,7 +2305,7 @@ const validateStudentRow = (row: IBulkStudentRow, rowIndex: number): string[] =>
   }
   
   // Status validation
-  const validStatuses = ['active', 'inactive', 'internship_completed', 'eligible_for_certification', 'placement_initiated', 'self_placement_verification_pending', 'self_placement_approved', 'certified', 'completed', 'graduated', 'withdrawn'];
+  const validStatuses = ['active', 'inactive', 'internship_completed', 'eligible_for_certification', 'placement_initiated', 'placement_approved', 'self_placement_verification_pending', 'self_placement_approved', 'certified', 'completed', 'graduated', 'withdrawn'];
   if (row.status && !validStatuses.includes(row.status.toLowerCase())) {
     errors.push(`status must be one of: ${validStatuses.join(', ')}`);
   }

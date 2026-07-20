@@ -250,19 +250,25 @@ const update = async (params: IUpdatePlacementAssignment) => {
 
     await queryRunner.manager.update(PlacementAssignment, { assignment_id: params.id }, updateData);
 
-    if (newStatus && oldStatus !== newStatus) {
-      const slot = await queryRunner.manager.findOne(PlacementSlot, {
-        where: { placementslot_id: assignment.placementslot_id }
-      });
+    const slot = await queryRunner.manager.findOne(PlacementSlot, {
+      where: { placementslot_id: assignment.placementslot_id }
+    });
 
+    // Only Cancelled/Dropped free up a seat - Completed still counts as having occupied one,
+    // matching the "active interns" rule used elsewhere (facility_confirmation_status = 'Approved'
+    // AND status NOT IN ('Cancelled', 'Dropped')).
+    if (newStatus && oldStatus !== newStatus) {
       if (slot && slot.remaining_seats !== null && slot.remaining_seats !== undefined) {
-        if (['Allocated', 'Started'].includes(oldStatus) && ['Completed', 'Cancelled'].includes(newStatus)) {
+        const wasOccupying = !['Cancelled', 'Dropped'].includes(oldStatus);
+        const isOccupying = !['Cancelled', 'Dropped'].includes(newStatus);
+
+        if (wasOccupying && !isOccupying) {
           await queryRunner.manager.update(
             PlacementSlot,
             { placementslot_id: assignment.placementslot_id },
             { remaining_seats: slot.remaining_seats + 1 }
           );
-        } else if (['Completed', 'Cancelled'].includes(oldStatus) && ['Allocated', 'Started'].includes(newStatus)) {
+        } else if (!wasOccupying && isOccupying) {
           if (slot.remaining_seats <= 0) {
             throw new StringError('Cannot reactivate assignment - no remaining seats available');
           }
@@ -276,6 +282,60 @@ const update = async (params: IUpdatePlacementAssignment) => {
     }
 
     await queryRunner.commitTransaction();
+
+    // Notify the student, facility, and facility supervisor whenever the assignment status changes
+    if (newStatus && oldStatus !== newStatus && slot) {
+      const student = await getRepository(Student).findOne({ where: { student_id: assignment.student_id, isDeleted: false } });
+      const facilityId = parseInt(slot.facility_id as any);
+      const facility = await getRepository(Facility).findOne({ where: { facility_id: facilityId } });
+      const facilityName = facility?.organization_name || 'the facility';
+
+      if (student) {
+        const studentName = `${student.first_name} ${student.last_name}`;
+        const studentContact = await getRepository(ContactDetails).findOne({
+          where: { student_id: student.student_id, is_primary: true }
+        }) || await getRepository(ContactDetails).findOne({ where: { student_id: student.student_id } });
+
+        if (studentContact?.email) {
+          EmailUtility.sendAssignmentStatusUpdateStudentEmail(
+            studentContact.email,
+            studentName,
+            facilityName,
+            oldStatus,
+            newStatus
+          ).catch(() => {});
+        }
+
+        const facilityUser = await getRepository(User).findOne({ where: { facilityID: facilityId, roleID: 2, isDeleted: false } });
+        if (facilityUser?.loginID) {
+          EmailUtility.sendAssignmentStatusUpdateFacilityEmail(
+            facilityUser.loginID,
+            facilityName,
+            studentName,
+            oldStatus,
+            newStatus
+          ).catch(() => {});
+        }
+
+        const supervisors = await getRepository(FacilitySupervisor).find({ where: { facility_id: facilityId, isDeleted: false } });
+        if (supervisors.length > 0) {
+          const supervisorUsers = await getRepository(User).find({
+            where: supervisors.map(s => ({ supervisorID: s.supervisor_id, roleID: 3, isDeleted: false })),
+          });
+          for (const supUser of supervisorUsers) {
+            if (supUser.loginID) {
+              EmailUtility.sendAssignmentStatusUpdateFacilityEmail(
+                supUser.loginID,
+                'Supervisor',
+                studentName,
+                oldStatus,
+                newStatus
+              ).catch(() => {});
+            }
+          }
+        }
+      }
+    }
 
     return await detail(params.id);
 
@@ -375,6 +435,13 @@ const confirmByFacility = async (assignmentId: number) => {
       PlacementAssignment,
       { assignment_id: assignmentId },
       { facility_confirmation_status: 'Approved' }
+    );
+
+    // Advance the student's status once their placement is approved by the facility
+    await queryRunner.manager.update(
+      Student,
+      { student_id: assignment.student_id, status: 'placement_initiated' },
+      { status: 'placement_approved' }
     );
 
     await queryRunner.commitTransaction();

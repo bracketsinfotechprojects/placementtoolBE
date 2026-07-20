@@ -105,6 +105,26 @@ export default class PlacementPaymentController extends BaseController {
     }, 'Record placement payment transaction');
   }
 
+  static async downloadTransactionAttachment(req: IRequest, res: Response) {
+    await BaseController.executeAction(res, async () => {
+      const user = req.user as any;
+      if (!user) {
+        throw new StringError('Unauthorized');
+      }
+      if (![ADMIN_ROLE_ID, PLACEMENT_EXECUTIVE_ROLE_ID, FACILITY_ROLE_ID, SUPERVISOR_ROLE_ID].includes(user.roleID)) {
+        throw new StringError('Access restricted');
+      }
+
+      const transactionId = BaseController.parseId(req, 'transactionId');
+      const attachmentIndex = parseInt(req.params.index, 10);
+
+      const relativePath = await PlacementPaymentService.getTransactionAttachmentPath(transactionId, attachmentIndex, user);
+      const absolutePath = path.join(process.cwd(), relativePath);
+
+      return res.download(absolutePath, path.basename(absolutePath));
+    }, 'Download payment transaction attachment');
+  }
+
   static async reverseTransaction(req: IRequest, res: Response) {
     await BaseController.executeAction(res, async () => {
       const user = req.user as any;

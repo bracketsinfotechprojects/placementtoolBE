@@ -906,6 +906,138 @@ class EmailUtility {
   }
 
   /**
+   * Notify a student that their internship assignment status has changed
+   * @param to - Recipient email address
+   * @param studentName - Student's full name
+   * @param facilityName - Facility's name
+   * @param oldStatus - Previous assignment status
+   * @param newStatus - New assignment status
+   */
+  async sendAssignmentStatusUpdateStudentEmail(
+    to: string,
+    studentName: string,
+    facilityName: string,
+    oldStatus: string,
+    newStatus: string
+  ): Promise<boolean> {
+    try {
+      const isCompleted = newStatus === 'Completed';
+      const color = isCompleted ? '#10b981' : '#667eea';
+
+      const mailOptions = {
+        from: `"Placement Portal" <${process.env.EMAIL_USER}>`,
+        to: to,
+        subject: `${isCompleted ? '🎉' : '📋'} Internship Status Update - ${facilityName}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: ${color}; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .status-badge { background-color: ${color}; color: white; padding: 10px 20px; border-radius: 20px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Internship Status Update</h1>
+              </div>
+              <div class="content">
+                <p>Dear ${studentName},</p>
+                <div class="status-badge">STATUS: ${newStatus.toUpperCase()}</div>
+                <p>Your internship assignment at <strong>${facilityName}</strong> has been updated from <strong>${oldStatus}</strong> to <strong>${newStatus}</strong>.</p>
+                ${isCompleted ? '<p>Congratulations on completing your internship! Please check the Placement Portal for your certificate once it is uploaded.</p>' : ''}
+                <p>You can view the full details from the Placement Portal.</p>
+                <p><strong>The Placement Team</strong></p>
+              </div>
+              <div class="footer">
+                <p>This is an automated email. Please do not reply directly to this message.</p>
+                <p>&copy; ${new Date().getFullYear()} Placement Portal. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`✅ Assignment status update email sent to student ${to}. Message ID: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to send assignment status update email to student ${to}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Notify a facility user or supervisor that a student's internship assignment status has changed
+   * @param to - Recipient email address
+   * @param recipientName - Recipient's name/label (facility name or supervisor name)
+   * @param studentName - Student's full name
+   * @param oldStatus - Previous assignment status
+   * @param newStatus - New assignment status
+   */
+  async sendAssignmentStatusUpdateFacilityEmail(
+    to: string,
+    recipientName: string,
+    studentName: string,
+    oldStatus: string,
+    newStatus: string
+  ): Promise<boolean> {
+    try {
+      const mailOptions = {
+        from: `"Placement Portal" <${process.env.EMAIL_USER}>`,
+        to: to,
+        subject: `📋 Internship Status Update - ${studentName}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #667eea; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .status-badge { background-color: #667eea; color: white; padding: 10px 20px; border-radius: 20px; display: inline-block; margin: 20px 0; font-weight: bold; }
+              .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Internship Status Update</h1>
+              </div>
+              <div class="content">
+                <p>Dear ${recipientName},</p>
+                <div class="status-badge">STATUS: ${newStatus.toUpperCase()}</div>
+                <p><strong>${studentName}</strong>'s internship assignment status has been updated from <strong>${oldStatus}</strong> to <strong>${newStatus}</strong>.</p>
+                <p>You can view the full details from the Placement Portal.</p>
+                <p><strong>The Placement Team</strong></p>
+              </div>
+              <div class="footer">
+                <p>This is an automated email. Please do not reply directly to this message.</p>
+                <p>&copy; ${new Date().getFullYear()} Placement Portal. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`✅ Assignment status update email sent to ${to}. Message ID: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      logger.error(`❌ Failed to send assignment status update email to ${to}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Verify email configuration
    */
   async verifyConnection(): Promise<boolean> {

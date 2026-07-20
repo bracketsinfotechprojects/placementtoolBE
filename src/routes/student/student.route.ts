@@ -58,7 +58,7 @@ const router = Router();
  *                 example: "international"
  *               status:
  *                 type: string
- *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, placement_approved, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
  *               latitude:
  *                 type: number
@@ -378,7 +378,7 @@ router.post('/', StudentController.create);
  *                 example: "external"
  *               status:
  *                 type: string
- *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, placement_approved, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 default: "active"
  *                 example: "active"
  *               latitude:
@@ -1123,7 +1123,7 @@ router.get('/template', StudentController.downloadTemplate);
  *                       example: "international"
  *                     status:
  *                       type: string
- *                       enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *                       enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, placement_approved, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                       example: "active"
  *                     contact_details:
  *                       type: array
@@ -1581,7 +1581,7 @@ router.get('/:id', StudentController.detail);
  *                 example: "international"
  *               status:
  *                 type: string
- *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *                 enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, placement_approved, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *                 example: "active"
  *               latitude:
  *                 type: number

@@ -37,8 +37,16 @@ const resolveFacilityIdForUser = async (userId: number, roleId: number): Promise
   }
 
   if (roleId === 3) {
+    const user = await getRepository(User).findOne({
+      where: { id: userId, isDeleted: false },
+      select: ['supervisorID'],
+    });
+    if (!user?.supervisorID) {
+      throw new StringError('Supervisor user is not linked to any facility');
+    }
+
     const supervisor = await getRepository(FacilitySupervisor).findOne({
-      where: { supervisor_id: userId, isDeleted: false },
+      where: { supervisor_id: user.supervisorID, isDeleted: false },
       select: ['facility_id'],
     });
     if (!supervisor || supervisor.facility_id === null || supervisor.facility_id === undefined) {
@@ -204,10 +212,38 @@ const reverseTransaction = async (transactionId: number, reason: string) => {
   return { summary, acceptedStudents, transactions };
 };
 
+const getTransactionAttachmentPath = async (
+  transactionId: number,
+  attachmentIndex: number,
+  requestingUser: { roleID: number; id: number }
+): Promise<string> => {
+  const transaction = await PlacementPaymentRepository.getTransactionById(transactionId);
+  if (!transaction) {
+    throw new StringError('Payment transaction does not exist');
+  }
+
+  // Facility / Supervisor users may only view attachments for their own facility's transactions
+  if (requestingUser.roleID === 2 || requestingUser.roleID === 3) {
+    const scopedFacilityId = await resolveFacilityIdForUser(requestingUser.id, requestingUser.roleID);
+    if (scopedFacilityId !== transaction.facility_id) {
+      throw new StringError('You do not have access to this payment transaction');
+    }
+  }
+
+  const attachments = transaction.proof_attachments || [];
+  const relativePath = attachments[attachmentIndex];
+  if (!relativePath) {
+    throw new StringError('Attachment not found for this payment transaction');
+  }
+
+  return relativePath;
+};
+
 export default {
   list,
   listForFacilityUser,
   getSlotDetail,
+  getTransactionAttachmentPath,
   createTransaction,
   reverseTransaction,
   resolveFacilityIdForUser,

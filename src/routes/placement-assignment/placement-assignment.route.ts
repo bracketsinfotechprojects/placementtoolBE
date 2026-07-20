@@ -428,7 +428,7 @@ router.get('/internships/:studentId', jwtAuth, PlacementAssignmentController.get
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
+ *           enum: [active, inactive, internship_completed, eligible_for_certification, placement_initiated, placement_approved, self_placement_verification_pending, self_placement_approved, certified, completed, graduated, withdrawn]
  *         description: Filter by student status
  *       - in: query
  *         name: assignment_status

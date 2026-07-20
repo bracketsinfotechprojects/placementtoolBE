@@ -93,6 +93,7 @@ export class Student extends BaseEntity {
       'internship_completed',
       'eligible_for_certification',
       'placement_initiated',
+      'placement_approved',
       'self_placement_verification_pending',
       'self_placement_approved',
       'certified',
@@ -104,7 +105,7 @@ export class Student extends BaseEntity {
     name: 'status',
     comment: 'Student status'
   })
-  status: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
+  status: 'active' | 'inactive' | 'internship_completed' | 'eligible_for_certification' | 'placement_initiated' | 'placement_approved' | 'self_placement_verification_pending' | 'self_placement_approved' | 'certified' | 'completed' | 'graduated' | 'withdrawn';
 
   @Column({
     type: 'geometry',

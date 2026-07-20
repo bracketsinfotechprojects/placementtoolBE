@@ -127,6 +127,37 @@ router.post('/:slotId/transactions', upload.array('proof', 5), PlacementPaymentC
 
 /**
  * @swagger
+ * /api/placement-payments/transactions/{transactionId}/attachments/{index}:
+ *   get:
+ *     summary: Download a proof-of-payment attachment for a transaction
+ *     description: |
+ *       Facility and Supervisor users can only download attachments for transactions belonging
+ *       to their own facility.
+ *     tags: [Placement Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: transactionId
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: path
+ *         name: index
+ *         required: true
+ *         schema: { type: integer }
+ *         description: Zero-based index into the transaction's proof_attachments array
+ *     responses:
+ *       200:
+ *         description: File download
+ *       403:
+ *         description: Access restricted to your own facility's transactions
+ *       404:
+ *         description: Attachment or transaction not found
+ */
+router.get('/transactions/:transactionId/attachments/:index', PlacementPaymentController.downloadTransactionAttachment);
+
+/**
+ * @swagger
  * /api/placement-payments/transactions/{transactionId}/reverse:
  *   put:
  *     summary: Reverse (soft-cancel) a payment transaction (Admin only)
